@@ -1,0 +1,7 @@
+"name","description","restaurantName","oldPrice","newPrice","quality","addToCart","stock","category.name","subcategory.name"
+"Almond Butter Protein Bar","good","mini sweet house",400,299,"Fresh",true,5,"Bars & Bites","Protein Bars"
+"Potato chips","good","Brother ",199,99,"Fresh",true,8,"Healthy Snacks","Roasted Snacks "
+"Energy bar","good ","Energy",100,49,"Fresh",true,100,"Bars & Bites","Energy Bars"
+"Fruit","fresh","Fruit Shop",200,99,"Fresh",true,9,"Natural Products","Nutrient Boosters (Spirulina, Moringa)"
+"Snacks","good","LK sweet house",100,99,"Fresh",true,99,"Healthy Snacks","Baked Snacks "
+"Drink","fresh drink","Drink shop",88,33,"Fresh",true,99,"Superfoods"," Almonds"
