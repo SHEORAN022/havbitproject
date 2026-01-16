@@ -10,6 +10,14 @@
 
 // // ✅ THIS LINE FIXES OVERWRITE ERROR
 // module.exports = mongoose.models.Vendor || mongoose.model("Vendor", VendorSchema);
+
+
+
+
+
+
+
+
 const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
@@ -24,3 +32,4 @@ const vendorSchema = new mongoose.Schema(
 
 module.exports =
   mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
+

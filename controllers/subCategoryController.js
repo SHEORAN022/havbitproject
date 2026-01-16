@@ -1,59 +1,66 @@
 
+
+
 // const SubCategory = require("../models/SubCategory");
 
-// // GET ALL SUB-CATEGORIES
+// /* GET ALL SUBCATEGORIES */
 // exports.getAllSubCategories = async (req, res) => {
 //   try {
-//     const data = await SubCategory.find().populate("parent", "_id name");
-//     res.json(data);
+//     const data = await SubCategory.find()
+//       .populate("parent", "_id name")
+//       .sort({ createdAt: -1 });
+
+//     res.json({ success: true, data });
 //   } catch (err) {
-//     res.status(500).json({ message: err.message });
+//     res.status(500).json({ success: false, message: err.message });
 //   }
 // };
 
-// // CREATE SUBCATEGORY
+// /* CREATE */
 // exports.createSubCategory = async (req, res) => {
 //   try {
 //     const { name, parent } = req.body;
-//     const image = req.file ? `/uploads/${req.file.filename}` : null;
+//     const image = req.file ? req.file.path : "";
 
-//     const newSub = await SubCategory.create({ name, parent, image });
-//     res.json(newSub);
+//     const sub = await SubCategory.create({ name, parent, image });
+//     res.status(201).json({ success: true, data: sub });
 //   } catch (err) {
-//     res.status(500).json({ message: err.message });
+//     res.status(500).json({ success: false, message: err.message });
 //   }
 // };
 
-// // UPDATE SUBCATEGORY
+// /* UPDATE */
 // exports.updateSubCategory = async (req, res) => {
 //   try {
 //     const { name, parent } = req.body;
-//     const updateData = { name, parent };
+//     const update = { name, parent };
 
-//     if (req.file) {
-//       updateData.image = `/uploads/${req.file.filename}`;
-//     }
+//     if (req.file) update.image = req.file.path;
 
-//     const updatedSub = await SubCategory.findByIdAndUpdate(
+//     const sub = await SubCategory.findByIdAndUpdate(
 //       req.params.id,
-//       updateData,
+//       update,
 //       { new: true }
 //     );
-//     res.json(updatedSub);
+
+//     res.json({ success: true, data: sub });
 //   } catch (err) {
-//     res.status(500).json({ message: err.message });
+//     res.status(500).json({ success: false, message: err.message });
 //   }
 // };
 
-// // DELETE SUBCATEGORY
+// /* DELETE */
 // exports.deleteSubCategory = async (req, res) => {
 //   try {
 //     await SubCategory.findByIdAndDelete(req.params.id);
-//     res.json({ message: "Deleted" });
+//     res.json({ success: true, message: "SubCategory deleted" });
 //   } catch (err) {
-//     res.status(500).json({ message: err.message });
+//     res.status(500).json({ success: false, message: err.message });
 //   }
 // };
+
+
+
 
 
 
@@ -62,24 +69,22 @@
 
 const SubCategory = require("../models/SubCategory");
 
-/* GET ALL SUBCATEGORIES */
 exports.getAllSubCategories = async (req, res) => {
   try {
     const data = await SubCategory.find()
-      .populate("parent", "_id name")
+      .populate("parent", "name")
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, data });
+    res.status(200).json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* CREATE */
 exports.createSubCategory = async (req, res) => {
   try {
     const { name, parent } = req.body;
-    const image = req.file ? req.file.path : "";
+    const image = req.file ? req.file.path.replace(/\\/g, "/") : "";
 
     const sub = await SubCategory.create({ name, parent, image });
     res.status(201).json({ success: true, data: sub });
@@ -88,31 +93,27 @@ exports.createSubCategory = async (req, res) => {
   }
 };
 
-/* UPDATE */
 exports.updateSubCategory = async (req, res) => {
   try {
     const { name, parent } = req.body;
     const update = { name, parent };
 
-    if (req.file) update.image = req.file.path;
+    if (req.file) update.image = req.file.path.replace(/\\/g, "/");
 
-    const sub = await SubCategory.findByIdAndUpdate(
-      req.params.id,
-      update,
-      { new: true }
-    );
+    const sub = await SubCategory.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+    });
 
-    res.json({ success: true, data: sub });
+    res.status(200).json({ success: true, data: sub });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* DELETE */
 exports.deleteSubCategory = async (req, res) => {
   try {
     await SubCategory.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "SubCategory deleted" });
+    res.status(200).json({ success: true, message: "SubCategory deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

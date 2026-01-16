@@ -1,10 +1,31 @@
+// const jwt = require('jsonwebtoken');
+// module.exports = function(req, res, next){
+//   const token = req.header('Authorization')?.split(' ')[1];
+//   if(!token) return res.status(401).json({ message: 'No token, authorization denied' });
+//   try {
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'replace_this_with_a_secure_secret');
+//     req.user = decoded;
+//     next();
+//   } catch (err) {
+//     res.status(401).json({ message: 'Token is not valid' });
+//   }
+// };
+   
+
+
+
+
+
+// middleware/auth.js
 const jwt = require('jsonwebtoken');
-module.exports = function(req, res, next){
+
+module.exports = function(req, res, next) {
   const token = req.header('Authorization')?.split(' ')[1];
-  if(!token) return res.status(401).json({ message: 'No token, authorization denied' });
+  if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'replace_this_with_a_secure_secret');
-    req.user = decoded;
+    req.user = decoded; // { id: "...", role: "vendor/admin" }
     next();
   } catch (err) {
     res.status(401).json({ message: 'Token is not valid' });

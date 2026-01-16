@@ -48,16 +48,16 @@
 
 
 
-const express = require("express");
-const router = express.Router();
-const vendorAuth = require("../middleware/vendorAuth");
-const { getCustomers, createCustomer, updateCustomer, deleteCustomer } = require("../controllers/vendorCustomerController");
+// const express = require("express");
+// const router = express.Router();
+// const vendorAuth = require("../middleware/vendorAuth");
+// const { getCustomers, createCustomer, updateCustomer, deleteCustomer } = require("../controllers/vendorCustomerController");
 
-router.use(vendorAuth);
+// router.use(vendorAuth);
 
-router.get("/", getCustomers);
-router.post("/", createCustomer);
-router.put("/:id", updateCustomer);
-router.delete("/:id", deleteCustomer);
+// router.get("/", getCustomers);
+// router.post("/", createCustomer);
+// router.put("/:id", updateCustomer);
+// router.delete("/:id", deleteCustomer);
 
-module.exports = router;
+// module.exports = router;

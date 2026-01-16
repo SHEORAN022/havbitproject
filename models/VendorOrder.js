@@ -223,6 +223,88 @@
 // });
 
 // module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+
+
+
+
+
+
+
+
+
+// const mongoose = require("mongoose");
+
+// const vendorOrderSchema = new mongoose.Schema(
+//   {
+//     vendor: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Vendor",
+//       required: true,
+//     },
+
+//     user: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Customer",
+//       required: true,
+//     },
+
+//     orderId: {
+//       type: String,
+//       unique: true,
+//     },
+
+//     products: [
+//       {
+//         product: {
+//           type: mongoose.Schema.Types.ObjectId,
+//           ref: "Product",
+//         },
+//         name: String,
+//         price: Number,
+//         quantity: Number,
+//       },
+//     ],
+
+//     totalAmount: {
+//       type: Number,
+//       required: true,
+//     },
+
+//     status: {
+//       type: String,
+//       enum: [
+//         "pending",
+//         "confirmed",
+//         "processing",
+//         "shipped",
+//         "delivered",
+//         "cancelled",
+//         "returned",
+//       ],
+//       default: "pending",
+//     },
+//   },
+//   { timestamps: true }
+// );
+
+// // 🔥 Auto Order ID
+// vendorOrderSchema.pre("save", function (next) {
+//   if (!this.orderId) {
+//     this.orderId = `ORD-${Date.now()}-${Math.floor(
+//       1000 + Math.random() * 9000
+//     )}`;
+//   }
+//   next();
+// });
+
+// module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+
+
+
+
+
+
+
 const mongoose = require("mongoose");
 
 const vendorOrderSchema = new mongoose.Schema(
@@ -244,48 +326,62 @@ const vendorOrderSchema = new mongoose.Schema(
       unique: true,
     },
 
-    products: [
+    orderItems: [
       {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-        },
-        name: String,
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        productName: String,
         price: Number,
-        quantity: Number,
+        qty: Number,
+        image: String,
       },
     ],
 
-    totalAmount: {
+    amount: {
       type: Number,
       required: true,
     },
 
-    status: {
+    paymentMethod: {
+      type: String,
+      enum: ["cod", "razorpay", "stripe", "wallet"],
+      default: "cod",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["Paid", "Pending", "Failed", "Refunded"],
+      default: "Pending",
+    },
+
+    orderStatus: {
       type: String,
       enum: [
-        "pending",
-        "confirmed",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-        "returned",
+        "Confirmed",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Cancelled",
+        "Pending",
       ],
-      default: "pending",
+      default: "Pending",
+    },
+
+    shippingAddress: {
+      name: String,
+      address: String,
+      city: String,
+      state: String,
+      pincode: String,
+      phone: String,
+    },
+
+    tracking: {
+      provider: String,
+      trackingId: String,
+      estimatedDelivery: Date,
     },
   },
   { timestamps: true }
 );
-
-// 🔥 Auto Order ID
-vendorOrderSchema.pre("save", function (next) {
-  if (!this.orderId) {
-    this.orderId = `ORD-${Date.now()}-${Math.floor(
-      1000 + Math.random() * 9000
-    )}`;
-  }
-  next();
-});
 
 module.exports = mongoose.model("VendorOrder", vendorOrderSchema);

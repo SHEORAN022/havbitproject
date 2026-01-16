@@ -118,25 +118,59 @@
 
 
 
+// const express = require("express");
+// const router = express.Router();
+// const {
+//   getOrders,
+//   getVendorOrders,
+//   updateOrder,
+//   deleteOrder,
+// } = require("../controllers/orderController");
+
+// // ADMIN ORDERS
+// router.get("/", getOrders);
+
+// // VENDOR ORDERS
+// router.get("/vendor/:vendorId", getVendorOrders);
+
+// // UPDATE ORDER
+// router.put("/:id", updateOrder);
+
+// // DELETE ORDER
+// router.delete("/:id", deleteOrder);
+
+// module.exports = router;
+
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
-const {
+
+const { 
   getOrders,
   getVendorOrders,
   updateOrder,
   deleteOrder,
+  getOrderHistory
 } = require("../controllers/orderController");
 
-// ADMIN ORDERS
+// ADMIN
 router.get("/", getOrders);
 
-// VENDOR ORDERS
+// ADMIN HISTORY
+router.get("/history/all", getOrderHistory);
+
+// VENDOR
 router.get("/vendor/:vendorId", getVendorOrders);
 
-// UPDATE ORDER
+// UPDATE
 router.put("/:id", updateOrder);
 
-// DELETE ORDER
+// DELETE
 router.delete("/:id", deleteOrder);
 
 module.exports = router;
