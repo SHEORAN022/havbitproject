@@ -65,36 +65,92 @@
 // module.exports = router;
 
 
+// const express = require("express");
+// const router = express.Router();
+// const vendorAuth = require("../middleware/vendorAuth");
+// const upload = require("../middleware/upload");
+// const P = require("../controllers/vendorProductController");
+
+// router.use(vendorAuth);
+
+// router.get("/products", P.getVendorProducts);
+
+// router.post(
+//   "/products",
+//   upload.fields([
+//     { name:"image", maxCount:1 },
+//     { name:"logo", maxCount:1 },
+//     { name:"gallery", maxCount:10 },
+//   ]),
+//   P.createVendorProduct
+// );
+
+// router.put(
+//   "/products/:id",
+//   upload.fields([
+//     { name:"image", maxCount:1 },
+//     { name:"logo", maxCount:1 },
+//     { name:"gallery", maxCount:10 },
+//   ]),
+//   P.updateVendorProduct
+// );
+
+// router.delete("/products/:id", P.deleteVendorProduct);
+
+// module.exports = router;
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
+
 const vendorAuth = require("../middleware/vendorAuth");
 const upload = require("../middleware/upload");
+const csvUpload = require("../middleware/csvUpload");
 const P = require("../controllers/vendorProductController");
 
 router.use(vendorAuth);
 
-router.get("/products", P.getVendorProducts);
+/* ===== CRUD ===== */
+router.get("/", P.getVendorProducts);
 
 router.post(
-  "/products",
+  "/",
   upload.fields([
-    { name:"image", maxCount:1 },
-    { name:"logo", maxCount:1 },
-    { name:"gallery", maxCount:10 },
+    { name: "image", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+    { name: "gallery", maxCount: 10 },
   ]),
   P.createVendorProduct
 );
 
 router.put(
-  "/products/:id",
+  "/:id",
   upload.fields([
-    { name:"image", maxCount:1 },
-    { name:"logo", maxCount:1 },
-    { name:"gallery", maxCount:10 },
+    { name: "image", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
+    { name: "gallery", maxCount: 10 },
   ]),
   P.updateVendorProduct
 );
 
-router.delete("/products/:id", P.deleteVendorProduct);
+router.delete("/:id", P.deleteVendorProduct);
+
+/* ===== CSV ===== */
+router.post(
+  "/import-csv",
+  csvUpload.single("file"), // 🔥 FIXED
+  P.importCSV
+);
+
+router.get("/export-csv", P.exportCSV);
+
+/* ===== BULK ===== */
+router.put("/bulk-update", P.bulkUpdate);
+router.delete("/bulk-delete", P.bulkDelete);
 
 module.exports = router;
+
