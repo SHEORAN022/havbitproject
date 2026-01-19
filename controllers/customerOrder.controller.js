@@ -708,153 +708,265 @@
 
 
 
+// const CustomerOrder = require("../models/CustomerOrder");
+
+// // ===== CREATE ORDER =====
+// const createOrder = async (req, res) => {
+//   try {
+//     const { customer, orderItems, amount, paymentMethod, shippingAddress } = req.body;
+
+//     if (!customer) return res.status(400).json({ success: false, message: "Customer ID missing" });
+//     if (!orderItems || !orderItems.length) return res.status(400).json({ success: false, message: "No items in order" });
+//     if (!amount) return res.status(400).json({ success: false, message: "Order amount missing" });
+//     if (!shippingAddress) return res.status(400).json({ success: false, message: "Shipping address missing" });
+
+//     const order = await CustomerOrder.create({
+//       customer,
+//       orderItems,
+//       amount,
+//       paymentMethod,
+//       shippingAddress,
+
+//       // Important Fix: Always pending until Razorpay success
+//       paymentStatus: "Pending",
+//       orderStatus: "Pending"
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Order created successfully",
+//       orderId: order._id,
+//       order
+//     });
+
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// };
+
+// // ===== VERIFY PAYMENT (CALLED BY Razorpay) =====
+// // Razorpay verify will update order
+// const verifyOrderPayment = async (req, res) => {
+//   try {
+//     const { backendOrderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+//     if (!backendOrderId) return res.status(400).json({ success: false, message: "Backend Order ID missing" });
+
+//     const order = await CustomerOrder.findById(backendOrderId);
+//     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+//     // Update status after successful payment
+//     order.paymentStatus = "Completed";
+//     order.orderStatus = "Confirmed";
+//     order.razorpayOrderId = razorpay_order_id;
+//     order.razorpayPaymentId = razorpay_payment_id;
+//     order.razorpaySignature = razorpay_signature;
+//     await order.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Order payment verified successfully",
+//       order
+//     });
+
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message
+//     });
+//   }
+// };
+
+// // ===== GET CUSTOMER ORDERS =====
+// const getCustomerOrders = async (req, res) => {
+//   try {
+//     const { customerId } = req.params;
+//     const orders = await CustomerOrder.find({ customer: customerId }).sort({ createdAt: -1 });
+//     return res.status(200).json({ success: true, orders });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: "Server Error" });
+//   }
+// };
+
+// // ===== GET SINGLE ORDER =====
+// const getOrderById = async (req, res) => {
+//   try {
+//     const order = await CustomerOrder.findById(req.params.id);
+//     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+//     return res.status(200).json({ success: true, order });
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: "Server Error" });
+//   }
+// };
+
+// // ===== CANCEL ORDER =====
+// const cancelOrder = async (req, res) => {
+//   try {
+//     const order = await CustomerOrder.findById(req.params.id);
+//     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+//     if (["Shipped", "Delivered"].includes(order.orderStatus)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order cannot be cancelled after shipping"
+//       });
+//     }
+
+//     order.orderStatus = "Cancelled";
+//     order.paymentStatus = order.paymentStatus === "Completed" ? "Refund Initiated" : order.paymentStatus;
+//     order.cancellationReason = req.body.cancellationReason || "Customer Cancelled";
+
+//     await order.save();
+//     return res.status(200).json({ success: true, message: "Order cancelled successfully", order });
+
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// // ===== VENDOR ORDERS =====
+// const getVendorOrders = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+
+//     const orders = await CustomerOrder.find({ "orderItems.vendorId": vendorId }).sort({ createdAt: -1 });
+
+//     const vendorItems = orders.map(order => {
+//       const items = order.orderItems.filter(i => i.vendorId.toString() === vendorId);
+//       return {
+//         ...order._doc,
+//         orderItems: items,
+//         vendorAmount: items.reduce((a, i) => a + (i.price * i.qty), 0)
+//       };
+//     });
+
+//     return res.status(200).json({ success: true, orders: vendorItems });
+
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: "Server Error" });
+//   }
+// };
+
+// module.exports = {
+//   createOrder,
+//   verifyOrderPayment,
+//   getCustomerOrders,
+//   getOrderById,
+//   cancelOrder,
+//   getVendorOrders
+// };
+
+
+
+
+
+
+
+
+
+
+
+
 const CustomerOrder = require("../models/CustomerOrder");
 
-// ===== CREATE ORDER =====
+/* ================= CREATE ORDER ================= */
 const createOrder = async (req, res) => {
   try {
-    const { customer, orderItems, amount, paymentMethod, shippingAddress } = req.body;
-
-    if (!customer) return res.status(400).json({ success: false, message: "Customer ID missing" });
-    if (!orderItems || !orderItems.length) return res.status(400).json({ success: false, message: "No items in order" });
-    if (!amount) return res.status(400).json({ success: false, message: "Order amount missing" });
-    if (!shippingAddress) return res.status(400).json({ success: false, message: "Shipping address missing" });
-
     const order = await CustomerOrder.create({
-      customer,
-      orderItems,
-      amount,
-      paymentMethod,
-      shippingAddress,
-
-      // Important Fix: Always pending until Razorpay success
+      customer: req.body.customer,
+      orderItems: req.body.orderItems,
+      amount: req.body.amount,
+      paymentMethod: req.body.paymentMethod || "cod",
+      shippingAddress: req.body.shippingAddress,
       paymentStatus: "Pending",
-      orderStatus: "Pending"
+      orderStatus: "Pending",
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Order created successfully",
       orderId: order._id,
-      order
+      order,
     });
-
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ===== VERIFY PAYMENT (CALLED BY Razorpay) =====
-// Razorpay verify will update order
-const verifyOrderPayment = async (req, res) => {
-  try {
-    const { backendOrderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
-    if (!backendOrderId) return res.status(400).json({ success: false, message: "Backend Order ID missing" });
-
-    const order = await CustomerOrder.findById(backendOrderId);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
-
-    // Update status after successful payment
-    order.paymentStatus = "Completed";
-    order.orderStatus = "Confirmed";
-    order.razorpayOrderId = razorpay_order_id;
-    order.razorpayPaymentId = razorpay_payment_id;
-    order.razorpaySignature = razorpay_signature;
-    await order.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Order payment verified successfully",
-      order
-    });
-
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// ===== GET CUSTOMER ORDERS =====
+/* ================= CUSTOMER ORDERS ================= */
 const getCustomerOrders = async (req, res) => {
   try {
-    const { customerId } = req.params;
-    const orders = await CustomerOrder.find({ customer: customerId }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, orders });
+    const orders = await CustomerOrder.find({
+      customer: req.params.customerId,
+    }).sort({ createdAt: -1 });
+
+    res.json({ success: true, orders });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ===== GET SINGLE ORDER =====
+/* ================= SINGLE ORDER ================= */
 const getOrderById = async (req, res) => {
   try {
     const order = await CustomerOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
-    return res.status(200).json({ success: true, order });
+    if (!order)
+      return res.status(404).json({ success: false, message: "Order not found" });
+
+    res.json({ success: true, order });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ===== CANCEL ORDER =====
+/* ================= CANCEL ORDER ================= */
 const cancelOrder = async (req, res) => {
   try {
     const order = await CustomerOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
-
-    if (["Shipped", "Delivered"].includes(order.orderStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: "Order cannot be cancelled after shipping"
-      });
-    }
+    if (!order)
+      return res.status(404).json({ success: false, message: "Order not found" });
 
     order.orderStatus = "Cancelled";
-    order.paymentStatus = order.paymentStatus === "Completed" ? "Refund Initiated" : order.paymentStatus;
-    order.cancellationReason = req.body.cancellationReason || "Customer Cancelled";
-
     await order.save();
-    return res.status(200).json({ success: true, message: "Order cancelled successfully", order });
 
+    res.json({ success: true, message: "Order cancelled", order });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ===== VENDOR ORDERS =====
+/* ================= VENDOR ORDERS ================= */
 const getVendorOrders = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const orders = await CustomerOrder.find({
+      "orderItems.vendorId": req.params.vendorId,
+    }).sort({ createdAt: -1 });
 
-    const orders = await CustomerOrder.find({ "orderItems.vendorId": vendorId }).sort({ createdAt: -1 });
-
-    const vendorItems = orders.map(order => {
-      const items = order.orderItems.filter(i => i.vendorId.toString() === vendorId);
-      return {
-        ...order._doc,
-        orderItems: items,
-        vendorAmount: items.reduce((a, i) => a + (i.price * i.qty), 0)
-      };
-    });
-
-    return res.status(200).json({ success: true, orders: vendorItems });
-
+    res.json({ success: true, orders });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* ================= ADMIN – ALL ORDERS ================= */
+const getAllOrdersForAdmin = async (req, res) => {
+  try {
+    const orders = await CustomerOrder.find().sort({ createdAt: -1 });
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 module.exports = {
   createOrder,
-  verifyOrderPayment,
   getCustomerOrders,
   getOrderById,
   cancelOrder,
-  getVendorOrders
+  getVendorOrders,
+  getAllOrdersForAdmin,
 };
+
