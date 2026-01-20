@@ -870,283 +870,283 @@
 
 
 
-const CustomerOrder = require("../models/CustomerOrder");
-
-/* ================= CREATE ORDER ================= */
-const createOrder = async (req, res) => {
-  try {
-    const order = await CustomerOrder.create({
-      customer: req.body.customer,
-      orderItems: req.body.orderItems,
-      amount: req.body.amount,
-      paymentMethod: req.body.paymentMethod || "cod",
-      shippingAddress: req.body.shippingAddress,
-      paymentStatus: "Pending",
-      orderStatus: "Pending",
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      orderId: order._id,
-      order,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= CUSTOMER ORDERS ================= */
-const getCustomerOrders = async (req, res) => {
-  try {
-    const orders = await CustomerOrder.find({
-      customer: req.params.customerId,
-    }).sort({ createdAt: -1 });
-
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= SINGLE ORDER ================= */
-const getOrderById = async (req, res) => {
-  try {
-    const order = await CustomerOrder.findById(req.params.id);
-    if (!order)
-      return res.status(404).json({ success: false, message: "Order not found" });
-
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= CANCEL ORDER ================= */
-const cancelOrder = async (req, res) => {
-  try {
-    const order = await CustomerOrder.findById(req.params.id);
-    if (!order)
-      return res.status(404).json({ success: false, message: "Order not found" });
-
-    order.orderStatus = "Cancelled";
-    await order.save();
-
-    res.json({ success: true, message: "Order cancelled", order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= VENDOR ORDERS ================= */
-const getVendorOrders = async (req, res) => {
-  try {
-    const orders = await CustomerOrder.find({
-      "orderItems.vendorId": req.params.vendorId,
-    }).sort({ createdAt: -1 });
-
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= ADMIN – ALL ORDERS ================= */
-const getAllOrdersForAdmin = async (req, res) => {
-  try {
-    const orders = await CustomerOrder.find().sort({ createdAt: -1 });
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-module.exports = {
-  createOrder,
-  getCustomerOrders,
-  getOrderById,
-  cancelOrder,
-  getVendorOrders,
-  getAllOrdersForAdmin,
-};
-
-
-
-
-
-
-
-
-
 // const CustomerOrder = require("../models/CustomerOrder");
-// const razorpay = require("../config/razorpay");
-// const crypto = require("crypto");
 
-// /* =========================================================
-//    CREATE ORDER + CREATE RAZORPAY ORDER
-// ========================================================= */
-// exports.createOrder = async (req, res) => {
+// /* ================= CREATE ORDER ================= */
+// const createOrder = async (req, res) => {
 //   try {
-//     const {
-//       orderItems,
-//       amount,
-//       shippingCharge = 0,
-//       discount = 0,
-//       totalPayable,
-//       shippingAddress,
-//     } = req.body;
-
-//     /* ---------- BASIC VALIDATIONS ---------- */
-//     if (!orderItems || orderItems.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Order items are required",
-//       });
-//     }
-
-//     if (!totalPayable || totalPayable <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid payable amount",
-//       });
-//     }
-
-//     if (!shippingAddress || !shippingAddress.address) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Shipping address is required",
-//       });
-//     }
-
-//     /* ---------- CREATE ORDER IN DB ---------- */
 //     const order = await CustomerOrder.create({
-//       customer: req.user.id, // 🔐 token se user id
-//       orderItems,
-//       amount,
-//       shippingCharge,
-//       discount,
-//       totalPayable,
-//       shippingAddress,
-//       paymentMethod: "razorpay",
+//       customer: req.body.customer,
+//       orderItems: req.body.orderItems,
+//       amount: req.body.amount,
+//       paymentMethod: req.body.paymentMethod || "cod",
+//       shippingAddress: req.body.shippingAddress,
 //       paymentStatus: "Pending",
 //       orderStatus: "Pending",
 //     });
 
-//     /* ---------- CREATE RAZORPAY ORDER ---------- */
-//     const razorpayOrder = await razorpay.orders.create({
-//       amount: Math.round(totalPayable * 100), // paisa
-//       currency: "INR",
-//       receipt: `receipt_${order._id}`,
-//       notes: {
-//         orderId: order._id.toString(),
-//         customerId: req.user.id,
-//       },
-//     });
-
-//     /* ---------- SAVE RAZORPAY ORDER ID ---------- */
-//     order.razorpayOrderId = razorpayOrder.id;
-//     await order.save();
-
-//     /* ---------- RESPONSE ---------- */
-//     return res.status(201).json({
+//     res.status(201).json({
 //       success: true,
 //       message: "Order created successfully",
-//       data: {
-//         orderId: order._id,
-//         razorpayOrderId: razorpayOrder.id,
-//         razorpayKey: process.env.RAZORPAY_KEY_ID,
-//         amount: totalPayable,
-//         currency: "INR",
-//       },
-//     });
-//   } catch (error) {
-//     console.error("CREATE ORDER ERROR:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to create order",
-//     });
-//   }
-// };
-
-// /* =========================================================
-//    VERIFY RAZORPAY PAYMENT
-// ========================================================= */
-// exports.verifyPayment = async (req, res) => {
-//   try {
-//     const {
-//       orderId,
-//       razorpay_order_id,
-//       razorpay_payment_id,
-//       razorpay_signature,
-//     } = req.body;
-
-//     /* ---------- VALIDATION ---------- */
-//     if (
-//       !orderId ||
-//       !razorpay_order_id ||
-//       !razorpay_payment_id ||
-//       !razorpay_signature
-//     ) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Payment details missing",
-//       });
-//     }
-
-//     /* ---------- FIND ORDER ---------- */
-//     const order = await CustomerOrder.findById(orderId);
-
-//     if (!order) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Order not found",
-//       });
-//     }
-
-//     if (order.paymentStatus === "Success") {
-//       return res.json({
-//         success: true,
-//         message: "Payment already verified",
-//         order,
-//       });
-//     }
-
-//     /* ---------- SIGNATURE VERIFICATION ---------- */
-//     const generatedSignature = crypto
-//       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-//       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-//       .digest("hex");
-
-//     if (generatedSignature !== razorpay_signature) {
-//       order.paymentStatus = "Failed";
-//       await order.save();
-
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid payment signature",
-//       });
-//     }
-
-//     /* ---------- UPDATE ORDER ---------- */
-//     order.paymentStatus = "Success";
-//     order.orderStatus = "Confirmed";
-//     order.razorpayPaymentId = razorpay_payment_id;
-//     order.razorpaySignature = razorpay_signature;
-
-//     await order.save();
-
-//     /* ---------- RESPONSE ---------- */
-//     return res.json({
-//       success: true,
-//       message: "Payment verified successfully",
+//       orderId: order._id,
 //       order,
 //     });
 //   } catch (error) {
-//     console.error("VERIFY PAYMENT ERROR:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Payment verification failed",
-//     });
+//     res.status(500).json({ success: false, message: error.message });
 //   }
 // };
+
+// /* ================= CUSTOMER ORDERS ================= */
+// const getCustomerOrders = async (req, res) => {
+//   try {
+//     const orders = await CustomerOrder.find({
+//       customer: req.params.customerId,
+//     }).sort({ createdAt: -1 });
+
+//     res.json({ success: true, orders });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// /* ================= SINGLE ORDER ================= */
+// const getOrderById = async (req, res) => {
+//   try {
+//     const order = await CustomerOrder.findById(req.params.id);
+//     if (!order)
+//       return res.status(404).json({ success: false, message: "Order not found" });
+
+//     res.json({ success: true, order });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// /* ================= CANCEL ORDER ================= */
+// const cancelOrder = async (req, res) => {
+//   try {
+//     const order = await CustomerOrder.findById(req.params.id);
+//     if (!order)
+//       return res.status(404).json({ success: false, message: "Order not found" });
+
+//     order.orderStatus = "Cancelled";
+//     await order.save();
+
+//     res.json({ success: true, message: "Order cancelled", order });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// /* ================= VENDOR ORDERS ================= */
+// const getVendorOrders = async (req, res) => {
+//   try {
+//     const orders = await CustomerOrder.find({
+//       "orderItems.vendorId": req.params.vendorId,
+//     }).sort({ createdAt: -1 });
+
+//     res.json({ success: true, orders });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// /* ================= ADMIN – ALL ORDERS ================= */
+// const getAllOrdersForAdmin = async (req, res) => {
+//   try {
+//     const orders = await CustomerOrder.find().sort({ createdAt: -1 });
+//     res.json({ success: true, orders });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// module.exports = {
+//   createOrder,
+//   getCustomerOrders,
+//   getOrderById,
+//   cancelOrder,
+//   getVendorOrders,
+//   getAllOrdersForAdmin,
+// };
+
+
+
+
+
+
+
+
+
+const CustomerOrder = require("../models/CustomerOrder");
+const razorpay = require("../config/razorpay");
+const crypto = require("crypto");
+
+/* =========================================================
+   CREATE ORDER + CREATE RAZORPAY ORDER
+========================================================= */
+exports.createOrder = async (req, res) => {
+  try {
+    const {
+      orderItems,
+      amount,
+      shippingCharge = 0,
+      discount = 0,
+      totalPayable,
+      shippingAddress,
+    } = req.body;
+
+    /* ---------- BASIC VALIDATIONS ---------- */
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Order items are required",
+      });
+    }
+
+    if (!totalPayable || totalPayable <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payable amount",
+      });
+    }
+
+    if (!shippingAddress || !shippingAddress.address) {
+      return res.status(400).json({
+        success: false,
+        message: "Shipping address is required",
+      });
+    }
+
+    /* ---------- CREATE ORDER IN DB ---------- */
+    const order = await CustomerOrder.create({
+      customer: req.user.id, // 🔐 token se user id
+      orderItems,
+      amount,
+      shippingCharge,
+      discount,
+      totalPayable,
+      shippingAddress,
+      paymentMethod: "razorpay",
+      paymentStatus: "Pending",
+      orderStatus: "Pending",
+    });
+
+    /* ---------- CREATE RAZORPAY ORDER ---------- */
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(totalPayable * 100), // paisa
+      currency: "INR",
+      receipt: `receipt_${order._id}`,
+      notes: {
+        orderId: order._id.toString(),
+        customerId: req.user.id,
+      },
+    });
+
+    /* ---------- SAVE RAZORPAY ORDER ID ---------- */
+    order.razorpayOrderId = razorpayOrder.id;
+    await order.save();
+
+    /* ---------- RESPONSE ---------- */
+    return res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      data: {
+        orderId: order._id,
+        razorpayOrderId: razorpayOrder.id,
+        razorpayKey: process.env.RAZORPAY_KEY_ID,
+        amount: totalPayable,
+        currency: "INR",
+      },
+    });
+  } catch (error) {
+    console.error("CREATE ORDER ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create order",
+    });
+  }
+};
+
+/* =========================================================
+   VERIFY RAZORPAY PAYMENT
+========================================================= */
+exports.verifyPayment = async (req, res) => {
+  try {
+    const {
+      orderId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
+
+    /* ---------- VALIDATION ---------- */
+    if (
+      !orderId ||
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment details missing",
+      });
+    }
+
+    /* ---------- FIND ORDER ---------- */
+    const order = await CustomerOrder.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (order.paymentStatus === "Success") {
+      return res.json({
+        success: true,
+        message: "Payment already verified",
+        order,
+      });
+    }
+
+    /* ---------- SIGNATURE VERIFICATION ---------- */
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      order.paymentStatus = "Failed";
+      await order.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment signature",
+      });
+    }
+
+    /* ---------- UPDATE ORDER ---------- */
+    order.paymentStatus = "Success";
+    order.orderStatus = "Confirmed";
+    order.razorpayPaymentId = razorpay_payment_id;
+    order.razorpaySignature = razorpay_signature;
+
+    await order.save();
+
+    /* ---------- RESPONSE ---------- */
+    return res.json({
+      success: true,
+      message: "Payment verified successfully",
+      order,
+    });
+  } catch (error) {
+    console.error("VERIFY PAYMENT ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Payment verification failed",
+    });
+  }
+};
 
