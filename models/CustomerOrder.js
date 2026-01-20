@@ -761,50 +761,128 @@
 
 
 
+// const mongoose = require("mongoose");
+
+// const CustomerOrderSchema = new mongoose.Schema(
+//   {
+//     customer: {
+//       type: String,
+//       required: true
+//     },
+
+//     orderItems: [
+//       {
+//         productId: String,
+//         productName: String,
+//         qty: Number,
+//         price: Number,
+//         vendorId: String,
+//         image: String
+//       }
+//     ],
+
+//     amount: {
+//       type: Number,
+//       required: true
+//     },
+
+//     orderStatus: {
+//       type: String,
+//       enum: ["Pending", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"],
+//       default: "Pending"
+//     },
+
+//     paymentMethod: {
+//       type: String,
+//       enum: ["cod", "razorpay"],
+//       default: "cod"
+//     },
+
+//     paymentStatus: {
+//       type: String,
+//       enum: ["Pending", "Completed", "Failed"],
+//       default: "Pending"
+//     },
+
+//     // Razorpay fields
+//     razorpayOrderId: String,
+//     razorpayPaymentId: String,
+//     razorpaySignature: String,
+
+//     shippingAddress: {
+//       name: String,
+//       phone: String,
+//       email: String,
+//       address: String,
+//       city: String,
+//       state: String,
+//       pincode: String
+//     }
+//   },
+//   { timestamps: true }
+// );
+
+// module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
+
+
+
+
+
+
+
+
+
+
+
 const mongoose = require("mongoose");
 
+/* ---------- ORDER ITEM ---------- */
+const OrderItemSchema = new mongoose.Schema(
+  {
+    productId: mongoose.Schema.Types.ObjectId,
+    productName: String,
+    qty: Number,
+    price: Number,
+    vendorId: mongoose.Schema.Types.ObjectId,
+    image: String,
+  },
+  { _id: false }
+);
+
+/* ---------- MAIN ORDER ---------- */
 const CustomerOrderSchema = new mongoose.Schema(
   {
     customer: {
-      type: String,
-      required: true
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
     },
 
-    orderItems: [
-      {
-        productId: String,
-        productName: String,
-        qty: Number,
-        price: Number,
-        vendorId: String,
-        image: String
-      }
-    ],
+    orderItems: [OrderItemSchema],
 
-    amount: {
-      type: Number,
-      required: true
-    },
+    amount: Number,
+    shippingCharge: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    totalPayable: Number,
 
     orderStatus: {
       type: String,
-      enum: ["Pending", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending"
+      enum: ["Pending", "Confirmed", "Cancelled"],
+      default: "Pending",
     },
 
     paymentMethod: {
       type: String,
       enum: ["cod", "razorpay"],
-      default: "cod"
+      default: "razorpay",
     },
 
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Completed", "Failed"],
-      default: "Pending"
+      enum: ["Pending", "Success", "Failed"],
+      default: "Pending",
     },
 
-    // Razorpay fields
+    // 🔥 Razorpay fields
     razorpayOrderId: String,
     razorpayPaymentId: String,
     razorpaySignature: String,
@@ -812,16 +890,14 @@ const CustomerOrderSchema = new mongoose.Schema(
     shippingAddress: {
       name: String,
       phone: String,
-      email: String,
       address: String,
       city: String,
       state: String,
-      pincode: String
-    }
+      pincode: String,
+    },
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
 
-// module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
