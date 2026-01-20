@@ -276,7 +276,7 @@ app.use("/api/vendor/categories", require("./routes/vendorCategoryRoutes"));
 app.use("/api/vendor/products", require("./routes/vendorProductRoutes"));
 app.use("/api/vendor/subcategories", require("./routes/vendorSubCategoryRoutes"));
 app.use("/api/vendor/orders", require("./routes/vendorOrderRoutes"));
-app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
+// app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
 
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
