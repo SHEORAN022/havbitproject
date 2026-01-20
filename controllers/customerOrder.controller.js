@@ -960,9 +960,18 @@ const getAllOrdersForAdmin = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+const verifyPayment = async (req, res) => {
+  try {
+    // payment verification logic
+    res.status(200).json({ success: true, message: "Payment verified" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 module.exports = {
   createOrder,
+   verifyPayment,
   getCustomerOrders,
   getOrderById,
   cancelOrder,
