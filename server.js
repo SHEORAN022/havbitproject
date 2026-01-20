@@ -267,7 +267,7 @@ app.use("/api/public", require("./routes/publicProducts"));
 app.use("/api/customer", require("./routes/customerOrder.routes"));
 
 /* PAYMENTS */
-app.use("/api/payment", require("./routes/transaction.routes"));
+// app.use("/api/payment", require("./routes/transaction.routes"));
 
 /* VENDOR */
 app.use("/api/vendor", require("./routes/vendorAuth"));
