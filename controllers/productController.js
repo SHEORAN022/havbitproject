@@ -1,13 +1,94 @@
 
+// const Product = require("../models/Product");
+
+// /* ================= GET ALL (WEBSITE) ================= */
+// exports.getProducts = async (req, res) => {
+//   try {
+//     const products = await Product.find()
+//       .populate("category", "name")
+//       .populate("subcategory", "name")
+//       .populate("vendor", "_id storeName email") // 🔥 vendor id + store
+//       .sort({ createdAt: -1 });
+
+//     res.json({ success: true, data: products });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// /* ================= GET ONE ================= */
+// exports.getProductById = async (req, res) => {
+//   try {
+//     const product = await Product.findById(req.params.id)
+//       .populate("category", "name")
+//       .populate("subcategory", "name")
+//       .populate("vendor", "_id storeName email");
+
+//     if (!product)
+//       return res.status(404).json({ success: false, message: "Not found" });
+
+//     res.json({ success: true, data: product });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// /* ================= CREATE (ADMIN) ================= */
+// exports.addProduct = async (req, res) => {
+//   try {
+//     const data = req.body;
+
+//     if (req.files?.image) data.image = req.files.image[0].path;
+//     if (req.files?.logo) data.logo = req.files.logo[0].path;
+
+//     // optional vendor support
+//     if (req.body.vendor) data.vendor = req.body.vendor;
+
+//     const product = await Product.create(data);
+//     res.status(201).json({ success: true, data: product });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// /* ================= UPDATE ================= */
+// exports.updateProduct = async (req, res) => {
+//   try {
+//     const data = req.body;
+
+//     if (req.files?.image) data.image = req.files.image[0].path;
+//     if (req.files?.logo) data.logo = req.files.logo[0].path;
+
+//     const product = await Product.findByIdAndUpdate(
+//       req.params.id,
+//       data,
+//       { new: true }
+//     );
+
+//     res.json({ success: true, data: product });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
+// /* ================= DELETE ================= */
+// exports.deleteProduct = async (req, res) => {
+//   await Product.findByIdAndDelete(req.params.id);
+//   res.json({ success: true, message: "Product deleted" });
+// };
+
+
+
+
 const Product = require("../models/Product");
 
-/* ================= GET ALL (WEBSITE) ================= */
+/* ================= GET ALL PRODUCTS ================= */
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find()
       .populate("category", "name")
       .populate("subcategory", "name")
-      .populate("vendor", "_id storeName email") // 🔥 vendor id + store
+      .populate("vendor", "_id storeName email")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: products });
@@ -16,7 +97,7 @@ exports.getProducts = async (req, res) => {
   }
 };
 
-/* ================= GET ONE ================= */
+/* ================= GET SINGLE PRODUCT ================= */
 exports.getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -25,7 +106,7 @@ exports.getProductById = async (req, res) => {
       .populate("vendor", "_id storeName email");
 
     if (!product)
-      return res.status(404).json({ success: false, message: "Not found" });
+      return res.status(404).json({ success: false, message: "Product not found" });
 
     res.json({ success: true, data: product });
   } catch (err) {
@@ -33,31 +114,119 @@ exports.getProductById = async (req, res) => {
   }
 };
 
-/* ================= CREATE (ADMIN) ================= */
+/* ================= CREATE PRODUCT (ADMIN) ================= */
 exports.addProduct = async (req, res) => {
   try {
-    const data = req.body;
+    let data = req.body;
+    
+    /* 🔥 CRITICAL FIELD MAPPING FROM FRONTEND */
+    // Map frontend field names to backend field names
+    const fieldMappings = {
+      // Basic Info
+      'fssaiLicense': 'brandName', // FSSAI license goes to brandName
+      'restaurantName': 'restaurantName', // Shop name
+      'name': 'name', // Product name
+      'description': 'description',
+      
+      // Pricing & Stock
+      'mrp': 'oldPrice', // MRP becomes oldPrice
+      'price': 'newPrice', // price becomes newPrice
+      'stock': 'stock',
+      'quality': 'quality',
+      'vegNonVeg': 'dietPreference', // vegNonVeg becomes dietPreference
+      
+      // Product Details
+      'productTypes': 'productTypes',
+      'flavors': 'flavors',
+      'size': 'size',
+      'materialTypes': 'materialTypes',
+      'ingredients': 'ingredients',
+      // REMOVED: 'religion': 'religion',
+      
+      // Dietary & Nutrition
+      'dietaryPreferences': 'dietaryPreferences',
+      'allergenInfo': 'allergenInfo',
+      'nutrition': 'nutrition',
+      'cuisine': 'cuisine',
+      
+      // Location
+      'state': 'State', // state becomes State (capital S)
+      'location': 'location',
+    };
 
-    if (req.files?.image) data.image = req.files.image[0].path;
-    if (req.files?.logo) data.logo = req.files.logo[0].path;
+    // Apply field mappings
+    const mappedData = {};
+    Object.keys(fieldMappings).forEach(frontendField => {
+      const backendField = fieldMappings[frontendField];
+      if (data[frontendField] !== undefined && data[frontendField] !== null && data[frontendField] !== '') {
+        mappedData[backendField] = data[frontendField];
+      }
+    });
 
-    // optional vendor support
-    if (req.body.vendor) data.vendor = req.body.vendor;
+    // Category fields
+    if (data.category) mappedData.category = data.category;
+    if (data.subcategory) mappedData.subcategory = data.subcategory;
 
-    const product = await Product.create(data);
-    res.status(201).json({ success: true, data: product });
+    // Vendor/Admin logic
+    if (req.user && req.user.role === 'vendor') {
+      mappedData.vendor = req.user._id;
+      if (!mappedData.restaurantName && req.user.storeName) {
+        mappedData.restaurantName = req.user.storeName;
+      }
+    } else {
+      mappedData.restaurantName = mappedData.restaurantName || "Havbit";
+      mappedData.vendor = null;
+    }
+
+    /* FILES HANDLING */
+    if (req.files?.image) {
+      mappedData.image = req.files.image[0].path;
+    }
+    
+    if (req.files?.gallery) {
+      mappedData.gallery = req.files.gallery.map((file) => file.path);
+    }
+    
+    if (req.files?.logo) {
+      mappedData.logo = req.files.logo[0].path;
+    }
+
+    console.log("Creating product with data:", mappedData);
+
+    const product = await Product.create(mappedData);
+
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      data: product,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("Product creation error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error creating product: " + err.message,
+      error: err.message 
+    });
   }
 };
 
-/* ================= UPDATE ================= */
+/* ================= UPDATE PRODUCT ================= */
 exports.updateProduct = async (req, res) => {
   try {
     const data = req.body;
 
+    // Map fields for update
+    if (data.mrp) data.oldPrice = data.mrp;
+    if (data.price) data.newPrice = data.price;
+    if (data.fssaiLicense) data.brandName = data.fssaiLicense;
+    if (data.state) data.State = data.state;
+
+    // Handle files
     if (req.files?.image) data.image = req.files.image[0].path;
     if (req.files?.logo) data.logo = req.files.logo[0].path;
+    if (req.files?.gallery) {
+      data.gallery = req.files.gallery.map((f) => f.path);
+    }
 
     const product = await Product.findByIdAndUpdate(
       req.params.id,
@@ -65,14 +234,167 @@ exports.updateProduct = async (req, res) => {
       { new: true }
     );
 
-    res.json({ success: true, data: product });
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Product updated successfully",
+      data: product 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* ================= DELETE ================= */
+/* ================= DELETE PRODUCT ================= */
 exports.deleteProduct = async (req, res) => {
-  await Product.findByIdAndDelete(req.params.id);
-  res.json({ success: true, message: "Product deleted" });
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    
+    res.json({ success: true, message: "Product deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ================= BULK UPDATE ================= */
+exports.bulkUpdateProducts = async (req, res) => {
+  try {
+    const { ids, data } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "Product IDs are required" });
+    }
+
+    // Map fields for bulk update
+    const updateData = {};
+    if (data.name) updateData.name = data.name;
+    if (data.newPrice) updateData.newPrice = data.newPrice;
+    if (data.oldPrice) updateData.oldPrice = data.oldPrice;
+    if (data.stock) updateData.stock = data.stock;
+    if (data.quality) updateData.quality = data.quality;
+    if (data.State) updateData.State = data.State;
+    if (data.dietPreference) updateData.dietPreference = data.dietPreference;
+    if (data.brandName) updateData.brandName = data.brandName;
+    if (data.description) updateData.description = data.description;
+    if (data.productTypes) updateData.productTypes = data.productTypes;
+    if (data.flavors) updateData.flavors = data.flavors;
+    if (data.size) updateData.size = data.size;
+    if (data.cuisine) updateData.cuisine = data.cuisine;
+
+    const result = await Product.updateMany(
+      { _id: { $in: ids } },
+      { $set: updateData }
+    );
+
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} products updated successfully`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ================= BULK DELETE ================= */
+exports.bulkDeleteProducts = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: "Product IDs are required" });
+    }
+
+    const result = await Product.deleteMany({ _id: { $in: ids } });
+
+    res.json({
+      success: true,
+      message: `${result.deletedCount} products deleted successfully`,
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ================= CSV IMPORT ================= */
+exports.importCSV = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "CSV file is required" });
+    }
+
+    // You'll need to implement CSV parsing logic here
+    // Using csv-parser or similar library
+    
+    res.json({ success: true, message: "CSV import functionality to be implemented" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ================= CSV EXPORT ================= */
+exports.exportCSV = async (req, res) => {
+  try {
+    const products = await Product.find()
+      .populate("category", "name")
+      .populate("subcategory", "name")
+      .lean();
+
+    // Create CSV header
+    const headers = [
+      'Product Name', 'Description', 'Shop Name', 'FSSAI (brandName)',
+      'MRP (oldPrice)', 'Selling Price (newPrice)', 'Stock', 'Quality',
+      'Category', 'Subcategory', 'Diet Preference', 'Product Types',
+      'Flavors', 'Size', 'Material Types', 'Ingredients',
+      'Dietary Preferences', 'Allergen Info', 'Nutrition', 'Cuisine',
+      'State', 'Location', 'Created At'
+    ];
+
+    // Convert products to CSV rows
+    const csvRows = products.map(product => [
+      product.name || '',
+      product.description || '',
+      product.restaurantName || '',
+      product.brandName || '',
+      product.oldPrice || '',
+      product.newPrice || '',
+      product.stock || '',
+      product.quality || '',
+      product.category?.name || '',
+      product.subcategory?.name || '',
+      product.dietPreference || '',
+      product.productTypes || '',
+      product.flavors || '',
+      product.size || '',
+      product.materialTypes || '',
+      product.ingredients || '',
+      product.dietaryPreferences || '',
+      product.allergenInfo || '',
+      product.nutrition || '',
+      product.cuisine || '',
+      product.State || '',
+      product.location || '',
+      new Date(product.createdAt).toLocaleDateString()
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=products_export.csv');
+    res.send(csvContent);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
