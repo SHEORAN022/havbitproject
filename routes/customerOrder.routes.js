@@ -85,19 +85,44 @@
 
 
 
+// const express = require("express");
+// const router = express.Router();
+
+// const {
+//   createOrder,
+//   verifyPayment,
+// } = require("../controllers/customerOrder.controller");
+
+// const userAuth = require("../middleware/userAuth");
+
+// // 🔐 Protected routes
+// router.post("/order/create", userAuth, createOrder);
+// router.post("/order/verify-payment", userAuth, verifyPayment);
+
+// module.exports = router;
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
 
 const {
   createOrder,
   verifyPayment,
+  getOrderById,
+  getUserOrders,
+  cancelOrder,
 } = require("../controllers/customerOrder.controller");
 
 const userAuth = require("../middleware/userAuth");
 
-// 🔐 Protected routes
+// 🔐 Protected routes (require authentication)
 router.post("/order/create", userAuth, createOrder);
 router.post("/order/verify-payment", userAuth, verifyPayment);
+router.get("/order/:orderId", userAuth, getOrderById);
+router.get("/orders", userAuth, getUserOrders);
+router.put("/order/:orderId/cancel", userAuth, cancelOrder);
 
 module.exports = router;
-
