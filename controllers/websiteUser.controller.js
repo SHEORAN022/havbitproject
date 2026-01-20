@@ -1,24 +1,114 @@
+// const WebsiteUser = require("../models/WebsiteUser");
+// const bcrypt = require("bcryptjs");
+
+// /* =======================
+//    SIGNUP
+// ======================= */
+// exports.signup = async (req, res) => {
+//   try {
+//     const { fullName, email, phone, password, confirmPassword } = req.body;
+
+//     if (!fullName || !email || !phone || !password || !confirmPassword) {
+//       return res.status(400).json({ message: "All fields required" });
+//     }
+
+//     if (password !== confirmPassword) {
+//       return res.status(400).json({ message: "Passwords do not match" });
+//     }
+
+//     const existingUser = await WebsiteUser.findOne({ email });
+//     if (existingUser) {
+//       return res.status(409).json({ message: "User already exists" });
+//     }
+
+//     const user = await WebsiteUser.create({
+//       fullName,
+//       email,
+//       phone,
+//       password,
+//     });
+
+//     res.status(201).json({
+//       message: "Signup successful",
+//       userId: user._id,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Signup failed", error: err.message });
+//   }
+// };
+
+// /* =======================
+//    LOGIN
+// ======================= */
+// exports.login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await WebsiteUser.findOne({ email }).select("+password");
+//     if (!user) {
+//       return res.status(404).json({ message: "Invalid credentials" });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(401).json({ message: "Invalid credentials" });
+//     }
+
+//     res.json({
+//       message: "Login successful",
+//       user: {
+//         id: user._id,
+//         fullName: user.fullName,
+//         email: user.email,
+//         phone: user.phone,
+//       },
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Login failed" });
+//   }
+// };
+
+// /* =======================
+//    GET ALL USERS (ADMIN)
+// ======================= */
+// exports.getAllWebsiteUsers = async (req, res) => {
+//   try {
+//     const users = await WebsiteUser.find().sort({ createdAt: -1 });
+//     res.json(users);
+//   } catch (err) {
+//     res.status(500).json({ message: "Failed to fetch users" });
+//   }
+// };
+
+
+
+
+
+
+
+
+
+
 const WebsiteUser = require("../models/WebsiteUser");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-/* =======================
-   SIGNUP
-======================= */
+/* ===================== SIGNUP ===================== */
 exports.signup = async (req, res) => {
   try {
     const { fullName, email, phone, password, confirmPassword } = req.body;
 
     if (!fullName || !email || !phone || !password || !confirmPassword) {
-      return res.status(400).json({ message: "All fields required" });
+      return res.status(400).json({ success: false, message: "All fields required" });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: "Passwords do not match" });
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
     const existingUser = await WebsiteUser.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ message: "User already exists" });
+      return res.status(409).json({ success: false, message: "User already exists" });
     }
 
     const user = await WebsiteUser.create({
@@ -29,33 +119,44 @@ exports.signup = async (req, res) => {
     });
 
     res.status(201).json({
+      success: true,
       message: "Signup successful",
-      userId: user._id,
     });
   } catch (err) {
-    res.status(500).json({ message: "Signup failed", error: err.message });
+    res.status(500).json({ success: false, message: "Signup failed" });
   }
 };
 
-/* =======================
-   LOGIN
-======================= */
+/* ===================== LOGIN (TOKEN FIXED) ===================== */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await WebsiteUser.findOne({ email }).select("+password");
     if (!user) {
-      return res.status(404).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    // 🔑 JWT TOKEN
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: "user",
+        email: user.email,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.json({
+      success: true,
       message: "Login successful",
+      token, // 🔥🔥🔥 THIS WAS MISSING
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -64,18 +165,17 @@ exports.login = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ message: "Login failed" });
+    res.status(500).json({ success: false, message: "Login failed" });
   }
 };
 
-/* =======================
-   GET ALL USERS (ADMIN)
-======================= */
+/* ===================== ADMIN ===================== */
 exports.getAllWebsiteUsers = async (req, res) => {
   try {
-    const users = await WebsiteUser.find().sort({ createdAt: -1 });
-    res.json(users);
+    const users = await WebsiteUser.find().select("-password");
+    res.json({ success: true, users });
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch users" });
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
   }
 };
+
