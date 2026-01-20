@@ -84,70 +84,20 @@
 
 
 
-const mongoose = require("mongoose");
 
-/* ---------- ORDER ITEM ---------- */
-const OrderItemSchema = new mongoose.Schema(
-  {
-    productId: mongoose.Schema.Types.ObjectId,
-    productName: String,
-    qty: Number,
-    price: Number,
-    vendorId: mongoose.Schema.Types.ObjectId,
-    image: String,
-  },
-  { _id: false }
-);
+const express = require("express");
+const router = express.Router();
 
-/* ---------- MAIN ORDER ---------- */
-const CustomerOrderSchema = new mongoose.Schema(
-  {
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
+const {
+  createOrder,
+  verifyPayment,
+} = require("../controllers/customerOrder.controller");
 
-    orderItems: [OrderItemSchema],
+const userAuth = require("../middleware/userAuth");
 
-    amount: Number,
-    shippingCharge: { type: Number, default: 0 },
-    discount: { type: Number, default: 0 },
-    totalPayable: Number,
+// 🔐 Protected routes
+router.post("/order/create", userAuth, createOrder);
+router.post("/order/verify-payment", userAuth, verifyPayment);
 
-    orderStatus: {
-      type: String,
-      enum: ["Pending", "Confirmed", "Cancelled"],
-      default: "Pending",
-    },
-
-    paymentMethod: {
-      type: String,
-      enum: ["cod", "razorpay"],
-      default: "razorpay",
-    },
-
-    paymentStatus: {
-      type: String,
-      enum: ["Pending", "Success", "Failed"],
-      default: "Pending",
-    },
-
-    // 🔥 Razorpay fields
-    razorpayOrderId: String,
-    razorpayPaymentId: String,
-    razorpaySignature: String,
-
-    shippingAddress: {
-      name: String,
-      phone: String,
-      address: String,
-      city: String,
-      state: String,
-      pincode: String,
-    },
-  },
-  { timestamps: true }
-);
-
-module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
+module.exports = router;
 
