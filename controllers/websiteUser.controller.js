@@ -89,6 +89,107 @@
 
 
 
+// const WebsiteUser = require("../models/WebsiteUser");
+// const bcrypt = require("bcryptjs");
+// const jwt = require("jsonwebtoken");
+
+// /* ===================== SIGNUP ===================== */
+// exports.signup = async (req, res) => {
+//   try {
+//     const { fullName, email, phone, password, confirmPassword } = req.body;
+
+//     if (!fullName || !email || !phone || !password || !confirmPassword) {
+//       return res.status(400).json({ success: false, message: "All fields required" });
+//     }
+
+//     if (password !== confirmPassword) {
+//       return res.status(400).json({ success: false, message: "Passwords do not match" });
+//     }
+
+//     const existingUser = await WebsiteUser.findOne({ email });
+//     if (existingUser) {
+//       return res.status(409).json({ success: false, message: "User already exists" });
+//     }
+
+//     const user = await WebsiteUser.create({
+//       fullName,
+//       email,
+//       phone,
+//       password,
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Signup successful",
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: "Signup failed" });
+//   }
+// };
+
+// /* ===================== LOGIN (TOKEN FIXED) ===================== */
+// exports.login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await WebsiteUser.findOne({ email }).select("+password");
+//     if (!user) {
+//       return res.status(401).json({ success: false, message: "Invalid credentials" });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(401).json({ success: false, message: "Invalid credentials" });
+//     }
+
+//     // 🔑 JWT TOKEN
+//     const token = jwt.sign(
+//       {
+//         id: user._id,
+//         role: "user",
+//         email: user.email,
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "7d" }
+//     );
+
+//     res.json({
+//       success: true,
+//       message: "Login successful",
+//       token, // 🔥🔥🔥 THIS WAS MISSING
+//       user: {
+//         id: user._id,
+//         fullName: user.fullName,
+//         email: user.email,
+//         phone: user.phone,
+//       },
+//     });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: "Login failed" });
+//   }
+// };
+
+// /* ===================== ADMIN ===================== */
+// exports.getAllWebsiteUsers = async (req, res) => {
+//   try {
+//     const users = await WebsiteUser.find().select("-password");
+//     res.json({ success: true, users });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: "Failed to fetch users" });
+//   }
+// };
+
+
+
+
+
+
+
+
+
+
+
+
 const WebsiteUser = require("../models/WebsiteUser");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
