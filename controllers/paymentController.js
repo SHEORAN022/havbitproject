@@ -318,93 +318,204 @@
 
 
 
-const crypto = require("crypto");
-const razorpay = require("../config/razorpay");
+// const crypto = require("crypto");
+// const razorpay = require("../config/razorpay");
 
-// ================= CREATE RAZORPAY ORDER =================
-exports.createOrder = async (req, res) => {
+// // ================= CREATE RAZORPAY ORDER =================
+// exports.createOrder = async (req, res) => {
+//   try {
+//     const { amount } = req.body;
+
+//     if (!amount) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Amount is required"
+//       });
+//     }
+
+//     // Backend custom order id
+//     const backendOrderId = `BK_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+//     const razorOrder = await razorpay.orders.create({
+//       amount: Number(amount) * 100,
+//       currency: "INR",
+//       receipt: backendOrderId
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       key: process.env.RAZORPAY_KEY_ID,
+//       order_id: razorOrder.id,
+//       backendOrderId,
+//       amount,
+//       currency: "INR"
+//     });
+
+//   } catch (error) {
+//     console.error("createOrder error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create Razorpay order"
+//     });
+//   }
+// };
+
+
+
+// // ================= VERIFY PAYMENT =================
+// exports.verifyPayment = async (req, res) => {
+//   try {
+//     const {
+//       backendOrderId,
+//       razorpay_order_id,
+//       razorpay_payment_id,
+//       razorpay_signature
+//     } = req.body;
+
+//     if (!backendOrderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing fields in verify"
+//       });
+//     }
+
+//     const sign = `${razorpay_order_id}|${razorpay_payment_id}`;
+
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+//       .update(sign)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid signature",
+//         backendOrderId
+//       });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Payment verified successfully",
+//       backendOrderId
+//     });
+
+//   } catch (error) {
+//     console.error("verifyPayment error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Payment verification failed"
+//     });
+//   }
+// };
+
+
+
+
+
+const Cashfree = require("../config/cashfree");
+const CustomerOrder = require("../models/CustomerOrder");
+const Transaction = require("../models/Transaction");
+const verifySignature = require("../utils/verifyCashfreeSignature");
+
+/* ================= CREATE PAYMENT ================= */
+exports.createPayment = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { orderId } = req.body;
 
-    if (!amount) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount is required"
-      });
-    }
+    const order = await CustomerOrder.findById(orderId);
+    if (!order)
+      return res.status(404).json({ success: false, message: "Order not found" });
 
-    // Backend custom order id
-    const backendOrderId = `BK_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const request = {
+      order_id: "ORDER_" + order._id,
+      order_amount: order.amount,
+      order_currency: "INR",
 
-    const razorOrder = await razorpay.orders.create({
-      amount: Number(amount) * 100,
-      currency: "INR",
-      receipt: backendOrderId
+      customer_details: {
+        customer_id: order.customer,
+        customer_email: order.shippingAddress.email,
+        customer_phone: order.shippingAddress.phone,
+      },
+
+      order_meta: {
+        return_url: `${process.env.FRONTEND_URL}/payment-success?order_id=${order._id}`,
+      },
+    };
+
+    const response = await Cashfree.Cashfree.PGCreateOrder("2023-08-01", request);
+
+    await Transaction.create({
+      order: order._id,
+      cfOrderId: response.data.order_id,
+      amount: order.amount,
+      customer: {
+        id: order.customer,
+        email: order.shippingAddress.email,
+        phone: order.shippingAddress.phone,
+      },
+      rawPayload: response.data,
     });
 
-    return res.status(200).json({
+    res.json({
       success: true,
-      key: process.env.RAZORPAY_KEY_ID,
-      order_id: razorOrder.id,
-      backendOrderId,
-      amount,
-      currency: "INR"
+      paymentSessionId: response.data.payment_session_id,
     });
-
-  } catch (error) {
-    console.error("createOrder error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create Razorpay order"
-    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
-
-// ================= VERIFY PAYMENT =================
-exports.verifyPayment = async (req, res) => {
+/* ================= CASHFREE WEBHOOK ================= */
+exports.cashfreeWebhook = async (req, res) => {
   try {
-    const {
-      backendOrderId,
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    } = req.body;
+    const signature = req.headers["x-webhook-signature"];
+    const timestamp = req.headers["x-webhook-timestamp"];
 
-    if (!backendOrderId || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing fields in verify"
+    const isValid = verifySignature(
+      req.rawBody,
+      timestamp,
+      signature
+    );
+
+    if (!isValid) {
+      return res.status(400).json({ message: "Invalid signature" });
+    }
+
+    const payload = req.body;
+
+    if (payload.type === "PAYMENT_SUCCESS") {
+      const cfOrderId = payload.data.order.order_id;
+      const cfPaymentId = payload.data.payment.cf_payment_id;
+
+      const transaction = await Transaction.findOneAndUpdate(
+        { cfOrderId },
+        {
+          status: "SUCCESS",
+          cfPaymentId,
+          paymentMethod: payload.data.payment.payment_method,
+          rawPayload: payload,
+        },
+        { new: true }
+      );
+
+      await CustomerOrder.findByIdAndUpdate(transaction.order, {
+        paymentStatus: "Completed",
+        orderStatus: "Confirmed",
       });
     }
 
-    const sign = `${razorpay_order_id}|${razorpay_payment_id}`;
-
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(sign)
-      .digest("hex");
-
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid signature",
-        backendOrderId
-      });
+    if (payload.type === "PAYMENT_FAILED") {
+      await Transaction.findOneAndUpdate(
+        { cfOrderId: payload.data.order.order_id },
+        { status: "FAILED", rawPayload: payload }
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Payment verified successfully",
-      backendOrderId
-    });
-
-  } catch (error) {
-    console.error("verifyPayment error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Payment verification failed"
-    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Webhook Error:", err);
+    res.status(500).json({ message: err.message });
   }
 };
+
