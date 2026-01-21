@@ -34,6 +34,42 @@
 
 
 
+// const express = require("express");
+// const router = express.Router();
+// const multer = require("multer");
+// const path = require("path");
+// const subCategoryController = require("../controllers/subCategoryController");
+
+// // UPLOAD CONFIG
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "uploads/subcategory/");
+//   },
+//   filename: (req, file, cb) => {
+//     cb(null, Date.now() + path.extname(file.originalname));
+//   },
+// });
+
+// const upload = multer({ storage });
+
+// // ROUTES
+// router.get("/", subCategoryController.getAllSubCategories);
+// router.post("/", upload.single("image"), subCategoryController.createSubCategory);
+// router.put("/:id", upload.single("image"), subCategoryController.updateSubCategory);
+// router.delete("/:id", subCategoryController.deleteSubCategory);
+
+// module.exports = router;
+
+
+
+
+
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -59,3 +95,4 @@ router.put("/:id", upload.single("image"), subCategoryController.updateSubCatego
 router.delete("/:id", subCategoryController.deleteSubCategory);
 
 module.exports = router;
+
