@@ -1,86 +1,129 @@
+// // const mongoose = require("mongoose");
+
+// // const paymentSchema = new mongoose.Schema(
+// //   {
+// //     orderId: {
+// //       type: String,
+// //       required: true,
+// //     },
+// //     paymentId: {
+// //       type: String,
+// //     },
+// //     signature: {
+// //       type: String,
+// //     },
+
+// //     amount: {
+// //       type: Number,
+// //       required: true,
+// //     },
+
+// //     currency: {
+// //       type: String,
+// //       default: "INR",
+// //     },
+
+// //     // Customer Details
+// //     name: {
+// //       type: String,
+// //       required: true,
+// //     },
+// //     email: {
+// //       type: String,
+// //       required: true,
+// //     },
+
+// //     status: {
+// //       type: String,
+// //       enum: ["PENDING", "SUCCESS", "FAILED"],
+// //       default: "PENDING",
+// //     },
+// //   },
+// //   { timestamps: true }
+// // );
+
+// // module.exports = mongoose.model("Payment", paymentSchema);
+
+
+
+
+
+
+// // const mongoose = require("mongoose");
+
+// // const paymentSchema = new mongoose.Schema({
+// //   razorpayOrderId: String,
+// //   razorpayPaymentId: String,
+// //   signature: String,
+// //   customerOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerOrder" },
+// //   customer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+// //   amount: Number,
+// //   status: { type: String, enum: ["PENDING", "SUCCESS", "FAILED"], default: "PENDING" },
+// // }, { timestamps: true });
+
+// // module.exports = mongoose.model("Payment", paymentSchema);
+
+
+
+
+
+// // const mongoose = require("mongoose");
+
+// // const paymentSchema = new mongoose.Schema(
+// //   {
+// //     razorpayOrderId: { type: String, required: true },
+// //     razorpayPaymentId: { type: String },
+// //     signature: { type: String },
+
+// //     customerOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerOrder" },
+
+// //     // Guest + Auth user both supported
+// //     customerId: { type: String, default: null },
+
+// //     amount: { type: Number, required: true },
+
+// //     status: {
+// //       type: String,
+// //       enum: ["PENDING", "SUCCESS", "FAILED"],
+// //       default: "PENDING"
+// //     }
+// //   },
+// //   { timestamps: true }
+// // );
+
+// // module.exports = mongoose.model("Payment", paymentSchema);
+
+
+
+
+
+
 // const mongoose = require("mongoose");
 
 // const paymentSchema = new mongoose.Schema(
 //   {
-//     orderId: {
+//     razorpayOrderId: {
 //       type: String,
-//       required: true,
+//       required: true
 //     },
-//     paymentId: {
-//       type: String,
+
+//     razorpayPaymentId: String,
+//     signature: String,
+
+//     customerOrderId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "CustomerOrder"
 //     },
-//     signature: {
+
+//     customerId: {
 //       type: String,
+//       default: null
 //     },
 
 //     amount: {
 //       type: Number,
-//       required: true,
+//       required: true
 //     },
-
-//     currency: {
-//       type: String,
-//       default: "INR",
-//     },
-
-//     // Customer Details
-//     name: {
-//       type: String,
-//       required: true,
-//     },
-//     email: {
-//       type: String,
-//       required: true,
-//     },
-
-//     status: {
-//       type: String,
-//       enum: ["PENDING", "SUCCESS", "FAILED"],
-//       default: "PENDING",
-//     },
-//   },
-//   { timestamps: true }
-// );
-
-// module.exports = mongoose.model("Payment", paymentSchema);
-
-
-
-
-
-
-// const mongoose = require("mongoose");
-
-// const paymentSchema = new mongoose.Schema({
-//   razorpayOrderId: String,
-//   razorpayPaymentId: String,
-//   signature: String,
-//   customerOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerOrder" },
-//   customer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-//   amount: Number,
-//   status: { type: String, enum: ["PENDING", "SUCCESS", "FAILED"], default: "PENDING" },
-// }, { timestamps: true });
-
-// module.exports = mongoose.model("Payment", paymentSchema);
-
-
-
-
-
-// const mongoose = require("mongoose");
-
-// const paymentSchema = new mongoose.Schema(
-//   {
-//     razorpayOrderId: { type: String, required: true },
-//     razorpayPaymentId: { type: String },
-//     signature: { type: String },
-
-//     customerOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerOrder" },
-
-//     // Guest + Auth user both supported
-//     customerId: { type: String, default: null },
-
-//     amount: { type: Number, required: true },
 
 //     status: {
 //       type: String,
@@ -92,46 +135,3 @@
 // );
 
 // module.exports = mongoose.model("Payment", paymentSchema);
-
-
-
-
-
-
-const mongoose = require("mongoose");
-
-const paymentSchema = new mongoose.Schema(
-  {
-    razorpayOrderId: {
-      type: String,
-      required: true
-    },
-
-    razorpayPaymentId: String,
-    signature: String,
-
-    customerOrderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CustomerOrder"
-    },
-
-    customerId: {
-      type: String,
-      default: null
-    },
-
-    amount: {
-      type: Number,
-      required: true
-    },
-
-    status: {
-      type: String,
-      enum: ["PENDING", "SUCCESS", "FAILED"],
-      default: "PENDING"
-    }
-  },
-  { timestamps: true }
-);
-
-module.exports = mongoose.model("Payment", paymentSchema);
