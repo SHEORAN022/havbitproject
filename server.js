@@ -433,6 +433,7 @@ app.use("/api/public", require("./routes/publicProducts"));
 
 /* CUSTOMER ORDERS */
 app.use("/api/customer", require("./routes/customerOrder.routes"));
+app.use("/api/razorpay", require("./routes/razorpay.routes"));
 
 /* PAYMENTS (Cashfree + Razorpay) */
 // app.use("/api/payment", require("./routes/transaction.routes"));
