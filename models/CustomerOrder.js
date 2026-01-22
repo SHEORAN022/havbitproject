@@ -187,6 +187,87 @@
 
 
 
+// const mongoose = require("mongoose");
+
+// /* ================= ORDER ITEM ================= */
+// const OrderItemSchema = new mongoose.Schema(
+//   {
+//     productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+//     productName: String,
+//     qty: { type: Number, required: true },
+//     price: { type: Number, required: true },
+//     vendorId: { type: mongoose.Schema.Types.ObjectId, required: true },
+//     image: String,
+//   },
+//   { _id: false }
+// );
+
+// /* ================= MAIN ORDER ================= */
+// const CustomerOrderSchema = new mongoose.Schema(
+//   {
+//     customer: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       required: true,
+//       index: true,
+//     },
+
+//     orderItems: {
+//       type: [OrderItemSchema],
+//       required: true,
+//     },
+
+//     amount: { type: Number, required: true },
+//     shippingCharge: { type: Number, default: 0 },
+//     discount: { type: Number, default: 0 },
+//     totalPayable: { type: Number, required: true },
+
+//     orderStatus: {
+//       type: String,
+//       enum: ["Pending", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"],
+//       default: "Pending",
+//     },
+
+//     paymentMethod: {
+//       type: String,
+//       enum: ["cod", "razorpay"],
+//       default: "cod",
+//     },
+
+//     paymentStatus: {
+//       type: String,
+//       enum: ["Pending", "Success", "Failed", "Refunded"],
+//       default: "Pending",
+//     },
+
+//     razorpayOrderId: String,
+//     razorpayPaymentId: String,
+//     razorpaySignature: String,
+
+//     shippingAddress: {
+//       name: String,
+//       phone: String,
+//       email: String,
+//       address: String,
+//       city: String,
+//       state: String,
+//       pincode: String,
+//     },
+
+//     deliveredAt: Date,
+//     cancelledAt: Date,
+//   },
+//   { timestamps: true }
+// );
+
+// module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
+
+
+
+
+
+
+
+
 const mongoose = require("mongoose");
 
 /* ================= ORDER ITEM ================= */
@@ -260,3 +341,7 @@ const CustomerOrderSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("CustomerOrder", CustomerOrderSchema);
+
+
+
+
