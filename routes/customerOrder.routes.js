@@ -133,6 +133,44 @@
 
 
 
+// const express = require("express");
+// const router = express.Router();
+
+// const {
+//   createOrder,
+//   getCustomerOrders,
+//   getOrderById,
+//   cancelOrder,
+//   updateOrderStatus,
+//   getVendorOrders,
+//   getAllOrdersForAdmin,
+// } = require("../controllers/customerOrder.controller");
+
+// /* ========== CUSTOMER ========== */
+// router.post("/order/create", createOrder);
+// router.get("/orders/:customerId", getCustomerOrders);
+// router.get("/order/:id", getOrderById);
+// router.put("/order/cancel/:id", cancelOrder);
+
+// /* ========== ADMIN / VENDOR ========== */
+// router.put("/order/status/:id", updateOrderStatus);
+
+// /* ========== VENDOR ========== */
+// router.get("/vendor-orders/:vendorId", getVendorOrders);
+
+// /* ========== ADMIN ========== */
+// router.get("/admin/orders", getAllOrdersForAdmin);
+
+// module.exports = router;
+
+
+
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
 
@@ -146,19 +184,13 @@ const {
   getAllOrdersForAdmin,
 } = require("../controllers/customerOrder.controller");
 
-/* ========== CUSTOMER ========== */
 router.post("/order/create", createOrder);
 router.get("/orders/:customerId", getCustomerOrders);
 router.get("/order/:id", getOrderById);
 router.put("/order/cancel/:id", cancelOrder);
-
-/* ========== ADMIN / VENDOR ========== */
 router.put("/order/status/:id", updateOrderStatus);
-
-/* ========== VENDOR ========== */
 router.get("/vendor-orders/:vendorId", getVendorOrders);
-
-/* ========== ADMIN ========== */
 router.get("/admin/orders", getAllOrdersForAdmin);
 
 module.exports = router;
+
