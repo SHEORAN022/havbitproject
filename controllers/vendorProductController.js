@@ -1,138 +1,3 @@
-// const VendorProduct = require("../models/VendorProduct");
-// const Vendor = require("../models/Vendor");
-// const cloudinary = require("../config/cloudinary");
-
-// /* ================= GET (VENDOR PANEL) ================= */
-// exports.getVendorProducts = async (req, res) => {
-//   try {
-//     const products = await VendorProduct.find({
-//       vendor: req.vendor._id,
-//     })
-//       .populate("category", "name")
-//       .populate("subcategory", "name")
-//       .populate("vendor", "_id storeName"); // 🔥 safe
-
-//     res.json({ success: true, data: products });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// /* ================= CREATE ================= */
-// exports.createVendorProduct = async (req, res) => {
-//   try {
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     // 🔥 store name one-time save
-//     if (!vendor.storeName && req.body.restaurantName) {
-//       vendor.storeName = req.body.restaurantName;
-//       await vendor.save();
-//     }
-
-//     if (!vendor.storeName) {
-//       return res.status(400).json({
-//         needStoreName: true,
-//         message: "Store name required",
-//       });
-//     }
-
-//     let image = "";
-//     let logo = "";
-//     let gallery = [];
-
-//     if (req.files?.image) {
-//       const img = await cloudinary.uploader.upload(
-//         `data:${req.files.image[0].mimetype};base64,${req.files.image[0].buffer.toString("base64")}`
-//       );
-//       image = img.secure_url;
-//     }
-
-//     if (req.files?.logo) {
-//       const lg = await cloudinary.uploader.upload(
-//         `data:${req.files.logo[0].mimetype};base64,${req.files.logo[0].buffer.toString("base64")}`
-//       );
-//       logo = lg.secure_url;
-//     }
-
-//     if (req.files?.gallery) {
-//       for (let g of req.files.gallery) {
-//         const up = await cloudinary.uploader.upload(
-//           `data:${g.mimetype};base64,${g.buffer.toString("base64")}`
-//         );
-//         gallery.push(up.secure_url);
-//       }
-//     }
-
-//     const product = await VendorProduct.create({
-//       ...req.body,
-//       image,
-//       logo,
-//       gallery,
-//       vendor: vendor._id,
-//       restaurantName: vendor.storeName,
-//     });
-
-//     res.status(201).json({ success: true, data: product });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// /* ================= UPDATE (FIXED) ================= */
-// exports.updateVendorProduct = async (req, res) => {
-//   try {
-//     const product = await VendorProduct.findOne({
-//       _id: req.params.id,
-//       vendor: req.vendor._id,
-//     });
-
-//     if (!product)
-//       return res.status(404).json({ message: "Product not found" });
-
-//     // text fields
-//     Object.assign(product, req.body);
-
-//     // 🔥 image updates
-//     if (req.files?.image) {
-//       const img = await cloudinary.uploader.upload(
-//         `data:${req.files.image[0].mimetype};base64,${req.files.image[0].buffer.toString("base64")}`
-//       );
-//       product.image = img.secure_url;
-//     }
-
-//     if (req.files?.logo) {
-//       const lg = await cloudinary.uploader.upload(
-//         `data:${req.files.logo[0].mimetype};base64,${req.files.logo[0].buffer.toString("base64")}`
-//       );
-//       product.logo = lg.secure_url;
-//     }
-
-//     if (req.files?.gallery) {
-//       product.gallery = [];
-//       for (let g of req.files.gallery) {
-//         const up = await cloudinary.uploader.upload(
-//           `data:${g.mimetype};base64,${g.buffer.toString("base64")}`
-//         );
-//         product.gallery.push(up.secure_url);
-//       }
-//     }
-
-//     await product.save();
-//     res.json({ success: true, data: product });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// /* ================= DELETE ================= */
-// exports.deleteVendorProduct = async (req, res) => {
-//   await VendorProduct.findOneAndDelete({
-//     _id: req.params.id,
-//     vendor: req.vendor._id,
-//   });
-
-//   res.json({ success: true, message: "Product deleted" });
-// };
 
 
 
@@ -142,403 +7,11 @@
 // const Vendor = require("../models/Vendor");
 // const cloudinary = require("../config/cloudinary");
 
-// /** Helper to upload any file **/
-// const uploadFile = async (file) => {
-//   const uploaded = await cloudinary.uploader.upload(
-//     `data:${file.mimetype};base64,${file.buffer.toString("base64")}`
-//   );
-//   return uploaded.secure_url;
-// };
-
-// /* ================= GET (VENDOR PANEL) ================= */
-// exports.getVendorProducts = async (req, res) => {
-//   try {
-//     const products = await VendorProduct.find({
-//       vendor: req.vendor._id,
-//     })
-//       .populate("category", "name")
-//       .populate("subcategory", "name")
-//       .populate("vendor", "_id storeName");
-
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     res.json({
-//       success: true,
-//       vendorId: vendor?._id,
-//       storeName: vendor?.storeName || "",
-//       total: products.length,
-//       data: products,
-//     });
-//   } catch (err) {
-//     console.log("GET VENDOR PRODUCTS ERROR:", err.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// /* ================= CREATE ================= */
-// exports.createVendorProduct = async (req, res) => {
-//   try {
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     // STORE NAME SET
-//     if (!vendor.storeName && req.body.restaurantName) {
-//       vendor.storeName = req.body.restaurantName;
-//       await vendor.save();
-//     }
-
-//     if (!vendor.storeName) {
-//       return res.status(400).json({
-//         needStoreName: true,
-//         message: "Store name required",
-//       });
-//     }
-
-//     // FILES
-//     let image = null,
-//       logo = null,
-//       gallery = [];
-
-//     if (req.files?.image) image = await uploadFile(req.files.image[0]);
-//     if (req.files?.logo) logo = await uploadFile(req.files.logo[0]);
-
-//     if (req.files?.gallery) {
-//       for (let g of req.files.gallery) {
-//         gallery.push(await uploadFile(g));
-//       }
-//     }
-
-//     // CREATE
-//     const product = await VendorProduct.create({
-//       ...req.body,
-//       image,
-//       logo,
-//       gallery,
-//       vendor: vendor._id,
-//       restaurantName: vendor.storeName,
-//     });
-
-//     res.status(201).json({
-//       success: true,
-//       vendorId: vendor._id,
-//       data: product,
-//     });
-//   } catch (err) {
-//     console.log("CREATE ERROR:", err.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// /* ================= UPDATE ================= */
-// exports.updateVendorProduct = async (req, res) => {
-//   try {
-//     const product = await VendorProduct.findOne({
-//       _id: req.params.id,
-//       vendor: req.vendor._id,
-//     });
-
-//     if (!product)
-//       return res.status(404).json({ success: false, message: "Product not found" });
-
-//     // TEXT UPDATE
-//     Object.assign(product, req.body);
-
-//     // IMAGE UPDATE
-//     if (req.files?.image) product.image = await uploadFile(req.files.image[0]);
-//     if (req.files?.logo) product.logo = await uploadFile(req.files.logo[0]);
-
-//     // GALLERY UPDATE
-//     if (req.files?.gallery) {
-//       product.gallery = [];
-//       for (let g of req.files.gallery) {
-//         product.gallery.push(await uploadFile(g));
-//       }
-//     }
-
-//     await product.save();
-
-//     res.json({ success: true, data: product });
-//   } catch (err) {
-//     console.log("UPDATE ERROR:", err.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// /* ================= DELETE ================= */
-// exports.deleteVendorProduct = async (req, res) => {
-//   try {
-//     const deleted = await VendorProduct.findOneAndDelete({
-//       _id: req.params.id,
-//       vendor: req.vendor._id,
-//     });
-
-//     if (!deleted)
-//       return res.status(404).json({ success: false, message: "Product not found" });
-
-//     res.json({ success: true, message: "Product deleted" });
-//   } catch (err) {
-//     console.log("DELETE ERROR:", err.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-
-
-
-
-
-
-
-
-// const VendorProduct = require("../models/VendorProduct");
-// const Vendor = require("../models/Vendor");
-// const { uploadFile } = require("../helpers/cloudinaryUpload");
-
-// exports.getVendorProducts = async (req, res) => {
-//   try {
-//     const products = await VendorProduct.find({ vendor: req.vendor._id })
-//       .populate("category", "name")
-//       .populate("subcategory", "name");
-
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     res.json({
-//       success: true,
-//       vendorId: vendor?._id,
-//       storeName: vendor?.storeName || "",
-//       total: products.length,
-//       data: products,
-//     });
-//   } catch (err) {
-//     console.log("GET ERROR:", err);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// exports.createVendorProduct = async (req, res) => {
-//   try {
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     if (!vendor.storeName && req.body.restaurantName) {
-//       vendor.storeName = req.body.restaurantName;
-//       await vendor.save();
-//     }
-
-//     if (!vendor.storeName) {
-//       return res.status(400).json({ needStoreName: true });
-//     }
-
-//     let image = null,
-//       logo = null,
-//       gallery = [];
-
-//     if (req.files?.image) {
-//       image = await uploadFile(req.files.image[0]);
-//     }
-
-//     if (req.files?.logo) {
-//       logo = await uploadFile(req.files.logo[0]);
-//     }
-
-//     if (req.files?.gallery) {
-//       for (let g of req.files.gallery) {
-//         gallery.push(await uploadFile(g));
-//       }
-//     }
-
-//     const product = await VendorProduct.create({
-//       name: req.body.name,
-//       brandName: req.body.brandName,
-//       phone: req.body.phone,
-//       contactName: req.body.contactName,
-//       description: req.body.description,
-//       oldPrice: req.body.oldPrice,
-//       newPrice: req.body.newPrice,
-//       quality: req.body.quality,
-//       stock: req.body.stock,
-//       religion: req.body.religion,
-//       productTypes: req.body.productTypes,
-//       flavors: req.body.flavors,
-//       dietPreference: req.body.dietPreference,
-//       nutrition: req.body.nutrition,
-//       materialTypes: req.body.materialTypes,
-//       ingredients: req.body.ingredients,
-//       allergenInfo: req.body.allergenInfo,
-//       dietaryPreferences: req.body.dietaryPreferences,
-//       cuisine: req.body.cuisine,
-//       size: req.body.size,
-//       State: req.body.State,
-//       category: req.body.category,
-//       subcategory: req.body.subcategory,
-//       restaurantName: vendor.storeName,
-//       image,
-//       logo,
-//       gallery,
-//       vendor: vendor._id,
-//     });
-
-//     res.status(201).json({ success: true, data: product });
-//   } catch (err) {
-//     console.log("CREATE ERROR:", err.message);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-// exports.updateVendorProduct = async (req, res) => {
-//   try {
-//     const product = await VendorProduct.findOne({
-//       _id: req.params.id,
-//       vendor: req.vendor._id,
-//     });
-
-//     if (!product) return res.status(404).json({ success: false });
-
-//     Object.assign(product, {
-//       name: req.body.name,
-//       brandName: req.body.brandName,
-//       phone: req.body.phone,
-//       contactName: req.body.contactName,
-//       description: req.body.description,
-//       oldPrice: req.body.oldPrice,
-//       newPrice: req.body.newPrice,
-//       quality: req.body.quality,
-//       stock: req.body.stock,
-//       religion: req.body.religion,
-//       productTypes: req.body.productTypes,
-//       flavors: req.body.flavors,
-//       dietPreference: req.body.dietPreference,
-//       nutrition: req.body.nutrition,
-//       materialTypes: req.body.materialTypes,
-//       ingredients: req.body.ingredients,
-//       allergenInfo: req.body.allergenInfo,
-//       dietaryPreferences: req.body.dietaryPreferences,
-//       cuisine: req.body.cuisine,
-//       size: req.body.size,
-//       State: req.body.State,
-//       category: req.body.category,
-//       subcategory: req.body.subcategory,
-//     });
-
-//     if (req.files?.image) product.image = await uploadFile(req.files.image[0]);
-//     if (req.files?.logo) product.logo = await uploadFile(req.files.logo[0]);
-
-//     if (req.files?.gallery) {
-//       product.gallery = [];
-//       for (let g of req.files.gallery) {
-//         product.gallery.push(await uploadFile(g));
-//       }
-//     }
-
-//     await product.save();
-
-//     res.json({ success: true, data: product });
-//   } catch (err) {
-//     console.log("UPDATE ERROR:", err);
-//     res.status(500).json({ success: false, message: "Server Error" });
-//   }
-// };
-
-
-// const VendorProduct = require("../models/VendorProduct");
-// const Vendor = require("../models/Vendor");
-// const cloudinary = require("../config/cloudinary");
-
-// async function uploadCloud(file) {
-//   const base64 = file.buffer.toString("base64");
-//   const dataUri = `data:${file.mimetype};base64,${base64}`;
-//   const result = await cloudinary.uploader.upload(dataUri, {
-//     folder: "vendor_products",
-//     resource_type: "auto",
-//   });
-//   return result.secure_url;
-// }
-
-// exports.getVendorProducts = async (req, res) => {
-//   const products = await VendorProduct.find({ vendor: req.vendor._id })
-//     .populate("category", "name")
-//     .populate("subcategory", "name");
-
-//   const vendor = await Vendor.findById(req.vendor._id);
-
-//   res.json({
-//     success: true,
-//     vendorId: vendor._id,
-//     storeName: vendor.storeName || "",
-//     data: products,
-//   });
-// };
-
-// exports.createVendorProduct = async (req, res) => {
-//   try {
-//     const vendor = await Vendor.findById(req.vendor._id);
-
-//     if (!vendor.storeName && req.body.restaurantName) {
-//       vendor.storeName = req.body.restaurantName;
-//       await vendor.save();
-//     }
-
-//     let image = null, logo = null, gallery = [];
-
-//     if (req.files?.image) image = await uploadCloud(req.files.image[0]);
-//     if (req.files?.logo) logo = await uploadCloud(req.files.logo[0]);
-
-//     if (req.files?.gallery) {
-//       for (let g of req.files.gallery) gallery.push(await uploadCloud(g));
-//     }
-
-//     const product = await VendorProduct.create({
-//       ...req.body,
-//       vendor: req.vendor._id,
-//       restaurantName: vendor.storeName,
-//       image, logo, gallery
-//     });
-
-//     res.json({ success: true, data: product });
-//   } catch (err) {
-//     console.log("CREATE ERROR:", err);
-//     res.status(500).json({ success:false, message:"Server Error" });
-//   }
-// };
-
-// exports.updateVendorProduct = async (req, res) => {
-//   try {
-//     const product = await VendorProduct.findOne({ _id:req.params.id, vendor:req.vendor._id });
-//     if (!product) return res.status(404).json({ success:false, message:"Not Found" });
-
-//     Object.assign(product, req.body);
-
-//     if (req.files?.image) product.image = await uploadCloud(req.files.image[0]);
-//     if (req.files?.logo) product.logo = await uploadCloud(req.files.logo[0]);
-
-//     if (req.files?.gallery) {
-//       product.gallery = [];
-//       for (let g of req.files.gallery) product.gallery.push(await uploadCloud(g));
-//     }
-
-//     await product.save();
-
-//     res.json({ success:true, data:product });
-//   } catch (err) {
-//     console.log("UPDATE ERROR:", err);
-//     res.status(500).json({ success:false, message:"Server Error" });
-//   }
-// };
-
-// exports.deleteVendorProduct = async (req, res) => {
-//   await VendorProduct.deleteOne({ _id:req.params.id, vendor:req.vendor._id });
-//   res.json({ success:true });
-// };
-
-
-
-
-// const VendorProduct = require("../models/VendorProduct");
-// const Vendor = require("../models/Vendor");
-// const cloudinary = require("../config/cloudinary");
 // const csv = require("csv-parser");
 // const fs = require("fs");
 // const { Parser } = require("json2csv");
 
-// /* ================= CLOUDINARY ================= */
+// /* ================= CLOUDINARY UPLOAD ================= */
 // async function uploadCloud(file) {
 //   const base64 = file.buffer.toString("base64");
 //   const dataUri = `data:${file.mimetype};base64,${base64}`;
@@ -549,10 +22,12 @@
 //   return result.secure_url;
 // }
 
-// /* ================= GET ================= */
+// /* ================= GET PRODUCTS ================= */
 // exports.getVendorProducts = async (req, res) => {
 //   try {
-//     const products = await VendorProduct.find({ vendor: req.vendor._id })
+//     const products = await VendorProduct.find({
+//       vendor: req.vendor._id,
+//     })
 //       .populate("category", "name")
 //       .populate("subcategory", "name");
 
@@ -565,47 +40,61 @@
 //       data: products,
 //     });
 //   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).json({ message: "Server error" });
+//     console.error("Get products error:", err);
+//     res.status(500).json({ success: false, message: "Server Error" });
 //   }
 // };
 
-// /* ================= CREATE ================= */
+// /* ================= CREATE PRODUCT - UPDATED ================= */
 // exports.createVendorProduct = async (req, res) => {
 //   try {
 //     const vendor = await Vendor.findById(req.vendor._id);
 
-//     if (!vendor.storeName && req.body.restaurantName) {
+//     // FIX: Always save shop name if provided in request
+//     // Remove the condition that checks if vendor.storeName is empty
+//     if (req.body.restaurantName && req.body.restaurantName.trim() !== "") {
 //       vendor.storeName = req.body.restaurantName;
 //       await vendor.save();
 //     }
 
-//     let image = null;
-//     let gallery = [];
+//     let image = null,
+//       logo = null,
+//       gallery = [];
 
 //     if (req.files?.image) image = await uploadCloud(req.files.image[0]);
+//     if (req.files?.logo) logo = await uploadCloud(req.files.logo[0]);
+
 //     if (req.files?.gallery) {
 //       for (const g of req.files.gallery) {
 //         gallery.push(await uploadCloud(g));
 //       }
 //     }
 
+//     // IMPORTANT: Use vendor's storeName for restaurantName
+//     // This ensures all products have consistent shop name
+//     const restaurantNameToUse = vendor.storeName || req.body.restaurantName || "";
+
 //     const product = await VendorProduct.create({
 //       ...req.body,
 //       vendor: req.vendor._id,
-//       restaurantName: vendor.storeName,
+//       restaurantName: restaurantNameToUse, // Use saved store name
 //       image,
+//       logo,
 //       gallery,
 //     });
 
-//     res.json({ success: true, data: product });
+//     res.json({ 
+//       success: true, 
+//       data: product,
+//       storeName: vendor.storeName // Send back updated store name
+//     });
 //   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).json({ message: "Create failed" });
+//     console.error("Create product error:", err);
+//     res.status(500).json({ success: false, message: "Server Error" });
 //   }
 // };
 
-// /* ================= UPDATE ================= */
+// /* ================= UPDATE PRODUCT ================= */
 // exports.updateVendorProduct = async (req, res) => {
 //   try {
 //     const product = await VendorProduct.findOne({
@@ -614,12 +103,14 @@
 //     });
 
 //     if (!product) {
-//       return res.status(404).json({ message: "Not found" });
+//       return res.status(404).json({ success: false, message: "Not Found" });
 //     }
 
 //     Object.assign(product, req.body);
 
 //     if (req.files?.image) product.image = await uploadCloud(req.files.image[0]);
+//     if (req.files?.logo) product.logo = await uploadCloud(req.files.logo[0]);
+
 //     if (req.files?.gallery) {
 //       product.gallery = [];
 //       for (const g of req.files.gallery) {
@@ -628,163 +119,152 @@
 //     }
 
 //     await product.save();
+//     res.json({ success: true, data: product });
+//   } catch (err) {
+//     console.error("Update product error:", err);
+//     res.status(500).json({ success: false, message: "Server Error" });
+//   }
+// };
+
+// /* ================= DELETE PRODUCT ================= */
+// exports.deleteVendorProduct = async (req, res) => {
+//   try {
+//     await VendorProduct.deleteOne({
+//       _id: req.params.id,
+//       vendor: req.vendor._id,
+//     });
 //     res.json({ success: true });
 //   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).json({ message: "Update failed" });
+//     console.error("Delete product error:", err);
+//     res.status(500).json({ success: false, message: "Server Error" });
 //   }
 // };
 
-// /* ================= DELETE ================= */
-// exports.deleteVendorProduct = async (req, res) => {
-//   await VendorProduct.deleteOne({
-//     _id: req.params.id,
-//     vendor: req.vendor._id,
-//   });
-//   res.json({ success: true });
-// };
-
-// /* ================= CSV IMPORT ================= */
+// /* ================= CSV IMPORT (DISK STORAGE) ================= */
 // exports.importCSV = async (req, res) => {
-//   if (!req.file) {
-//     return res.status(400).json({ message: "CSV required" });
-//   }
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ message: "CSV file required" });
+//     }
 
-//   const vendorId = req.vendor._id;
-//   const rows = [];
+//     const vendorId = req.vendor._id;
+//     const vendor = await Vendor.findById(vendorId);
+//     const rows = [];
 
-//   fs.createReadStream(req.file.path)
-//     .pipe(csv())
-//     .on("data", (row) => rows.push(row))
-//     .on("end", async () => {
-//       for (const r of rows) {
-//         if (!r.name || !r.newPrice) continue;
+//     fs.createReadStream(req.file.path)
+//       .pipe(csv())
+//       .on("data", (row) => rows.push(row))
+//       .on("end", async () => {
+//         let created = 0;
+//         let updated = 0;
 
-//         await VendorProduct.create({
-//           name: r.name,
-//           newPrice: Number(r.newPrice),
-//           stock: Number(r.stock) || 0,
-//           vendor: vendorId,
+//         for (const r of rows) {
+//           if (!r.name || !r.newPrice) continue;
+
+//           const payload = {
+//             name: r.name,
+//             brandName: r.brandName || "", // FSSAI Code
+//             description: r.description || "",
+//             oldPrice: Number(r.oldPrice) || 0,
+//             newPrice: Number(r.newPrice),
+//             stock: Number(r.stock) || 0,
+//             quality: r.quality || "Standard",
+//             State: r.State || "", // Location
+//             vendor: vendorId,
+//             restaurantName: vendor.storeName || r.restaurantName || "", // Shop Name
+//             category: r.category || null,
+//             subcategory: r.subcategory || null,
+//             productTypes: r.productTypes || "",
+//             flavors: r.flavors || "",
+//             dietPreference: r.dietPreference || "Veg",
+//             nutrition: r.nutrition || "",
+//             materialTypes: r.materialTypes || "",
+//             ingredients: r.ingredients || "",
+//             allergenInfo: r.allergenInfo || "",
+//             dietaryPreferences: r.dietaryPreferences || "",
+//             cuisine: r.cuisine || "",
+//             size: r.size || "",
+//           };
+
+//           if (r._id) {
+//             await VendorProduct.updateOne(
+//               { _id: r._id, vendor: vendorId },
+//               payload
+//             );
+//             updated++;
+//           } else {
+//             await VendorProduct.create(payload);
+//             created++;
+//           }
+//         }
+
+//         fs.unlinkSync(req.file.path);
+
+//         res.json({
+//           success: true,
+//           created,
+//           updated,
+//           total: rows.length,
 //         });
-//       }
-
-//       fs.unlinkSync(req.file.path);
-//       res.json({ success: true });
-//     });
+//       });
+//   } catch (err) {
+//     console.error("CSV import error:", err);
+//     res.status(500).json({ message: "CSV Import Failed" });
+//   }
 // };
 
 // /* ================= CSV EXPORT ================= */
 // exports.exportCSV = async (req, res) => {
-//   const products = await VendorProduct.find({
-//     vendor: req.vendor._id,
-//   }).lean();
+//   try {
+//     const products = await VendorProduct.find({
+//       vendor: req.vendor._id,
+//     }).lean();
 
-//   const parser = new Parser();
-//   const csvData = parser.parse(products);
+//     const fields = Object.keys(VendorProduct.schema.paths).filter(
+//       (f) => f !== "__v"
+//     );
 
-//   res.setHeader("Content-Type", "text/csv");
-//   res.setHeader("Content-Disposition", "attachment; filename=products.csv");
-//   res.send(csvData);
+//     const parser = new Parser({ fields });
+//     const csvData = parser.parse(products);
+
+//     res.setHeader("Content-Type", "text/csv");
+//     res.setHeader(
+//       "Content-Disposition",
+//       "attachment; filename=vendor_products.csv"
+//     );
+//     res.send(csvData);
+//   } catch (err) {
+//     console.error("CSV export error:", err);
+//     res.status(500).json({ message: "CSV Export Failed" });
+//   }
 // };
 
 // /* ================= BULK UPDATE ================= */
 // exports.bulkUpdate = async (req, res) => {
 //   try {
 //     const { ids, data } = req.body;
-
-//     if (!Array.isArray(ids) || ids.length === 0) {
-//       return res.status(400).json({ message: "Product IDs required" });
-//     }
-
-//     if (!data || Object.keys(data).length === 0) {
-//       return res.status(400).json({ message: "Update data required" });
-//     }
-
-//     // ✅ allowed fields only (security)
-//     const allowedFields = [
-//       "name",
-//       "brandName",
-//       "phone",
-//       "contactName",
-//       "description",
-//       "oldPrice",
-//       "newPrice",
-//       "stock",
-//       "quality",
-//       "State",
-//       "productTypes",
-//       "flavors",
-//       "dietPreference",
-//       "nutrition",
-//       "materialTypes",
-//       "ingredients",
-//       "allergenInfo",
-//       "dietaryPreferences",
-//       "cuisine",
-//       "size",
-//       "category",
-//       "subcategory",
-//       "restaurantName",
-//     ];
-
-//     const updateData = {};
-
-//     allowedFields.forEach((field) => {
-//       if (data[field] !== undefined && data[field] !== "") {
-//         updateData[field] = data[field];
-//       }
-//     });
-
-//     if (Object.keys(updateData).length === 0) {
-//       return res.status(400).json({ message: "No valid fields to update" });
+//     if (!ids?.length) {
+//       return res.status(400).json({ message: "IDs required" });
 //     }
 
 //     const result = await VendorProduct.updateMany(
-//       {
-//         _id: { $in: ids },
-//         vendor: req.vendor._id,
-//       },
-//       { $set: updateData }
+//       { _id: { $in: ids }, vendor: req.vendor._id },
+//       { $set: data }
 //     );
 
-//     return res.json({
-//       success: true,
-//       modified: result.modifiedCount,
-//     });
+//     res.json({ success: true, modified: result.modifiedCount });
 //   } catch (err) {
-//     console.error("BULK UPDATE ERROR:", err);
-//     return res.status(500).json({ message: "Bulk update failed" });
+//     console.error("Bulk update error:", err);
+//     res.status(500).json({ message: "Bulk update failed" });
 //   }
 // };
 
-
 // /* ================= BULK DELETE ================= */
-// // exports.bulkDelete = async (req, res) => {
-// //   const { ids } = req.body;
-
-// //   if (!Array.isArray(ids) || !ids.length) {
-// //     return res.status(400).json({ message: "IDs required" });
-// //   }
-
-// //   const result = await VendorProduct.deleteMany({
-// //     _id: { $in: ids },
-// //     vendor: req.vendor._id,
-// //   });
-
-// //   res.json({ success: true, deleted: result.deletedCount });
-// // };
-
-
-// /* ================= BULK DELETE (SAFE) ================= */
 // exports.bulkDelete = async (req, res) => {
 //   try {
 //     const { ids } = req.body;
-
-//     if (!Array.isArray(ids) || ids.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Product IDs required",
-//       });
+//     if (!ids?.length) {
+//       return res.status(400).json({ message: "IDs required" });
 //     }
 
 //     const result = await VendorProduct.deleteMany({
@@ -792,19 +272,10 @@
 //       vendor: req.vendor._id,
 //     });
 
-//     // ✅ SAFE LOG (number only)
-//     console.log("Deleted count:", result.deletedCount);
-
-//     return res.json({
-//       success: true,
-//       deleted: result.deletedCount,
-//     });
+//     res.json({ success: true, deleted: result.deletedCount });
 //   } catch (err) {
-//     console.error("BULK DELETE ERROR:", err.message);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Bulk delete failed",
-//     });
+//     console.error("Bulk delete error:", err);
+//     res.status(500).json({ message: "Bulk delete failed" });
 //   }
 // };
 
@@ -813,9 +284,17 @@
 
 
 
-
-
-
+/********************************************************************
+ *  Vendor Product Controller
+ *
+ *  All CRUD operations now correctly map:
+ *    • fssaiLicense  → brandName
+ *    • location      → State
+ *    • restaurantName (shop name) is saved once on the Vendor and reused.
+ *
+ *  The GET routes return the virtual fields so the front‑end can read
+ *  them directly.
+ ********************************************************************/
 const VendorProduct = require("../models/VendorProduct");
 const Vendor = require("../models/Vendor");
 const cloudinary = require("../config/cloudinary");
@@ -824,7 +303,9 @@ const csv = require("csv-parser");
 const fs = require("fs");
 const { Parser } = require("json2csv");
 
-/* ================= CLOUDINARY UPLOAD ================= */
+/* -----------------------------------------------------------------
+   CLOUDINARY UPLOAD
+----------------------------------------------------------------- */
 async function uploadCloud(file) {
   const base64 = file.buffer.toString("base64");
   const dataUri = `data:${file.mimetype};base64,${base64}`;
@@ -835,22 +316,31 @@ async function uploadCloud(file) {
   return result.secure_url;
 }
 
-/* ================= GET PRODUCTS ================= */
+/* -----------------------------------------------------------------
+   GET VENDOR PRODUCTS (public for a vendor)
+----------------------------------------------------------------- */
 exports.getVendorProducts = async (req, res) => {
   try {
-    const products = await VendorProduct.find({
-      vendor: req.vendor._id,
-    })
+    const products = await VendorProduct.find({ vendor: req.vendor._id })
       .populate("category", "name")
-      .populate("subcategory", "name");
+      .populate("subcategory", "name")
+      .lean(); // virtuals are kept when using .lean()
 
-    const vendor = await Vendor.findById(req.vendor._id);
+    const vendor = await Vendor.findById(req.vendor._id).lean();
+
+    // Add the virtual fields for the front‑end
+    const cleaned = products.map((p) => ({
+      ...p,
+      fssaiLicense: p.brandName,
+      location: p.State,
+      shopName: p.restaurantName,
+    }));
 
     res.json({
       success: true,
       vendorId: vendor._id,
       storeName: vendor.storeName || "",
-      data: products,
+      data: cleaned,
     });
   } catch (err) {
     console.error("Get products error:", err);
@@ -858,56 +348,74 @@ exports.getVendorProducts = async (req, res) => {
   }
 };
 
-/* ================= CREATE PRODUCT - UPDATED ================= */
+/* -----------------------------------------------------------------
+   CREATE VENDOR PRODUCT
+----------------------------------------------------------------- */
 exports.createVendorProduct = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.vendor._id);
 
-    // FIX: Always save shop name if provided in request
-    // Remove the condition that checks if vendor.storeName is empty
-    if (req.body.restaurantName && req.body.restaurantName.trim() !== "") {
-      vendor.storeName = req.body.restaurantName;
+    /* ---------- STORE NAME ----------
+       First product can set the shop name.  It is saved on the
+       Vendor document so that subsequent products automatically
+       inherit the same name. */
+    if (req.body.restaurantName?.trim()) {
+      vendor.storeName = req.body.restaurantName.trim();
       await vendor.save();
     }
 
+    /* ---------- FILE UPLOAD ----------
+       Same as before – upload image, logo, gallery. */
     let image = null,
       logo = null,
       gallery = [];
 
     if (req.files?.image) image = await uploadCloud(req.files.image[0]);
     if (req.files?.logo) logo = await uploadCloud(req.files.logo[0]);
-
     if (req.files?.gallery) {
       for (const g of req.files.gallery) {
         gallery.push(await uploadCloud(g));
       }
     }
 
-    // IMPORTANT: Use vendor's storeName for restaurantName
-    // This ensures all products have consistent shop name
-    const restaurantNameToUse = vendor.storeName || req.body.restaurantName || "";
-
+    /* ---------- FIELD MAPPING ----------
+       UI → DB
+       -------------------------------------------------
+       fssaiLicense   → brandName
+       location (state) → State
+       restaurantName → restaurantName (shop)
+       ------------------------------------------------- */
     const product = await VendorProduct.create({
       ...req.body,
+      brandName: req.body.fssaiLicense?.trim() || req.body.brandName,
+      State: req.body.location?.trim() || req.body.State,
+      // If the vendor already has a storeName, keep it;
+      // otherwise use the one submitted now.
+      restaurantName:
+        vendor.storeName ||
+        req.body.restaurantName?.trim() ||
+        "",
+
       vendor: req.vendor._id,
-      restaurantName: restaurantNameToUse, // Use saved store name
       image,
       logo,
       gallery,
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: product,
-      storeName: vendor.storeName // Send back updated store name
+      storeName: vendor.storeName, // return for UI to pre‑fill next forms
     });
   } catch (err) {
     console.error("Create product error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* ================= UPDATE PRODUCT ================= */
+/* -----------------------------------------------------------------
+   UPDATE VENDOR PRODUCT
+----------------------------------------------------------------- */
 exports.updateVendorProduct = async (req, res) => {
   try {
     const product = await VendorProduct.findOne({
@@ -919,27 +427,38 @@ exports.updateVendorProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: "Not Found" });
     }
 
-    Object.assign(product, req.body);
+    // Same mapping as CREATE
+    const updates = {
+      ...req.body,
+      brandName: req.body.fssaiLicense?.trim() || req.body.brandName,
+      State: req.body.location?.trim() || req.body.State,
+      restaurantName:
+        req.body.restaurantName?.trim() || product.restaurantName,
+    };
 
-    if (req.files?.image) product.image = await uploadCloud(req.files.image[0]);
-    if (req.files?.logo) product.logo = await uploadCloud(req.files.logo[0]);
-
+    // Files (if new ones are uploaded)
+    if (req.files?.image) updates.image = await uploadCloud(req.files.image[0]);
+    if (req.files?.logo) updates.logo = await uploadCloud(req.files.logo[0]);
     if (req.files?.gallery) {
-      product.gallery = [];
+      updates.gallery = [];
       for (const g of req.files.gallery) {
-        product.gallery.push(await uploadCloud(g));
+        updates.gallery.push(await uploadCloud(g));
       }
     }
 
+    Object.assign(product, updates);
     await product.save();
+
     res.json({ success: true, data: product });
   } catch (err) {
     console.error("Update product error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* ================= DELETE PRODUCT ================= */
+/* -----------------------------------------------------------------
+   DELETE VENDOR PRODUCT
+----------------------------------------------------------------- */
 exports.deleteVendorProduct = async (req, res) => {
   try {
     await VendorProduct.deleteOne({
@@ -953,7 +472,9 @@ exports.deleteVendorProduct = async (req, res) => {
   }
 };
 
-/* ================= CSV IMPORT (DISK STORAGE) ================= */
+/* -----------------------------------------------------------------
+   CSV IMPORT (DISK STORAGE)
+----------------------------------------------------------------- */
 exports.importCSV = async (req, res) => {
   try {
     if (!req.file) {
@@ -968,35 +489,51 @@ exports.importCSV = async (req, res) => {
       .pipe(csv())
       .on("data", (row) => rows.push(row))
       .on("end", async () => {
-        let created = 0;
-        let updated = 0;
+        let created = 0,
+          updated = 0;
 
         for (const r of rows) {
           if (!r.name || !r.newPrice) continue;
 
           const payload = {
+            // BASIC
             name: r.name,
-            brandName: r.brandName || "", // FSSAI Code
             description: r.description || "",
+
+            // MAP LEGACY → NEW
+            brandName: r.fssaiLicense?.trim() || "", // FSSAI
+            State: r.location?.trim() || "",        // State / location
+
+            // SHOP NAME – only the first product supplies it
+            restaurantName:
+              vendor.storeName ||
+              r.restaurantName?.trim() ||
+              "",
+
+            // PRICING / STOCK
             oldPrice: Number(r.oldPrice) || 0,
             newPrice: Number(r.newPrice),
             stock: Number(r.stock) || 0,
-            quality: r.quality || "Standard",
-            State: r.State || "", // Location
-            vendor: vendorId,
-            restaurantName: vendor.storeName || r.restaurantName || "", // Shop Name
-            category: r.category || null,
-            subcategory: r.subcategory || null,
-            productTypes: r.productTypes || "",
-            flavors: r.flavors || "",
             dietPreference: r.dietPreference || "Veg",
-            nutrition: r.nutrition || "",
+            quality: r.quality || "Standard",
+
+            // PRODUCT DETAILS
+            productTypes: r.productTypes || "",
+            flavors: r.flavors ? r.flavors.split(",").map(f => f.trim()).join(", ") : "",
+            size: r.size ? r.size.split(",").map(s => s.trim()).join(", ") : "",
             materialTypes: r.materialTypes || "",
             ingredients: r.ingredients || "",
-            allergenInfo: r.allergenInfo || "",
+
+            // DIET / NUTRITION
             dietaryPreferences: r.dietaryPreferences || "",
+            allergenInfo: r.allergenInfo || "",
+            nutrition: r.nutrition || "",
             cuisine: r.cuisine || "",
-            size: r.size || "",
+
+            // RELATIONS
+            vendor: vendorId,
+            category: r.category || null,
+            subcategory: r.subcategory || null,
           };
 
           if (r._id) {
@@ -1026,12 +563,12 @@ exports.importCSV = async (req, res) => {
   }
 };
 
-/* ================= CSV EXPORT ================= */
+/* -----------------------------------------------------------------
+   CSV EXPORT
+----------------------------------------------------------------- */
 exports.exportCSV = async (req, res) => {
   try {
-    const products = await VendorProduct.find({
-      vendor: req.vendor._id,
-    }).lean();
+    const products = await VendorProduct.find({ vendor: req.vendor._id }).lean();
 
     const fields = Object.keys(VendorProduct.schema.paths).filter(
       (f) => f !== "__v"
@@ -1052,7 +589,9 @@ exports.exportCSV = async (req, res) => {
   }
 };
 
-/* ================= BULK UPDATE ================= */
+/* -----------------------------------------------------------------
+   BULK UPDATE
+----------------------------------------------------------------- */
 exports.bulkUpdate = async (req, res) => {
   try {
     const { ids, data } = req.body;
@@ -1060,9 +599,18 @@ exports.bulkUpdate = async (req, res) => {
       return res.status(400).json({ message: "IDs required" });
     }
 
+    // Map UI fields to DB fields if they exist
+    const mapped = { ...data };
+    if (data.fssaiLicense) mapped.brandName = data.fssaiLicense;
+    if (data.location) mapped.State = data.location;
+    if (data.restaurantName) mapped.restaurantName = data.restaurantName;
+
+    delete mapped.fssaiLicense;
+    delete mapped.location;
+
     const result = await VendorProduct.updateMany(
       { _id: { $in: ids }, vendor: req.vendor._id },
-      { $set: data }
+      { $set: mapped }
     );
 
     res.json({ success: true, modified: result.modifiedCount });
@@ -1072,7 +620,9 @@ exports.bulkUpdate = async (req, res) => {
   }
 };
 
-/* ================= BULK DELETE ================= */
+/* -----------------------------------------------------------------
+   BULK DELETE
+----------------------------------------------------------------- */
 exports.bulkDelete = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -1091,7 +641,3 @@ exports.bulkDelete = async (req, res) => {
     res.status(500).json({ message: "Bulk delete failed" });
   }
 };
-
-
-
-
