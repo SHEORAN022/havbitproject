@@ -6,8 +6,9 @@ const router = express.Router();
 
 /* =========================
    GET ALL VENDORS
+   GET /api/admin/vendors
 ========================= */
-router.get("/vendors", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const vendors = await Vendor.find().sort({ createdAt: -1 });
     res.json({ success: true, vendors });
@@ -18,8 +19,9 @@ router.get("/vendors", async (req, res) => {
 
 /* =========================
    GET ONLY PENDING VENDORS
+   GET /api/admin/vendors/pending
 ========================= */
-router.get("/vendors/pending", async (req, res) => {
+router.get("/pending", async (req, res) => {
   try {
     const vendors = await Vendor.find({ status: "PENDING" });
     res.json({ success: true, vendors });
@@ -30,11 +32,13 @@ router.get("/vendors/pending", async (req, res) => {
 
 /* =========================
    APPROVE VENDOR
+   PUT /api/admin/vendors/:id/approve
 ========================= */
-router.put("/vendors/:id/approve", async (req, res) => {
+router.put("/:id/approve", async (req, res) => {
   try {
     await Vendor.findByIdAndUpdate(req.params.id, {
       status: "APPROVED",
+      approvedAt: new Date(),
     });
 
     res.json({
@@ -48,16 +52,18 @@ router.put("/vendors/:id/approve", async (req, res) => {
 
 /* =========================
    REJECT VENDOR
+   PUT /api/admin/vendors/:id/reject
 ========================= */
-router.put("/vendors/:id/reject", async (req, res) => {
+router.put("/:id/reject", async (req, res) => {
   try {
     await Vendor.findByIdAndUpdate(req.params.id, {
       status: "REJECTED",
+      rejectedAt: new Date(),
     });
 
     res.json({
       success: true,
-      message: "Vendor rejected",
+      message: "Vendor rejected successfully",
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -65,5 +71,3 @@ router.put("/vendors/:id/reject", async (req, res) => {
 });
 
 module.exports = router;
-
-
