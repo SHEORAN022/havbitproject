@@ -378,6 +378,7 @@ app.use(
        "https://havbit.in",
         "https://admin.havbit.in",
         "https://vendor.havbit.in",
+       "https://seller.havbit.in",
       
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
