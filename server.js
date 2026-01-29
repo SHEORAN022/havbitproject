@@ -450,6 +450,7 @@ app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
 app.use("/api/admin/customers", require("./routes/adminCustomerRoutes"));
+app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
 
 /* ======================================================
    HEALTH & ROOT
