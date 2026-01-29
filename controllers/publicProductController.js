@@ -107,104 +107,218 @@
 
 
 
-// controllers/publicProductController.js
+// // controllers/publicProductController.js
+// const Product = require("../models/Product");
+// const VendorProduct = require("../models/VendorProduct");
+
+// exports.getPublicProducts = async (req, res) => {
+//   try {
+//     const adminProducts = await Product.find().lean();
+//     const vendorProducts = await VendorProduct.find().lean();
+
+//     const merged = [...adminProducts, ...vendorProducts].map(p => ({
+//       // Basic Info
+//       id: p._id,
+//       name: p.name,
+//       brandName: p.brandName,
+//       description: p.description,
+//       price: p.newPrice,
+//       oldPrice: p.oldPrice,
+//       stock: p.stock,
+//       quality: p.quality,
+//       restaurantName: p.restaurantName || "Havbit",
+      
+//       // Product Details
+//       dietPreference: p.dietPreference,
+//       ageRange: p.ageRange,
+//       containerType: p.containerType,
+//       flavors: p.flavors,
+//       itemForm: p.itemForm,
+//       specialty: p.specialty,
+//       itemTypeName: p.itemTypeName,
+//       countryOfOrigin: p.countryOfOrigin,
+      
+//       // Compliance
+//       fssaiLicense: p.fssaiLicense,
+//       legalDisclaimer: p.legalDisclaimer,
+//       shelfLife: p.shelfLife,
+      
+//       // Manufacturing
+//       manufacturer: p.manufacturer,
+//       manufacturerContact: p.manufacturerContact,
+//       packerContact: p.packerContact,
+//       marketerNameAddress: p.marketerNameAddress,
+      
+//       // Package Details
+//       packageColour: p.packageColour,
+//       measurementUnit: p.measurementUnit,
+//       unitCount: p.unitCount,
+//       numberOfItems: p.numberOfItems,
+//       itemWeight: p.itemWeight,
+//       size: p.size,
+//       totalEaches: p.totalEaches,
+//       itemPackageWeight: p.itemPackageWeight,
+      
+//       // Ingredients & Allergens
+//       ingredients: p.ingredients,
+//       allergenInformation: p.allergenInformation,
+//       directions: p.directions,
+      
+//       // Additional Info
+//       productTypes: p.productTypes,
+//       materialTypes: p.materialTypes,
+//       nutrition: p.nutrition,
+//       allergenInfo: p.allergenInfo,
+//       dietaryPreferences: p.dietaryPreferences,
+//       cuisine: p.cuisine,
+//       State: p.State,
+//       customWeight: p.customWeight,
+//       customSizeInput: p.customSizeInput,
+      
+//       // Category
+//       category: p.category,
+//       subcategory: p.subcategory,
+      
+//       // Media
+//       image: p.image,
+//       gallery: p.gallery,
+      
+//       // Vendor info (if exists)
+//       vendor: p.vendor,
+      
+//       // Timestamps
+//       createdAt: p.createdAt,
+//       updatedAt: p.updatedAt
+//     }));
+
+//     res.json({ 
+//       success: true, 
+//       count: merged.length,
+//       data: merged 
+//     });
+//   } catch (error) {
+//     console.error("GET PUBLIC PRODUCTS ERROR:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch products",
+//     });
+//   }
+// };
+
+
+
+
+
+
 const Product = require("../models/Product");
 const VendorProduct = require("../models/VendorProduct");
 
+/* =====================================================
+   GET PUBLIC PRODUCTS (ADMIN + VENDOR)
+   - Only valid Cloudinary images
+   - No broken images
+===================================================== */
 exports.getPublicProducts = async (req, res) => {
   try {
+    // Admin products
     const adminProducts = await Product.find().lean();
+
+    // Vendor products
     const vendorProducts = await VendorProduct.find().lean();
 
-    const merged = [...adminProducts, ...vendorProducts].map(p => ({
-      // Basic Info
+    // Merge & sanitize data
+    const mergedProducts = [...adminProducts, ...vendorProducts].map(p => ({
+      /* ================= BASIC INFO ================= */
       id: p._id,
       name: p.name,
-      brandName: p.brandName,
-      description: p.description,
-      price: p.newPrice,
-      oldPrice: p.oldPrice,
-      stock: p.stock,
-      quality: p.quality,
+      brandName: p.brandName || "",
+      description: p.description || "",
+      price: p.newPrice || 0,
+      oldPrice: p.oldPrice || 0,
+      stock: p.stock || 0,
+      quality: p.quality || "Standard",
       restaurantName: p.restaurantName || "Havbit",
-      
-      // Product Details
-      dietPreference: p.dietPreference,
-      ageRange: p.ageRange,
-      containerType: p.containerType,
-      flavors: p.flavors,
-      itemForm: p.itemForm,
-      specialty: p.specialty,
-      itemTypeName: p.itemTypeName,
-      countryOfOrigin: p.countryOfOrigin,
-      
-      // Compliance
-      fssaiLicense: p.fssaiLicense,
-      legalDisclaimer: p.legalDisclaimer,
-      shelfLife: p.shelfLife,
-      
-      // Manufacturing
-      manufacturer: p.manufacturer,
-      manufacturerContact: p.manufacturerContact,
-      packerContact: p.packerContact,
-      marketerNameAddress: p.marketerNameAddress,
-      
-      // Package Details
-      packageColour: p.packageColour,
-      measurementUnit: p.measurementUnit,
-      unitCount: p.unitCount,
-      numberOfItems: p.numberOfItems,
-      itemWeight: p.itemWeight,
-      size: p.size,
-      totalEaches: p.totalEaches,
-      itemPackageWeight: p.itemPackageWeight,
-      
-      // Ingredients & Allergens
-      ingredients: p.ingredients,
-      allergenInformation: p.allergenInformation,
-      directions: p.directions,
-      
-      // Additional Info
-      productTypes: p.productTypes,
-      materialTypes: p.materialTypes,
-      nutrition: p.nutrition,
-      allergenInfo: p.allergenInfo,
-      dietaryPreferences: p.dietaryPreferences,
-      cuisine: p.cuisine,
-      State: p.State,
-      customWeight: p.customWeight,
-      customSizeInput: p.customSizeInput,
-      
-      // Category
-      category: p.category,
-      subcategory: p.subcategory,
-      
-      // Media
-      image: p.image,
-      gallery: p.gallery,
-      
-      // Vendor info (if exists)
-      vendor: p.vendor,
-      
-      // Timestamps
+
+      /* ================= PRODUCT DETAILS ================= */
+      dietPreference: p.dietPreference || "",
+      ageRange: p.ageRange || "",
+      containerType: p.containerType || "",
+      flavors: p.flavors || "",
+      itemForm: p.itemForm || "",
+      specialty: p.specialty || "",
+      itemTypeName: p.itemTypeName || "",
+      countryOfOrigin: p.countryOfOrigin || "",
+
+      /* ================= COMPLIANCE ================= */
+      fssaiLicense: p.fssaiLicense || "",
+      legalDisclaimer: p.legalDisclaimer || "",
+      shelfLife: p.shelfLife || "",
+
+      /* ================= MANUFACTURING ================= */
+      manufacturer: p.manufacturer || "",
+      manufacturerContact: p.manufacturerContact || "",
+      packerContact: p.packerContact || "",
+      marketerNameAddress: p.marketerNameAddress || "",
+
+      /* ================= PACKAGE DETAILS ================= */
+      packageColour: p.packageColour || "",
+      measurementUnit: p.measurementUnit || "",
+      unitCount: p.unitCount || "",
+      numberOfItems: p.numberOfItems || "",
+      itemWeight: p.itemWeight || "",
+      size: p.size || "",
+      totalEaches: p.totalEaches || "",
+      itemPackageWeight: p.itemPackageWeight || "",
+
+      /* ================= INGREDIENTS & NUTRITION ================= */
+      ingredients: p.ingredients || "",
+      allergenInfo: p.allergenInfo || "",
+      allergenInformation: p.allergenInformation || "",
+      dietaryPreferences: p.dietaryPreferences || "",
+      nutrition: p.nutrition || "",
+      cuisine: p.cuisine || "",
+      directions: p.directions || "",
+
+      /* ================= LOCATION ================= */
+      State: p.State || "",
+
+      /* ================= CATEGORY ================= */
+      category: p.category || null,
+      subcategory: p.subcategory || null,
+
+      /* ================= MEDIA (🔥 FIXED) ================= */
+      image:
+        p.image && typeof p.image === "string" && p.image.startsWith("http")
+          ? p.image
+          : null,
+
+      gallery: Array.isArray(p.gallery)
+        ? p.gallery.filter(
+            img => typeof img === "string" && img.startsWith("http")
+          )
+        : [],
+
+      /* ================= VENDOR ================= */
+      vendor: p.vendor || null,
+
+      /* ================= TIMESTAMPS ================= */
       createdAt: p.createdAt,
-      updatedAt: p.updatedAt
+      updatedAt: p.updatedAt,
     }));
 
-    res.json({ 
-      success: true, 
-      count: merged.length,
-      data: merged 
+    return res.status(200).json({
+      success: true,
+      count: mergedProducts.length,
+      data: mergedProducts,
     });
   } catch (error) {
     console.error("GET PUBLIC PRODUCTS ERROR:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch products",
+      message: "Failed to fetch public products",
     });
   }
 };
-
 
 
 
