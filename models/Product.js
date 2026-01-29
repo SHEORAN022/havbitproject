@@ -170,12 +170,120 @@
 
 
 
-// models/Product.js
+// // models/Product.js
+// const mongoose = require("mongoose");
+
+// const ProductSchema = new mongoose.Schema(
+//   {
+//     // Basic Info
+//     name: { 
+//       type: String, 
+//       required: [true, "Product name is required"],
+//       trim: true 
+//     },
+//     description: String,
+    
+//     // Brand & Shop Info
+//     brandName: String,
+//     restaurantName: { 
+//       type: String, 
+//       default: "Havbit" 
+//     },
+    
+//     // Pricing & Stock
+//     oldPrice: { 
+//       type: Number, 
+//       default: 0,
+//       min: 0
+//     },
+//     newPrice: { 
+//       type: Number, 
+//       required: [true, "Selling price is required"],
+//       min: 0
+//     },
+//     stock: { 
+//       type: Number, 
+//       default: 0,
+//       min: 0
+//     },
+//     quality: { 
+//       type: String, 
+//       default: "Standard",
+//       enum: ["Standard", "Premium"]
+//     },
+//     dietPreference: {
+//       type: String,
+//       default: "Veg",
+//       enum: ["Veg", "Non-Veg", "Egg"]
+//     },
+    
+//     // Category
+//     category: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Category",
+//       required: [true, "Category is required"]
+//     },
+//     subcategory: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "SubCategory",
+//       default: null
+//     },
+    
+//     // Product Details
+//     productTypes: String,
+//     flavors: String,
+//     size: String,
+//     materialTypes: String,
+//     ingredients: String,
+//     customWeight: String,
+//     customSizeInput: String,
+    
+//     // Dietary & Nutrition
+//     dietaryPreferences: String,
+//     allergenInfo: String,
+//     nutrition: String,
+//     cuisine: String,
+    
+//     // Location
+//     State: String,
+    
+//     // Media
+//     image: String,
+//     gallery: [String],
+    
+//     // Vendor
+//     vendor: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Vendor",
+//       default: null
+//     }
+//   },
+//   {
+//     timestamps: true,
+//   }
+// );
+
+// // Indexes for better performance
+// ProductSchema.index({ name: 1 });
+// ProductSchema.index({ category: 1 });
+// ProductSchema.index({ restaurantName: 1 });
+// ProductSchema.index({ createdAt: -1 });
+
+// module.exports = mongoose.model("Product", ProductSchema);
+
+
+
+
+
+
+
+
+// models/Product.js - UPDATED WITH ALL FIELDS
 const mongoose = require("mongoose");
 
 const ProductSchema = new mongoose.Schema(
   {
-    // Basic Info
+    /* ================= BASIC INFO ================= */
     name: { 
       type: String, 
       required: [true, "Product name is required"],
@@ -183,14 +291,14 @@ const ProductSchema = new mongoose.Schema(
     },
     description: String,
     
-    // Brand & Shop Info
+    /* ================= BRAND & SHOP INFO ================= */
     brandName: String,
     restaurantName: { 
       type: String, 
       default: "Havbit" 
     },
     
-    // Pricing & Stock
+    /* ================= PRICING & STOCK ================= */
     oldPrice: { 
       type: Number, 
       default: 0,
@@ -209,7 +317,7 @@ const ProductSchema = new mongoose.Schema(
     quality: { 
       type: String, 
       default: "Standard",
-      enum: ["Standard", "Premium"]
+      enum: ["Standard", "Premium", "Good", "Fresh", "Butter"]
     },
     dietPreference: {
       type: String,
@@ -217,7 +325,7 @@ const ProductSchema = new mongoose.Schema(
       enum: ["Veg", "Non-Veg", "Egg"]
     },
     
-    // Category
+    /* ================= CATEGORY ================= */
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -229,7 +337,7 @@ const ProductSchema = new mongoose.Schema(
       default: null
     },
     
-    // Product Details
+    /* ================= PRODUCT DETAILS ================= */
     productTypes: String,
     flavors: String,
     size: String,
@@ -238,20 +346,50 @@ const ProductSchema = new mongoose.Schema(
     customWeight: String,
     customSizeInput: String,
     
-    // Dietary & Nutrition
+    /* ================= PRODUCT SPECIFICATIONS ================= */
+    ageRange: String,
+    containerType: String,
+    itemForm: String,
+    specialty: String,
+    itemTypeName: String,
+    countryOfOrigin: String,
+    
+    /* ================= COMPLIANCE ================= */
+    fssaiLicense: String,  // Alag field for FSSAI
+    legalDisclaimer: String,
+    shelfLife: String,
+    
+    /* ================= MANUFACTURING ================= */
+    manufacturer: String,
+    manufacturerContact: String,
+    packerContact: String,
+    marketerNameAddress: String,
+    
+    /* ================= PACKAGE DETAILS ================= */
+    packageColour: String,
+    measurementUnit: String,
+    unitCount: String,
+    numberOfItems: String,
+    itemWeight: String,  // Alag field for item weight
+    totalEaches: String,
+    itemPackageWeight: String,
+    
+    /* ================= DIETARY & NUTRITION ================= */
     dietaryPreferences: String,
-    allergenInfo: String,
+    allergenInfo: String,  // Current field
+    allergenInformation: String,  // New field
     nutrition: String,
     cuisine: String,
+    directions: String,
     
-    // Location
+    /* ================= LOCATION ================= */
     State: String,
     
-    // Media
+    /* ================= MEDIA ================= */
     image: String,
     gallery: [String],
     
-    // Vendor
+    /* ================= VENDOR ================= */
     vendor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
@@ -270,4 +408,3 @@ ProductSchema.index({ restaurantName: 1 });
 ProductSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Product", ProductSchema);
-
