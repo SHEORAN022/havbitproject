@@ -356,6 +356,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
 const couponRoutes = require("./routes/couponRoutes");
+const vendorOrderRoutes = require("./routes/vendorOrderRoutes");
 require("dotenv").config();
 
 
@@ -450,6 +451,7 @@ app.use("/api/vendor/products", require("./routes/vendorProductRoutes"));
 app.use("/api/vendor/subcategories", require("./routes/vendorSubCategoryRoutes"));
 app.use("/api/vendor/orders", require("./routes/vendorOrderRoutes"));
 app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
+app.use("/api/vendor/orders", vendorOrderRoutes);
 
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
