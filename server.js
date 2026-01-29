@@ -355,6 +355,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
+const couponRoutes = require("./routes/couponRoutes");
 require("dotenv").config();
 
 
@@ -451,6 +452,7 @@ app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
 app.use("/api/admin/customers", require("./routes/adminCustomerRoutes"));
 app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
+app.use("/api/coupons", couponRoutes);
 
 /* ======================================================
    HEALTH & ROOT
