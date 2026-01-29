@@ -114,7 +114,9 @@
 
 
 // controllers/vendorOrderController.js
-const Order = require("../models/order");
+// const Order = require("../models/order");
+const VendorOrder = require("../models/VendorOrder");
+
 
 // ==================== VENDOR: GET ORDERS (Filtered by vendor products) ====================
 exports.getVendorOrders = async (req, res) => {
