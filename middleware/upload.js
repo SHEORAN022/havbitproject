@@ -67,12 +67,38 @@
 
 
 
+// const multer = require("multer");
+
+// // memory storage (Cloudinary ke liye BEST)
+// const storage = multer.memoryStorage();
+
+// // file filter (sirf image allow)
+// const fileFilter = (req, file, cb) => {
+//   if (file.mimetype.startsWith("image/")) {
+//     cb(null, true);
+//   } else {
+//     cb(new Error("Only image files are allowed"), false);
+//   }
+// };
+
+// const upload = multer({
+//   storage,
+//   fileFilter,
+//   limits: {
+//     fileSize: 5 * 1024 * 1024, // 5MB
+//   },
+// });
+
+// module.exports = upload;
+
+
+
+
+// module.exports = upload;
 const multer = require("multer");
 
-// memory storage (Cloudinary ke liye BEST)
 const storage = multer.memoryStorage();
 
-// file filter (sirf image allow)
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
@@ -85,7 +111,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
 });
 
