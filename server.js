@@ -459,6 +459,7 @@ app.use("/api/admin/vendors", require("./routes/adminVendor"));
 app.use("/api/admin/customers", require("./routes/adminCustomerRoutes"));
 app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/coupons", couponRoutes);
+app.use("/api/lead-entries", require("./routes/leadEntryRoutes"));
 
 /* ======================================================
    HEALTH & ROOT
