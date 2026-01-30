@@ -395,37 +395,151 @@
 
 
 
+// const mongoose = require("mongoose");
+
+// const vendorOrderSchema = new mongoose.Schema(
+//   {
+//     vendor: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Vendor",
+//       required: true,
+//     },
+
+//     user: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Customer",
+//       required: true,
+//     },
+
+//     orderId: {
+//       type: String,
+//       unique: true,
+//     },
+
+//     orderItems: [
+//       {
+//         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+//         productName: String,
+//         price: Number,
+//         qty: Number,
+//         image: String,
+//       },
+//     ],
+
+//     amount: {
+//       type: Number,
+//       required: true,
+//     },
+
+//     paymentMethod: {
+//       type: String,
+//       enum: ["cod", "razorpay", "stripe", "wallet"],
+//       default: "cod",
+//     },
+
+//     paymentStatus: {
+//       type: String,
+//       enum: ["Paid", "Pending", "Failed", "Refunded"],
+//       default: "Pending",
+//     },
+
+//     orderStatus: {
+//       type: String,
+//       enum: [
+//         "Confirmed",
+//         "Processing",
+//         "Shipped",
+//         "Delivered",
+//         "Cancelled",
+//         "Pending",
+//       ],
+//       default: "Pending",
+//     },
+
+//     shippingAddress: {
+//       name: String,
+//       address: String,
+//       city: String,
+//       state: String,
+//       pincode: String,
+//       phone: String,
+//     },
+
+//     tracking: {
+//       provider: String,
+//       trackingId: String,
+//       estimatedDelivery: Date,
+//     },
+//   },
+//   { timestamps: true }
+// );
+
+// module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+
+
+
+
+
+
+
 const mongoose = require("mongoose");
+
+const VendorOrderItemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    productName: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+    qty: {
+      type: Number,
+      required: true,
+    },
+    image: String,
+  },
+  { _id: false }
+);
 
 const vendorOrderSchema = new mongoose.Schema(
   {
+    /* 🔴 MAIN VENDOR ID (VERY IMPORTANT) */
     vendor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
       required: true,
+      index: true, // 🔥 vendor wise fast query
     },
 
+    /* CUSTOMER WHO PLACED ORDER */
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
     },
 
+    /* LINK TO CUSTOMER ORDER */
     orderId: {
-      type: String,
-      unique: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CustomerOrder",
+      required: true,
+      index: true,
     },
 
-    orderItems: [
-      {
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-        productName: String,
-        price: Number,
-        qty: Number,
-        image: String,
-      },
-    ],
+    /* ONLY THIS VENDOR PRODUCTS */
+    orderItems: {
+      type: [VendorOrderItemSchema],
+      required: true,
+    },
 
+    /* VENDOR TOTAL AMOUNT */
     amount: {
       type: Number,
       required: true,
@@ -443,17 +557,19 @@ const vendorOrderSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    /* VENDOR LEVEL STATUS */
     orderStatus: {
       type: String,
       enum: [
+        "Pending",
         "Confirmed",
         "Processing",
         "Shipped",
         "Delivered",
         "Cancelled",
-        "Pending",
       ],
       default: "Pending",
+      index: true,
     },
 
     shippingAddress: {
@@ -465,13 +581,18 @@ const vendorOrderSchema = new mongoose.Schema(
       phone: String,
     },
 
+    /* SHIPPING / TRACKING */
     tracking: {
       provider: String,
       trackingId: String,
       estimatedDelivery: Date,
     },
+
+    deliveredAt: Date,
+    cancelledAt: Date,
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+
