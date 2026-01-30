@@ -1,0 +1,99 @@
+const VendorBrand = require("../models/VendorBrand");
+const cloudinary = require("../config/cloudinary");
+
+/* CREATE */
+exports.createBrand = async (req, res) => {
+  const { brandName } = req.body;
+
+  if (!brandName) {
+    return res.status(400).json({ success: false, message: "Brand name required" });
+  }
+
+  const exists = await VendorBrand.findOne({ vendor: req.vendor._id });
+  if (exists) {
+    return res.status(400).json({ success: false, message: "Brand already exists" });
+  }
+
+  let logo = {};
+  let banner = {};
+
+  if (req.files?.logo) {
+    const up = await cloudinary.uploader.upload(
+      `data:${req.files.logo[0].mimetype};base64,${req.files.logo[0].buffer.toString("base64")}`,
+      { folder: "vendor_brand/logo" }
+    );
+    logo = { url: up.secure_url, public_id: up.public_id };
+  }
+
+  if (req.files?.banner) {
+    const up = await cloudinary.uploader.upload(
+      `data:${req.files.banner[0].mimetype};base64,${req.files.banner[0].buffer.toString("base64")}`,
+      { folder: "vendor_brand/banner" }
+    );
+    banner = { url: up.secure_url, public_id: up.public_id };
+  }
+
+  const brand = await VendorBrand.create({
+    vendor: req.vendor._id,
+    brandName,
+    logo,
+    banner,
+  });
+
+  res.status(201).json({ success: true, data: brand });
+};
+
+/* READ */
+exports.getBrand = async (req, res) => {
+  const brand = await VendorBrand.findOne({ vendor: req.vendor._id });
+  res.json({ success: true, data: brand });
+};
+
+/* UPDATE */
+exports.updateBrand = async (req, res) => {
+  const brand = await VendorBrand.findOne({ vendor: req.vendor._id });
+  if (!brand) {
+    return res.status(404).json({ success: false, message: "Brand not found" });
+  }
+
+  if (req.body.brandName) brand.brandName = req.body.brandName;
+
+  if (req.files?.logo) {
+    if (brand.logo?.public_id) {
+      await cloudinary.uploader.destroy(brand.logo.public_id);
+    }
+    const up = await cloudinary.uploader.upload(
+      `data:${req.files.logo[0].mimetype};base64,${req.files.logo[0].buffer.toString("base64")}`,
+      { folder: "vendor_brand/logo" }
+    );
+    brand.logo = { url: up.secure_url, public_id: up.public_id };
+  }
+
+  if (req.files?.banner) {
+    if (brand.banner?.public_id) {
+      await cloudinary.uploader.destroy(brand.banner.public_id);
+    }
+    const up = await cloudinary.uploader.upload(
+      `data:${req.files.banner[0].mimetype};base64,${req.files.banner[0].buffer.toString("base64")}`,
+      { folder: "vendor_brand/banner" }
+    );
+    brand.banner = { url: up.secure_url, public_id: up.public_id };
+  }
+
+  await brand.save();
+  res.json({ success: true, data: brand });
+};
+
+/* DELETE */
+exports.deleteBrand = async (req, res) => {
+  const brand = await VendorBrand.findOne({ vendor: req.vendor._id });
+  if (!brand) {
+    return res.status(404).json({ success: false, message: "Brand not found" });
+  }
+
+  if (brand.logo?.public_id) await cloudinary.uploader.destroy(brand.logo.public_id);
+  if (brand.banner?.public_id) await cloudinary.uploader.destroy(brand.banner.public_id);
+
+  await brand.deleteOne();
+  res.json({ success: true, message: "Brand deleted" });
+};
