@@ -5,8 +5,9 @@ const I = require("../controllers/inventoryController");
 
 router.use(vendorAuth);
 
-router.post("/", I.createInventory);             // create inventory
-router.get("/", I.getMyInventory);               // all inventory
-router.put("/:productId", I.updateStock);        // update stock
+router.post("/", I.createInventory);     // CREATE
+router.get("/", I.getMyInventory);       // READ
+router.put("/:id", I.updateInventory);   // UPDATE
+router.delete("/:id", I.deleteInventory);// DELETE
 
 module.exports = router;
