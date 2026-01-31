@@ -2159,7 +2159,6 @@
 
 
 
-
 const VendorProduct = require("../models/VendorProduct");
 const Vendor = require("../models/Vendor");
 const Category = require("../models/Category");
@@ -2269,9 +2268,9 @@ exports.createVendorProduct = async (req, res) => {
       }
     }
 
-    // ✅ FIX: Subcategory validation with .populate()
+    // ✅ MAJOR FIX: Subcategory validation - NO POPULATE, direct field check
     if (data.subcategory) {
-      const subcategoryExists = await SubCategory.findById(data.subcategory).populate('category');
+      const subcategoryExists = await SubCategory.findById(data.subcategory);
       if (!subcategoryExists) {
         return res.status(400).json({ 
           success: false, 
@@ -2279,12 +2278,23 @@ exports.createVendorProduct = async (req, res) => {
         });
       }
       
-      // ✅ FIX: Safe check with null verification
+      // ✅ FIX: Check the actual field name from SubCategory model
+      // SubCategory model mein field ka naam check karo - could be:
+      // - category (common)
+      // - parent (some models use this)
+      // - categoryId (some use this)
+      
       if (data.category && subcategoryExists.category) {
-        const subcatCategoryId = subcategoryExists.category._id 
-          ? subcategoryExists.category._id.toString() 
-          : subcategoryExists.category.toString();
-          
+        const subcatCategoryId = subcategoryExists.category.toString();
+        if (subcatCategoryId !== data.category) {
+          return res.status(400).json({ 
+            success: false, 
+            message: "Subcategory does not belong to selected category" 
+          });
+        }
+      } else if (data.category && subcategoryExists.parent) {
+        // If field is named 'parent' instead of 'category'
+        const subcatCategoryId = subcategoryExists.parent.toString();
         if (subcatCategoryId !== data.category) {
           return res.status(400).json({ 
             success: false, 
@@ -2292,6 +2302,7 @@ exports.createVendorProduct = async (req, res) => {
           });
         }
       }
+      // Note: If no category field found in subcategory, skip validation
     }
     
     // Step 2: Parse data - handle formData or direct fields
@@ -2321,7 +2332,7 @@ exports.createVendorProduct = async (req, res) => {
       // Step 3: Product Details - Pricing
       if (data.formData.pricing) {
         productData.oldPrice = Number(data.formData.pricing.oldPrice || 0);
-        productData.price = Number(data.formData.pricing.newPrice || 0); // IMPORTANT: newPrice -> price
+        productData.price = Number(data.formData.pricing.newPrice || 0);
         productData.stock = Number(data.formData.pricing.stock || 0);
         productData.quality = data.formData.pricing.quality || "Standard";
         productData.dietPreference = data.formData.pricing.dietPreference || "Veg";
@@ -2416,8 +2427,8 @@ exports.createVendorProduct = async (req, res) => {
       
       // Step 4: Manufacturing & Marketing
       if (data.formData.compliance) {
-        productData.brandName = data.formData.compliance.fssaiLicense || ""; // FSSAI -> brandName
-        productData.fssaiLicense = data.formData.compliance.fssaiLicense || ""; // DONO FIELDS
+        productData.brandName = data.formData.compliance.fssaiLicense || "";
+        productData.fssaiLicense = data.formData.compliance.fssaiLicense || "";
         productData.legalDisclaimer = data.formData.compliance.legalDisclaimer || "";
       } else {
         productData.brandName = data.brandName || data.fssaiLicenseNumber || "";
@@ -2698,9 +2709,9 @@ exports.updateVendorProduct = async (req, res) => {
       updateData.category = data.category;
     }
 
-    // ✅ FIX: Subcategory validation with .populate()
+    // ✅ MAJOR FIX: Subcategory validation - NO POPULATE, direct field check
     if (data.subcategory) {
-      const subcategoryExists = await SubCategory.findById(data.subcategory).populate('category');
+      const subcategoryExists = await SubCategory.findById(data.subcategory);
       if (!subcategoryExists) {
         return res.status(400).json({ 
           success: false, 
@@ -2708,12 +2719,18 @@ exports.updateVendorProduct = async (req, res) => {
         });
       }
       
-      // ✅ FIX: Safe check with null verification
+      // ✅ FIX: Check the actual field name from SubCategory model
       if (data.category && subcategoryExists.category) {
-        const subcatCategoryId = subcategoryExists.category._id 
-          ? subcategoryExists.category._id.toString() 
-          : subcategoryExists.category.toString();
-          
+        const subcatCategoryId = subcategoryExists.category.toString();
+        if (subcatCategoryId !== data.category) {
+          return res.status(400).json({ 
+            success: false, 
+            message: "Subcategory does not belong to selected category" 
+          });
+        }
+      } else if (data.category && subcategoryExists.parent) {
+        // If field is named 'parent' instead of 'category'
+        const subcatCategoryId = subcategoryExists.parent.toString();
         if (subcatCategoryId !== data.category) {
           return res.status(400).json({ 
             success: false, 
@@ -2742,7 +2759,7 @@ exports.updateVendorProduct = async (req, res) => {
         
         // Pricing
         oldPrice: 'formData.pricing.oldPrice',
-        price: 'formData.pricing.newPrice', // newPrice -> price
+        price: 'formData.pricing.newPrice',
         stock: 'formData.pricing.stock',
         quality: 'formData.pricing.quality',
         dietPreference: 'formData.pricing.dietPreference',
@@ -2764,8 +2781,8 @@ exports.updateVendorProduct = async (req, res) => {
         State: 'formData.location.state',
         
         // Compliance
-        brandName: 'formData.compliance.fssaiLicense', // FSSAI -> brandName
-        fssaiLicense: 'formData.compliance.fssaiLicense', // Also to fssaiLicense
+        brandName: 'formData.compliance.fssaiLicense',
+        fssaiLicense: 'formData.compliance.fssaiLicense',
         legalDisclaimer: 'formData.compliance.legalDisclaimer',
         
         // Manufacturing
