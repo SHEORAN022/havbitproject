@@ -1109,9 +1109,6 @@
 
 
 
-
-
-
 const VendorProduct = require("../models/VendorProduct");
 const Vendor = require("../models/Vendor");
 const Category = require("../models/Category");
@@ -1894,4 +1891,266 @@ exports.updateVendorProduct = async (req, res) => {
     
     // Update product
     Object.assign(product, updateData);
-   
+    await product.save();
+    
+    // Populate and return
+    const populatedProduct = await VendorProduct.findById(product._id)
+      .populate("category", "name image")
+      .populate("subcategory", "name image");
+    
+    res.json({ success: true, data: populatedProduct });
+    
+  } catch (err) {
+    console.error("❌ UPDATE PRODUCT ERROR:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message 
+    });
+  }
+};
+
+/* ================= DELETE PRODUCT ================= */
+exports.deleteVendorProduct = async (req, res) => {
+  try {
+    await VendorProduct.deleteOne({
+      _id: req.params.id,
+      vendor: req.vendor._id,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete product error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/* ================= CSV IMPORT ================= */
+exports.importCSV = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "CSV file required" });
+    }
+
+    const vendorId = req.vendor._id;
+    const vendor = await Vendor.findById(vendorId);
+    const rows = [];
+
+    fs.createReadStream(req.file.path)
+      .pipe(csv())
+      .on("data", (row) => rows.push(row))
+      .on("end", async () => {
+        let created = 0;
+        let updated = 0;
+        let errors = [];
+
+        for (const [index, r] of rows.entries()) {
+          try {
+            if (!r.name || !r.price) continue;
+
+            // Find category
+            let categoryId = null;
+            if (r.category) {
+              const category = await Category.findOne({ 
+                name: { $regex: new RegExp(`^${r.category}$`, 'i') } 
+              });
+              if (category) categoryId = category._id;
+            }
+
+            // Find subcategory
+            let subcategoryId = null;
+            if (r.subcategory) {
+              const subcategory = await SubCategory.findOne({ 
+                name: { $regex: new RegExp(`^${r.subcategory}$`, 'i') },
+                ...(categoryId ? { category: categoryId } : {})
+              });
+              if (subcategory) subcategoryId = subcategory._id;
+            }
+
+            // Parse arrays
+            const flavors = r.flavors ? r.flavors.split(',').map(f => f.trim()).filter(f => f !== '') : [];
+            const size = r.size ? r.size.split(',').map(s => s.trim()).filter(s => s !== '') : [];
+
+            const payload = {
+              name: r.name,
+              brandName: r.brandName || "",
+              description: r.description || "",
+              oldPrice: Number(r.oldPrice) || 0,
+              price: Number(r.price),
+              stock: Number(r.stock) || 0,
+              quality: r.quality || "Standard",
+              State: r.State || "",
+              vendor: vendorId,
+              restaurantName: vendor.storeName || r.restaurantName || "",
+              category: categoryId,
+              subcategory: subcategoryId,
+              productTypes: r.productTypes || "",
+              flavors: flavors,
+              size: size,
+              dietPreference: r.dietPreference || "Veg",
+              ageRange: r.ageRange || "",
+              containerType: r.containerType || "",
+              itemForm: r.itemForm || "",
+              specialty: r.specialty || "",
+              itemTypeName: r.itemTypeName || "",
+              countryOfOrigin: r.countryOfOrigin || "",
+              manufacturer: r.manufacturer || "",
+              manufacturerContact: r.manufacturerContact || "",
+              packerContact: r.packerContact || "",
+              marketerNameAddress: r.marketerNameAddress || "",
+              packageColour: r.packageColour || "",
+              measurementUnit: r.measurementUnit || "",
+              unitCount: r.unitCount || "",
+              numberOfItems: r.numberOfItems || "",
+              itemWeight: r.itemWeight || "",
+              totalEaches: r.totalEaches || "",
+              itemPackageWeight: r.itemPackageWeight || "",
+              shelfLife: r.shelfLife || "",
+              ingredients: r.ingredients || "",
+              allergenInformation: r.allergenInformation || "",
+              directions: r.directions || "",
+              nutrition: r.nutrition || "",
+              cuisine: r.cuisine || "",
+              dietaryPreferences: r.dietaryPreferences || "",
+              materialTypes: r.materialTypes || "",
+              customWeight: r.customWeight || "",
+              customSizeInput: r.customSizeInput || "",
+              fssaiLicense: r.fssaiLicense || "",
+              legalDisclaimer: r.legalDisclaimer || "",
+            };
+
+            if (r._id) {
+              await VendorProduct.updateOne(
+                { _id: r._id, vendor: vendorId },
+                payload
+              );
+              updated++;
+            } else {
+              await VendorProduct.create(payload);
+              created++;
+            }
+          } catch (error) {
+            errors.push(`Row ${index + 1}: ${error.message}`);
+          }
+        }
+
+        fs.unlinkSync(req.file.path);
+
+        res.json({
+          success: true,
+          created,
+          updated,
+          total: rows.length,
+          errors: errors.length > 0 ? errors : undefined,
+        });
+      });
+  } catch (err) {
+    console.error("CSV import error:", err);
+    res.status(500).json({ message: "CSV Import Failed" });
+  }
+};
+
+/* ================= CSV EXPORT ================= */
+exports.exportCSV = async (req, res) => {
+  try {
+    const products = await VendorProduct.find({
+      vendor: req.vendor._id,
+    })
+      .populate("category", "name")
+      .populate("subcategory", "name")
+      .lean();
+
+    // Transform data
+    const transformedProducts = products.map(product => ({
+      ...product,
+      flavors: Array.isArray(product.flavors) ? product.flavors.join(',') : product.flavors || "",
+      size: Array.isArray(product.size) ? product.size.join(',') : product.size || "",
+      category: product.category ? product.category.name : "",
+      subcategory: product.subcategory ? product.subcategory.name : "",
+      categoryId: product.category ? product.category._id : "",
+      subcategoryId: product.subcategory ? product.subcategory._id : ""
+    }));
+
+    const fields = [
+      '_id', 'name', 'description', 'brandName', 'fssaiLicense', 'restaurantName',
+      'oldPrice', 'price', 'stock', 'quality', 'State',
+      'category', 'subcategory', 'categoryId', 'subcategoryId',
+      'productTypes', 'flavors', 'size', 'dietPreference',
+      'ageRange', 'containerType', 'itemForm', 'specialty',
+      'itemTypeName', 'countryOfOrigin', 'manufacturer',
+      'manufacturerContact', 'packerContact', 'marketerNameAddress',
+      'packageColour', 'measurementUnit', 'unitCount', 'numberOfItems',
+      'itemWeight', 'totalEaches', 'itemPackageWeight', 'shelfLife',
+      'ingredients', 'allergenInformation', 'directions', 'nutrition',
+      'cuisine', 'dietaryPreferences', 'materialTypes', 'customWeight',
+      'customSizeInput', 'legalDisclaimer'
+    ];
+
+    const parser = new Parser({ fields });
+    const csvData = parser.parse(transformedProducts);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=vendor_products.csv"
+    );
+    res.send(csvData);
+  } catch (err) {
+    console.error("CSV export error:", err);
+    res.status(500).json({ message: "CSV Export Failed" });
+  }
+};
+
+/* ================= BULK UPDATE ================= */
+exports.bulkUpdate = async (req, res) => {
+  try {
+    const { ids, data } = req.body;
+    if (!ids?.length) {
+      return res.status(400).json({ message: "IDs required" });
+    }
+
+    // Handle price mapping
+    const updateData = { ...data };
+    if (updateData.newPrice !== undefined) {
+      updateData.price = updateData.newPrice;
+      delete updateData.newPrice;
+    }
+
+    // Handle arrays
+    if (updateData.flavors !== undefined && typeof updateData.flavors === 'string') {
+      updateData.flavors = updateData.flavors.split(',').map(f => f.trim()).filter(f => f !== '');
+    }
+    
+    if (updateData.size !== undefined && typeof updateData.size === 'string') {
+      updateData.size = updateData.size.split(',').map(s => s.trim()).filter(s => s !== '');
+    }
+
+    const result = await VendorProduct.updateMany(
+      { _id: { $in: ids }, vendor: req.vendor._id },
+      { $set: updateData }
+    );
+
+    res.json({ success: true, modified: result.modifiedCount });
+  } catch (err) {
+    console.error("Bulk update error:", err);
+    res.status(500).json({ message: "Bulk update failed" });
+  }
+};
+
+/* ================= BULK DELETE ================= */
+exports.bulkDelete = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) {
+      return res.status(400).json({ message: "IDs required" });
+    }
+
+    const result = await VendorProduct.deleteMany({
+      _id: { $in: ids },
+      vendor: req.vendor._id,
+    });
+
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.error("Bulk delete error:", err);
+    res.status(500).json({ message: "Bulk delete failed" });
+  }
+};
