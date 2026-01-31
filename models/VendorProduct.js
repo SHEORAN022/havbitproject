@@ -52,76 +52,76 @@
 
 
 
-// models/VendorProduct.js
-const mongoose = require("mongoose");
+// // models/VendorProduct.js
+// const mongoose = require("mongoose");
 
-const VendorProductSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    description: String,
-    brandName: String,
-    restaurantName: String,
+// const VendorProductSchema = new mongoose.Schema(
+//   {
+//     name: { type: String, required: true },
+//     description: String,
+//     brandName: String,
+//     restaurantName: String,
     
-    oldPrice: Number,
-    newPrice: { type: Number, required: true },
-    stock: Number,
-    quality: String,
+//     oldPrice: Number,
+//     newPrice: { type: Number, required: true },
+//     stock: Number,
+//     quality: String,
     
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "VendorCategory" },
-    subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "VendorSubCategory" },
+//     category: { type: mongoose.Schema.Types.ObjectId, ref: "VendorCategory" },
+//     subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "VendorSubCategory" },
     
-    /* ================= ALL NEW FIELDS ================= */
-    dietPreference: String,
-    ageRange: String,
-    containerType: String,
-    flavors: String,
-    itemForm: String,
-    specialty: String,
-    itemTypeName: String,
-    countryOfOrigin: String,
+//     /* ================= ALL NEW FIELDS ================= */
+//     dietPreference: String,
+//     ageRange: String,
+//     containerType: String,
+//     flavors: String,
+//     itemForm: String,
+//     specialty: String,
+//     itemTypeName: String,
+//     countryOfOrigin: String,
     
-    fssaiLicense: String,
-    legalDisclaimer: String,
-    shelfLife: String,
+//     fssaiLicense: String,
+//     legalDisclaimer: String,
+//     shelfLife: String,
     
-    manufacturer: String,
-    manufacturerContact: String,
-    packerContact: String,
-    marketerNameAddress: String,
+//     manufacturer: String,
+//     manufacturerContact: String,
+//     packerContact: String,
+//     marketerNameAddress: String,
     
-    packageColour: String,
-    measurementUnit: String,
-    unitCount: String,
-    numberOfItems: String,
-    itemWeight: String,
-    size: String,
-    totalEaches: String,
-    itemPackageWeight: String,
+//     packageColour: String,
+//     measurementUnit: String,
+//     unitCount: String,
+//     numberOfItems: String,
+//     itemWeight: String,
+//     size: String,
+//     totalEaches: String,
+//     itemPackageWeight: String,
     
-    ingredients: String,
-    allergenInformation: String,
-    directions: String,
+//     ingredients: String,
+//     allergenInformation: String,
+//     directions: String,
     
-    /* ================= ADDITIONAL FIELDS ================= */
-    productTypes: String,
-    materialTypes: String,
-    nutrition: String,
-    allergenInfo: String,
-    dietaryPreferences: String,
-    cuisine: String,
-    State: String,
-    customWeight: String,
-    customSizeInput: String,
+//     /* ================= ADDITIONAL FIELDS ================= */
+//     productTypes: String,
+//     materialTypes: String,
+//     nutrition: String,
+//     allergenInfo: String,
+//     dietaryPreferences: String,
+//     cuisine: String,
+//     State: String,
+//     customWeight: String,
+//     customSizeInput: String,
     
-    image: String,
-    gallery: [String],
+//     image: String,
+//     gallery: [String],
     
-    vendor: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true }
-  },
-  { timestamps: true }
-);
+//     vendor: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true }
+//   },
+//   { timestamps: true }
+// );
 
-module.exports = mongoose.model("VendorProduct", VendorProductSchema);
+// module.exports = mongoose.model("VendorProduct", VendorProductSchema);
 
 
 
@@ -298,165 +298,165 @@ module.exports = mongoose.model("VendorProduct", VendorProductSchema);
 
 
 
-// const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-// const VendorProductSchema = new mongoose.Schema(
-//   {
-//     /* ================= BASIC INFO ================= */
-//     name: { 
-//       type: String, 
-//       required: [true, "Product name is required"],
-//       trim: true 
-//     },
-//     description: String,
+const VendorProductSchema = new mongoose.Schema(
+  {
+    /* ================= BASIC INFO ================= */
+    name: { 
+      type: String, 
+      required: [true, "Product name is required"],
+      trim: true 
+    },
+    description: String,
     
-//     /* ================= BRAND & SHOP INFO ================= */
-//     brandName: String,  // FSSAI License Number goes here
-//     restaurantName: { 
-//       type: String, 
-//       default: "" 
-//     },
+    /* ================= BRAND & SHOP INFO ================= */
+    brandName: String,  // FSSAI License Number goes here
+    restaurantName: { 
+      type: String, 
+      default: "" 
+    },
     
-//     /* ================= PRICING & STOCK ================= */
-//     oldPrice: { 
-//       type: Number, 
-//       default: 0,
-//       min: 0
-//     },
-//     price: {  // CHANGED: newPrice -> price
-//       type: Number, 
-//       required: [true, "Selling price is required"],
-//       min: 0
-//     },
-//     stock: { 
-//       type: Number, 
-//       default: 0,
-//       min: 0
-//     },
-//     quality: { 
-//       type: String, 
-//       default: "Standard",
-//       enum: ["Standard", "Premium", "Good", "Fresh", "Butter"]
-//     },
-//     dietPreference: {
-//       type: String,
-//       default: "Veg",
-//       enum: ["Veg", "Non-Veg", "Egg"]
-//     },
+    /* ================= PRICING & STOCK ================= */
+    oldPrice: { 
+      type: Number, 
+      default: 0,
+      min: 0
+    },
+    price: {  // CHANGED: newPrice -> price
+      type: Number, 
+      required: [true, "Selling price is required"],
+      min: 0
+    },
+    stock: { 
+      type: Number, 
+      default: 0,
+      min: 0
+    },
+    quality: { 
+      type: String, 
+      default: "Standard",
+      enum: ["Standard", "Premium", "Good", "Fresh", "Butter"]
+    },
+    dietPreference: {
+      type: String,
+      default: "Veg",
+      enum: ["Veg", "Non-Veg", "Egg"]
+    },
     
-//     /* ================= CATEGORY ================= */
-//     category: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Category",
-//       required: [true, "Category is required"]
-//     },
-//     subcategory: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "SubCategory",
-//       default: null
-//     },
+    /* ================= CATEGORY ================= */
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: [true, "Category is required"]
+    },
+    subcategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+      default: null
+    },
     
-//     /* ================= PRODUCT DETAILS ================= */
-//     productTypes: String,
-//     flavors: [String],  // ARRAY OF STRINGS
-//     size: [String],     // ARRAY OF STRINGS
-//     materialTypes: String,
-//     ingredients: String,
-//     customWeight: String,
-//     customSizeInput: String,
+    /* ================= PRODUCT DETAILS ================= */
+    productTypes: String,
+    flavors: [String],  // ARRAY OF STRINGS
+    size: [String],     // ARRAY OF STRINGS
+    materialTypes: String,
+    ingredients: String,
+    customWeight: String,
+    customSizeInput: String,
     
-//     /* ================= PRODUCT SPECIFICATIONS ================= */
-//     ageRange: String,
-//     containerType: String,
-//     itemForm: String,
-//     specialty: String,
-//     itemTypeName: String,
-//     countryOfOrigin: String,
+    /* ================= PRODUCT SPECIFICATIONS ================= */
+    ageRange: String,
+    containerType: String,
+    itemForm: String,
+    specialty: String,
+    itemTypeName: String,
+    countryOfOrigin: String,
     
-//     /* ================= COMPLIANCE ================= */
-//     fssaiLicense: String,  // DONO FSSAI FIELDS
-//     legalDisclaimer: String,
-//     shelfLife: String,
+    /* ================= COMPLIANCE ================= */
+    fssaiLicense: String,  // DONO FSSAI FIELDS
+    legalDisclaimer: String,
+    shelfLife: String,
     
-//     /* ================= MANUFACTURING ================= */
-//     manufacturer: String,
-//     manufacturerContact: String,
-//     packerContact: String,
-//     marketerNameAddress: String,
+    /* ================= MANUFACTURING ================= */
+    manufacturer: String,
+    manufacturerContact: String,
+    packerContact: String,
+    marketerNameAddress: String,
     
-//     /* ================= PACKAGE DETAILS ================= */
-//     packageColour: String,
-//     measurementUnit: String,
-//     unitCount: String,
-//     numberOfItems: String,
-//     itemWeight: String,
-//     totalEaches: String,
-//     itemPackageWeight: String,
+    /* ================= PACKAGE DETAILS ================= */
+    packageColour: String,
+    measurementUnit: String,
+    unitCount: String,
+    numberOfItems: String,
+    itemWeight: String,
+    totalEaches: String,
+    itemPackageWeight: String,
     
-//     /* ================= DIETARY & NUTRITION ================= */
-//     dietaryPreferences: String,
-//     allergenInfo: String,
-//     allergenInformation: String,
-//     nutrition: String,
-//     cuisine: String,
-//     directions: String,
+    /* ================= DIETARY & NUTRITION ================= */
+    dietaryPreferences: String,
+    allergenInfo: String,
+    allergenInformation: String,
+    nutrition: String,
+    cuisine: String,
+    directions: String,
     
-//     /* ================= LOCATION ================= */
-//     State: String,  // Capital 'S' as per mapping
+    /* ================= LOCATION ================= */
+    State: String,  // Capital 'S' as per mapping
     
-//     /* ================= MEDIA ================= */
-//     image: String,
-//     gallery: [String],
+    /* ================= MEDIA ================= */
+    image: String,
+    gallery: [String],
     
-//     /* ================= VENDOR ================= */
-//     vendor: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Vendor",
-//       required: true
-//     }
-//   },
-//   {
-//     timestamps: true,
-//   }
-// );
+    /* ================= VENDOR ================= */
+    vendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
+      required: true
+    }
+  },
+  {
+    timestamps: true,
+  }
+);
 
-// // Indexes
-// VendorProductSchema.index({ vendor: 1 });
-// VendorProductSchema.index({ category: 1 });
-// VendorProductSchema.index({ name: 1 });
-// VendorProductSchema.index({ price: 1 });
-// VendorProductSchema.index({ brandName: 1 });
-// VendorProductSchema.index({ fssaiLicense: 1 });
+// Indexes
+VendorProductSchema.index({ vendor: 1 });
+VendorProductSchema.index({ category: 1 });
+VendorProductSchema.index({ name: 1 });
+VendorProductSchema.index({ price: 1 });
+VendorProductSchema.index({ brandName: 1 });
+VendorProductSchema.index({ fssaiLicense: 1 });
 
-// // Pre-save middleware for arrays
-// VendorProductSchema.pre('save', function(next) {
-//   // Ensure arrays exist
-//   if (!Array.isArray(this.flavors)) this.flavors = [];
-//   if (!Array.isArray(this.size)) this.size = [];
-//   if (!Array.isArray(this.gallery)) this.gallery = [];
+// Pre-save middleware for arrays
+VendorProductSchema.pre('save', function(next) {
+  // Ensure arrays exist
+  if (!Array.isArray(this.flavors)) this.flavors = [];
+  if (!Array.isArray(this.size)) this.size = [];
+  if (!Array.isArray(this.gallery)) this.gallery = [];
   
-//   // Clean and trim
-//   this.flavors = this.flavors
-//     .filter(f => f && typeof f === 'string' && f.trim() !== '')
-//     .map(f => f.trim());
+  // Clean and trim
+  this.flavors = this.flavors
+    .filter(f => f && typeof f === 'string' && f.trim() !== '')
+    .map(f => f.trim());
     
-//   this.size = this.size
-//     .filter(s => s && typeof s === 'string' && s.trim() !== '')
-//     .map(s => s.trim());
+  this.size = this.size
+    .filter(s => s && typeof s === 'string' && s.trim() !== '')
+    .map(s => s.trim());
     
-//   this.gallery = this.gallery
-//     .filter(img => img && typeof img === 'string' && img.trim() !== '')
-//     .map(img => img.trim());
+  this.gallery = this.gallery
+    .filter(img => img && typeof img === 'string' && img.trim() !== '')
+    .map(img => img.trim());
   
-//   // Ensure both FSSAI fields have same value
-//   if (this.brandName && !this.fssaiLicense) {
-//     this.fssaiLicense = this.brandName;
-//   }
-//   if (this.fssaiLicense && !this.brandName) {
-//     this.brandName = this.fssaiLicense;
-//   }
+  // Ensure both FSSAI fields have same value
+  if (this.brandName && !this.fssaiLicense) {
+    this.fssaiLicense = this.brandName;
+  }
+  if (this.fssaiLicense && !this.brandName) {
+    this.brandName = this.fssaiLicense;
+  }
   
-//   next();
-// });
+  next();
+});
 
-// module.exports = mongoose.model("VendorProduct", VendorProductSchema);
+module.exports = mongoose.model("VendorProduct", VendorProductSchema);
