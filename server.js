@@ -454,7 +454,8 @@ app.use("/api/vendor/media", require("./routes/restaurantMediaRoutes"));
 app.use("/api/vendor/orders", vendorOrderRoutes);
 app.use("/api/vendor", require("./routes/vendorBrandRoutes"));
 app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
-app.use("/api", require("./routes/publicBrandRoutes"));
+app.use("/api/public", require("./routes/publicBrandRoutes"));
+
 
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
