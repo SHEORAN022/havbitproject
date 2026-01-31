@@ -482,117 +482,123 @@
 
 
 
-const mongoose = require("mongoose");
+// const mongoose = require("mongoose");
 
-const VendorOrderItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
-    productName: {
-      type: String,
-      required: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-    },
-    qty: {
-      type: Number,
-      required: true,
-    },
-    image: String,
-  },
-  { _id: false }
-);
+// const VendorOrderItemSchema = new mongoose.Schema(
+//   {
+//     productId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Product",
+//       required: true,
+//     },
+//     productName: {
+//       type: String,
+//       required: true,
+//     },
+//     price: {
+//       type: Number,
+//       required: true,
+//     },
+//     qty: {
+//       type: Number,
+//       required: true,
+//     },
+//     image: String,
+//   },
+//   { _id: false }
+// );
 
-const vendorOrderSchema = new mongoose.Schema(
-  {
-    /* 🔴 MAIN VENDOR ID (VERY IMPORTANT) */
-    vendor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true, // 🔥 vendor wise fast query
-    },
+// const vendorOrderSchema = new mongoose.Schema(
+//   {
+//     /* 🔴 MAIN VENDOR ID (VERY IMPORTANT) */
+//     vendor: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Vendor",
+//       required: true,
+//       index: true, // 🔥 vendor wise fast query
+//     },
 
-    /* CUSTOMER WHO PLACED ORDER */
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
-      required: true,
-    },
+//     /* CUSTOMER WHO PLACED ORDER */
+//     user: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Customer",
+//       required: true,
+//     },
 
-    /* LINK TO CUSTOMER ORDER */
-    orderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CustomerOrder",
-      required: true,
-      index: true,
-    },
+//     /* LINK TO CUSTOMER ORDER */
+//     orderId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "CustomerOrder",
+//       required: true,
+//       index: true,
+//     },
 
-    /* ONLY THIS VENDOR PRODUCTS */
-    orderItems: {
-      type: [VendorOrderItemSchema],
-      required: true,
-    },
+//     /* ONLY THIS VENDOR PRODUCTS */
+//     orderItems: {
+//       type: [VendorOrderItemSchema],
+//       required: true,
+//     },
 
-    /* VENDOR TOTAL AMOUNT */
-    amount: {
-      type: Number,
-      required: true,
-    },
+//     /* VENDOR TOTAL AMOUNT */
+//     amount: {
+//       type: Number,
+//       required: true,
+//     },
 
-    paymentMethod: {
-      type: String,
-      enum: ["cod", "razorpay", "stripe", "wallet"],
-      default: "cod",
-    },
+//     paymentMethod: {
+//       type: String,
+//       enum: ["cod", "razorpay", "stripe", "wallet"],
+//       default: "cod",
+//     },
 
-    paymentStatus: {
-      type: String,
-      enum: ["Paid", "Pending", "Failed", "Refunded"],
-      default: "Pending",
-    },
+//     paymentStatus: {
+//       type: String,
+//       enum: ["Paid", "Pending", "Failed", "Refunded"],
+//       default: "Pending",
+//     },
 
-    /* VENDOR LEVEL STATUS */
-    orderStatus: {
-      type: String,
-      enum: [
-        "Pending",
-        "Confirmed",
-        "Processing",
-        "Shipped",
-        "Delivered",
-        "Cancelled",
-      ],
-      default: "Pending",
-      index: true,
-    },
+//     /* VENDOR LEVEL STATUS */
+//     orderStatus: {
+//       type: String,
+//       enum: [
+//         "Pending",
+//         "Confirmed",
+//         "Processing",
+//         "Shipped",
+//         "Delivered",
+//         "Cancelled",
+//       ],
+//       default: "Pending",
+//       index: true,
+//     },
 
-    shippingAddress: {
-      name: String,
-      address: String,
-      city: String,
-      state: String,
-      pincode: String,
-      phone: String,
-    },
+//     shippingAddress: {
+//       name: String,
+//       address: String,
+//       city: String,
+//       state: String,
+//       pincode: String,
+//       phone: String,
+//     },
 
-    /* SHIPPING / TRACKING */
-    tracking: {
-      provider: String,
-      trackingId: String,
-      estimatedDelivery: Date,
-    },
+//     /* SHIPPING / TRACKING */
+//     tracking: {
+//       provider: String,
+//       trackingId: String,
+//       estimatedDelivery: Date,
+//     },
 
-    deliveredAt: Date,
-    cancelledAt: Date,
-  },
-  { timestamps: true }
-);
+//     deliveredAt: Date,
+//     cancelledAt: Date,
+//   },
+//   { timestamps: true }
+// );
 
-module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+// module.exports = mongoose.model("VendorOrder", vendorOrderSchema);
+
+
+
+
+
+
 
