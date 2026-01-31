@@ -57,6 +57,39 @@
 
 
 
+// // routes/vendorOrderRoutes.js
+// const express = require("express");
+// const router = express.Router();
+
+// const vendorAuth = require("../middleware/vendorAuth");
+// const {
+//   getVendorOrders,
+//   getOrderById,
+//   updateOrderStatus,
+//   getOrderStats
+// } = require("../controllers/vendorOrderController");
+
+// // All routes require vendor authentication
+// router.use(vendorAuth);
+
+// // Get all orders for this vendor
+// router.get("/", getVendorOrders);
+
+// // Get order stats
+// router.get("/stats", getOrderStats);
+
+// // Get single order by ID
+// router.get("/:id", getOrderById);
+
+// // Update order status (shipping, etc.)
+// router.put("/:id/status", updateOrderStatus);
+
+// module.exports = router;
+
+
+
+
+
 // routes/vendorOrderRoutes.js
 const express = require("express");
 const router = express.Router();
@@ -64,24 +97,16 @@ const router = express.Router();
 const vendorAuth = require("../middleware/vendorAuth");
 const {
   getVendorOrders,
-  getOrderById,
-  updateOrderStatus,
-  getOrderStats
+  getVendorOrderById,
+  updateVendorOrderStatus,
+  getVendorOrderStats,
 } = require("../controllers/vendorOrderController");
 
-// All routes require vendor authentication
 router.use(vendorAuth);
 
-// Get all orders for this vendor
 router.get("/", getVendorOrders);
-
-// Get order stats
-router.get("/stats", getOrderStats);
-
-// Get single order by ID
-router.get("/:id", getOrderById);
-
-// Update order status (shipping, etc.)
-router.put("/:id/status", updateOrderStatus);
+router.get("/stats", getVendorOrderStats);
+router.get("/:id", getVendorOrderById);
+router.put("/:id/status", updateVendorOrderStatus);
 
 module.exports = router;
