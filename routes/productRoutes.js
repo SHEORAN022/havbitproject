@@ -1,75 +1,5 @@
 
 
-
-
-
-
-// // routes/productRoutes.js
-// const router = require("express").Router();
-// const cloudUpload = require("../middleware/cloudUpload");
-// const csvUpload = require("../middleware/csvUpload");
-// const {
-//   getProducts,
-//   getProductById,
-//   addProduct,
-//   updateProduct,
-//   deleteProduct,
-//   bulkDelete,
-//   bulkUpdate,
-//   importCSV,
-//   exportCSV
-// } = require("../controllers/productController");
-
-// // CRUD Operations
-// router.get("/", getProducts);
-// router.get("/:id", getProductById);
-
-// router.post(
-//   "/",
-//   cloudUpload.fields([
-//     { name: "image", maxCount: 1 },
-//     { name: "logo", maxCount: 1 },
-//     { name: "gallery", maxCount: 10 }
-//   ]),
-//   addProduct
-// );
-
-// router.put(
-//   "/:id",
-//   cloudUpload.fields([
-//     { name: "image", maxCount: 1 },
-//     { name: "logo", maxCount: 1 },
-//     { name: "gallery", maxCount: 10 }
-//   ]),
-//   updateProduct
-// );
-
-// router.delete("/:id", deleteProduct);
-
-// // Bulk Operations
-// router.post("/bulk-delete", bulkDelete);
-// router.put("/bulk-update", bulkUpdate);
-
-// // CSV Operations
-// router.post("/import-csv", csvUpload.single("file"), importCSV);
-// router.get("/export-csv", exportCSV);
-
-// module.exports = router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // const router = require("express").Router();
 // const upload = require("../middleware/upload");
 
@@ -90,6 +20,9 @@
 //   "/",
 //   upload.fields([
 //     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
 //     { name: "gallery", maxCount: 10 },
 //   ]),
 //   addProduct
@@ -99,6 +32,9 @@
 //   "/:id",
 //   upload.fields([
 //     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
 //     { name: "gallery", maxCount: 10 },
 //   ]),
 //   updateProduct
@@ -115,50 +51,57 @@
 
 
 
-
-
 const router = require("express").Router();
-const upload = require("../middleware/upload");
+const { handleProductUpload, handleVariationUpload } = require("../middleware/upload");
 
 const {
   getProducts,
   getProductById,
+  getProductBySlug,
   addProduct,
   updateProduct,
   deleteProduct,
   bulkDelete,
   bulkUpdate,
+  addVariation,
+  updateVariation,
+  deleteVariation,
+  getProductVariations,
+  searchProducts,
+  getFeaturedProducts,
+  getProductsByCategory,
+  uploadProductImages,
+  uploadVariationImages,
+  deleteProductImage,
+  deleteVariationImage
 } = require("../controllers/productController");
 
+// Public routes
 router.get("/", getProducts);
+router.get("/featured", getFeaturedProducts);
+router.get("/search", searchProducts);
+router.get("/category/:categoryId", getProductsByCategory);
+router.get("/slug/:slug", getProductBySlug);
 router.get("/:id", getProductById);
+router.get("/:id/variations", getProductVariations);
 
-router.post(
-  "/",
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
-    { name: "mandatoryImages.nutritionImage", maxCount: 1 },
-    { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
-  ]),
-  addProduct
-);
+// Admin routes
+router.post("/", handleProductUpload, addProduct);
+router.put("/:id", handleProductUpload, updateProduct);
 
-router.put(
-  "/:id",
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
-    { name: "mandatoryImages.nutritionImage", maxCount: 1 },
-    { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
-  ]),
-  updateProduct
-);
+// Variation management
+router.post("/:id/variations", handleVariationUpload, addVariation);
+router.put("/:id/variations/:variationId", handleVariationUpload, updateVariation);
+router.delete("/:id/variations/:variationId", deleteVariation);
 
-router.delete("/:id", deleteProduct);
-router.post("/bulk-delete", bulkDelete);
+// Image management
+router.post("/:id/images", upload.array("images", 12), uploadProductImages);
+router.delete("/:id/images/:imageIndex", deleteProductImage);
+router.post("/:id/variations/:variationId/images", upload.array("images", 12), uploadVariationImages);
+router.delete("/:id/variations/:variationId/images/:imageIndex", deleteVariationImage);
+
+// Bulk operations
+router.delete("/", bulkDelete);
 router.put("/bulk-update", bulkUpdate);
 
 module.exports = router;
