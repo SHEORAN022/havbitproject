@@ -3047,7 +3047,6 @@
 
 // module.exports = exports;
 
-
 const Product = require('../models/Product');
 const fs = require('fs');
 const path = require('path');
@@ -3140,7 +3139,7 @@ const cleanVariationsData = (variationsStr) => {
   }
 };
 
-// ==================== PREPARE PRODUCT DATA - COMPLETE MAPPING ====================
+// ==================== PREPARE PRODUCT DATA - FIXED VERSION ====================
 const prepareProductData = (body) => {
   console.log('\n📋 ========== PREPARING PRODUCT DATA ==========');
   const data = {};
@@ -3196,33 +3195,74 @@ const prepareProductData = (body) => {
   data.legalDisclaimer = String(body.legalDisclaimer || '').trim();
   console.log('✅ Compliance:', { fssaiLicense: data.fssaiLicense });
   
-  // ========== MANUFACTURING - CRITICAL SECTION ==========
-  // Manufacturer fields
-  data.manufacturerName = String(body.manufacturerName || '').trim();
-  data.manufacturerAddress = String(body.manufacturerAddress || '').trim();
-  data.manufacturer = String(body.manufacturer || '').trim();
-  data.manufacturerContact = String(body.manufacturerContact || '').trim();
+  // ========== MANUFACTURING - FIXED MAPPING ==========
+  // Frontend sends: manufacturer -> Save to both manufacturer and manufacturerName
+  const manufacturerValue = String(body.manufacturer || body.manufacturerName || '').trim();
+  data.manufacturer = manufacturerValue;
+  data.manufacturerName = manufacturerValue;
   
-  // Packager fields
-  data.packagerName = String(body.packagerName || '').trim();
-  data.packagerAddress = String(body.packagerAddress || '').trim();
-  data.packagerFssaiLicense = String(body.packagerFssaiLicense || '').trim();
-  data.packerContact = String(body.packerContact || '').trim();
-  
-  // Marketer fields
-  data.marketerName = String(body.marketerName || '').trim();
-  data.marketerAddress = String(body.marketerAddress || '').trim();
-  data.marketerNameAddress = String(body.marketerNameAddress || '').trim();
+  // Frontend sends: manufacturerContact -> Save to both manufacturerContact and manufacturerAddress
+  const manufacturerAddressValue = String(body.manufacturerContact || body.manufacturerAddress || '').trim();
+  data.manufacturerContact = manufacturerAddressValue;
+  data.manufacturerAddress = manufacturerAddressValue;
   
   console.log('✅ Manufacturing:', {
-    manufacturerName: data.manufacturerName,
     manufacturer: data.manufacturer,
-    manufacturerAddress: data.manufacturerAddress,
+    manufacturerName: data.manufacturerName,
     manufacturerContact: data.manufacturerContact,
+    manufacturerAddress: data.manufacturerAddress
+  });
+  
+  // ========== PACKAGER - FIXED MAPPING ==========
+  // Parse packerContact string: "Packager: NAME | Address: ADDRESS"
+  const packerContactString = String(body.packerContact || '').trim();
+  data.packerContact = packerContactString;
+  
+  if (packerContactString) {
+    const lines = packerContactString.split('|').map(l => l.trim());
+    lines.forEach(line => {
+      if (line.includes('Packager:')) {
+        data.packagerName = line.replace('Packager:', '').trim();
+      } else if (line.includes('Address:')) {
+        data.packagerAddress = line.replace('Address:', '').trim();
+      }
+    });
+  }
+  
+  // Set default empty strings if not found
+  if (!data.packagerName) data.packagerName = '';
+  if (!data.packagerAddress) data.packagerAddress = '';
+  
+  data.packagerFssaiLicense = String(body.packagerFssaiLicense || '').trim();
+  
+  console.log('✅ Packager:', {
     packagerName: data.packagerName,
     packagerAddress: data.packagerAddress,
     packagerFssaiLicense: data.packagerFssaiLicense,
-    packerContact: data.packerContact,
+    packerContact: data.packerContact
+  });
+  
+  // ========== MARKETER - FIXED MAPPING ==========
+  // Parse marketerNameAddress string: "Name: NAME | Address: ADDRESS"
+  const marketerString = String(body.marketerNameAddress || '').trim();
+  data.marketerNameAddress = marketerString;
+  
+  if (marketerString) {
+    const lines = marketerString.split('|').map(l => l.trim());
+    lines.forEach(line => {
+      if (line.includes('Name:')) {
+        data.marketerName = line.replace('Name:', '').trim();
+      } else if (line.includes('Address:')) {
+        data.marketerAddress = line.replace('Address:', '').trim();
+      }
+    });
+  }
+  
+  // Set default empty strings if not found
+  if (!data.marketerName) data.marketerName = '';
+  if (!data.marketerAddress) data.marketerAddress = '';
+  
+  console.log('✅ Marketer:', {
     marketerName: data.marketerName,
     marketerAddress: data.marketerAddress,
     marketerNameAddress: data.marketerNameAddress
@@ -3259,8 +3299,7 @@ const prepareProductData = (body) => {
   return data;
 };
 
-// ==================== CONTROLLERS ====================
-
+// ==================== CREATE PRODUCT ====================
 exports.createProduct = async (req, res) => {
   try {
     console.log('\n🆕 ==================== CREATING PRODUCT ====================');
@@ -3314,7 +3353,7 @@ exports.createProduct = async (req, res) => {
     console.log('✅ ==================== PRODUCT CREATED ====================');
     console.log('📦 ID:', product._id);
     console.log('📝 Name:', product.name);
-    console.log('🏭 Manufacturer:', product.manufacturer || product.manufacturerName);
+    console.log('🏭 Manufacturer:', product.manufacturer);
     console.log('📦 Packager:', product.packagerName);
     console.log('🏪 Marketer:', product.marketerName);
     console.log('==================== END ====================\n');
@@ -3333,6 +3372,7 @@ exports.createProduct = async (req, res) => {
   }
 };
 
+// ==================== UPDATE PRODUCT ====================
 exports.updateProduct = async (req, res) => {
   try {
     console.log('\n🔄 ==================== UPDATING PRODUCT ====================');
@@ -3398,6 +3438,7 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
+// ==================== GET ALL PRODUCTS ====================
 exports.getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 100, search = '', category = '', quality = '', dietPreference = '', inStock = '', sort = '-createdAt' } = req.query;
@@ -3442,6 +3483,7 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+// ==================== GET SINGLE PRODUCT ====================
 exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -3457,6 +3499,7 @@ exports.getProduct = async (req, res) => {
   }
 };
 
+// ==================== DELETE PRODUCT ====================
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -3473,6 +3516,7 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
+// ==================== BULK DELETE ====================
 exports.bulkDeleteProducts = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -3492,6 +3536,7 @@ exports.bulkDeleteProducts = async (req, res) => {
   }
 };
 
+// ==================== BULK UPDATE ====================
 exports.bulkUpdateProducts = async (req, res) => {
   try {
     const { ids, data } = req.body;
@@ -3513,12 +3558,13 @@ exports.bulkUpdateProducts = async (req, res) => {
   }
 };
 
+// ==================== EXPORT CSV ====================
 exports.exportCSV = async (req, res) => {
   try {
     const products = await Product.find().populate('category', 'name').populate('subcategory', 'name').lean();
     let csv = 'ID,Name,Category,MRP,Price,Stock,Variations,Quality,Diet,State,Manufacturer,Packager,Marketer\n';
     products.forEach(p => {
-      csv += `"${p._id}","${p.name}","${p.category?.name||''}",${p.oldPrice||0},${p.price||0},${p.stock||0},"${p.hasVariations?'Yes':'No'}","${p.quality}","${p.dietPreference}","${p.State||''}","${p.manufacturer||p.manufacturerName||''}","${p.packagerName||''}","${p.marketerName||''}"\n`;
+      csv += `"${p._id}","${p.name}","${p.category?.name||''}",${p.oldPrice||0},${p.price||0},${p.stock||0},"${p.hasVariations?'Yes':'No'}","${p.quality}","${p.dietPreference}","${p.State||''}","${p.manufacturer||''}","${p.packagerName||''}","${p.marketerName||''}"\n`;
     });
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=products-${Date.now()}.csv`);
@@ -3528,6 +3574,7 @@ exports.exportCSV = async (req, res) => {
   }
 };
 
+// ==================== IMPORT CSV ====================
 exports.importCSV = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
@@ -3556,6 +3603,7 @@ exports.importCSV = async (req, res) => {
   }
 };
 
+// ==================== GET STATS ====================
 exports.getProductStats = async (req, res) => {
   try {
     const total = await Product.countDocuments();
@@ -3571,6 +3619,7 @@ exports.getProductStats = async (req, res) => {
   }
 };
 
+// ==================== GET BY SLUG ====================
 exports.getProductBySlug = async (req, res) => {
   try {
     const product = await Product.findOne({ slug: req.params.slug }).populate('category', 'name').populate('subcategory', 'name');
@@ -3581,6 +3630,7 @@ exports.getProductBySlug = async (req, res) => {
   }
 };
 
+// ==================== ADVANCED SEARCH ====================
 exports.advancedSearch = async (req, res) => {
   try {
     const { q = '', category = '', minPrice = 0, maxPrice = 1000000, quality = '', dietPreference = '', sort = '-createdAt', page = 1, limit = 20 } = req.query;
