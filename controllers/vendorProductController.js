@@ -1118,17 +1118,193 @@ async function uploadCloud(file) {
   }
 }
 
+/* ================= HELPER: VALIDATE CATEGORY ================= */
+async function validateCategory(categoryId, subcategoryId = null) {
+  if (!categoryId) {
+    return { valid: false, message: "Category is required" };
+  }
+  
+  const category = await Category.findById(categoryId);
+  if (!category) {
+    return { valid: false, message: "Invalid category selected" };
+  }
+  
+  if (subcategoryId && subcategoryId !== 'null' && subcategoryId !== '') {
+    const subcategory = await SubCategory.findById(subcategoryId);
+    if (!subcategory) {
+      return { valid: false, message: "Invalid subcategory selected" };
+    }
+    
+    if (subcategory.category.toString() !== categoryId) {
+      return { valid: false, message: "Subcategory does not belong to selected category" };
+    }
+  }
+  
+  return { valid: true, category, subcategory: subcategoryId || null };
+}
+
+/* ================= HELPER: PROCESS FORM DATA ================= */
+function processFormData(data, vendor) {
+  // Parse variations
+  let variations = [];
+  if (data.variations) {
+    if (typeof data.variations === 'string') {
+      try {
+        variations = JSON.parse(data.variations);
+      } catch (error) {
+        console.error("Error parsing variations:", error);
+        variations = [];
+      }
+    } else if (Array.isArray(data.variations)) {
+      variations = data.variations;
+    }
+  }
+  
+  // Parse arrays
+  let flavors = [];
+  if (data.flavors) {
+    if (typeof data.flavors === 'string') {
+      try {
+        flavors = JSON.parse(data.flavors);
+      } catch (error) {
+        flavors = data.flavors.split(',').map(f => f.trim()).filter(f => f !== '');
+      }
+    } else if (Array.isArray(data.flavors)) {
+      flavors = data.flavors.filter(f => f && f.trim() !== '');
+    }
+  }
+  
+  let sizes = [];
+  if (data.size) {
+    if (typeof data.size === 'string') {
+      try {
+        sizes = JSON.parse(data.size);
+      } catch (error) {
+        sizes = data.size.split(',').map(s => s.trim()).filter(s => s !== '');
+      }
+    } else if (Array.isArray(data.size)) {
+      sizes = data.size.filter(s => s && s.trim() !== '');
+    }
+  }
+  
+  // Calculate prices for variations vs base product
+  const hasVariations = data.hasVariations === 'true' || data.hasVariations === true || false;
+  const basePrice = parseFloat(data.price) || parseFloat(data.newPrice) || 0;
+  const baseOldPrice = parseFloat(data.oldPrice) || 0;
+  const baseStock = parseInt(data.stock) || 0;
+  
+  return {
+    // Basic Info
+    name: data.name?.trim() || "",
+    description: data.description?.trim() || "",
+    restaurantName: data.restaurantName?.trim() || vendor?.storeName || vendor?.restaurantName || "",
+    
+    // FSSAI/Brand Info
+    brandName: data.brandName?.trim() || data.fssaiLicense?.trim() || "",
+    fssaiLicense: data.fssaiLicense?.trim() || data.brandName?.trim() || "",
+    
+    // Variations
+    hasVariations: hasVariations,
+    variations: variations,
+    
+    // Pricing & Stock (handle variations vs base product)
+    oldPrice: hasVariations ? 0 : baseOldPrice,
+    price: hasVariations ? 0 : basePrice,
+    sellingPrice: hasVariations ? 0 : basePrice,
+    stock: hasVariations ? 0 : baseStock,
+    quality: data.quality || "Standard",
+    dietPreference: data.dietPreference || "Veg",
+    
+    // Category
+    category: data.category,
+    subcategory: data.subcategory === 'null' || data.subcategory === '' ? null : data.subcategory,
+    
+    // Product Details
+    productTypes: data.productTypes?.trim() || "",
+    materialTypes: data.materialTypes?.trim() || "",
+    ingredients: data.ingredients?.trim() || "",
+    customWeight: data.customWeight?.trim() || "",
+    customSizeInput: data.customSizeInput?.trim() || "",
+    customFlavorInput: data.customFlavorInput?.trim() || "",
+    
+    // Product Specifications
+    ageRange: data.ageRange?.trim() || "",
+    containerType: data.containerType?.trim() || "",
+    itemForm: data.itemForm?.trim() || "",
+    specialty: data.specialty?.trim() || "",
+    itemTypeName: data.itemTypeName?.trim() || "",
+    countryOfOrigin: data.countryOfOrigin?.trim() || "India",
+    
+    // Compliance
+    legalDisclaimer: data.legalDisclaimer?.trim() || "",
+    shelfLife: data.shelfLife?.trim() || "",
+    
+    // Manufacturing
+    manufacturer: data.manufacturer?.trim() || data.manufacturerName?.trim() || "",
+    manufacturerContact: data.manufacturerContact?.trim() || data.manufacturerAddress?.trim() || "",
+    manufacturerName: data.manufacturerName?.trim() || data.manufacturer?.trim() || "",
+    manufacturerAddress: data.manufacturerAddress?.trim() || data.manufacturerContact?.trim() || "",
+    
+    // Packager Info
+    packerContact: data.packerContact?.trim() || "",
+    packagerName: data.packagerName?.trim() || "",
+    packagerAddress: data.packagerAddress?.trim() || "",
+    packagerFssaiLicense: data.packagerFssaiLicense?.trim() || "",
+    
+    // Marketer Info
+    marketerNameAddress: data.marketerNameAddress?.trim() || "",
+    marketerName: data.marketerName?.trim() || "",
+    marketerAddress: data.marketerAddress?.trim() || "",
+    
+    // Package Details
+    packageColour: data.packageColour?.trim() || "",
+    measurementUnit: data.measurementUnit?.trim() || "",
+    unitCount: data.unitCount?.trim() || "",
+    numberOfItems: data.numberOfItems?.trim() || "",
+    itemWeight: data.itemWeight?.trim() || "",
+    totalEaches: data.totalEaches?.trim() || "",
+    itemPackageWeight: data.itemPackageWeight?.trim() || "",
+    
+    // Dietary & Nutrition
+    dietaryPreferences: data.dietaryPreferences?.trim() || "",
+    allergenInfo: data.allergenInfo?.trim() || "",
+    allergenInformation: data.allergenInformation?.trim() || data.allergenInfo?.trim() || "",
+    nutrition: data.nutrition?.trim() || "",
+    cuisine: data.cuisine?.trim() || "",
+    directions: data.directions?.trim() || "",
+    
+    // Location
+    State: data.State?.trim() || "",
+    
+    // Arrays
+    flavors: flavors,
+    size: sizes,
+    
+    // Status
+    isActive: data.isActive === 'false' ? false : true,
+    isFeatured: data.isFeatured === 'true' ? true : false,
+    isApproved: data.isApproved === 'true' ? true : false
+  };
+}
+
 /* ================= GET CATEGORIES ================= */
 exports.getCategories = async (req, res) => {
   try {
     const categories = await Category.find({ isActive: true })
-      .select("name image _id")
+      .select("name image _id description")
       .sort({ name: 1 });
     
-    res.json({ success: true, data: categories });
+    res.json({ 
+      success: true, 
+      message: "Categories fetched successfully",
+      data: categories 
+    });
   } catch (err) {
-    console.error("Get categories error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("❌ Get categories error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message 
+    });
   }
 };
 
@@ -1137,12 +1313,20 @@ exports.getSubCategories = async (req, res) => {
   try {
     const subcategories = await SubCategory.find({ isActive: true })
       .select("name image _id category")
+      .populate("category", "name")
       .sort({ name: 1 });
     
-    res.json({ success: true, data: subcategories });
+    res.json({ 
+      success: true, 
+      message: "Subcategories fetched successfully",
+      data: subcategories 
+    });
   } catch (err) {
-    console.error("Get subcategories error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("❌ Get subcategories error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message 
+    });
   }
 };
 
@@ -1151,6 +1335,13 @@ exports.getSubCategoriesByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
     
+    if (!categoryId || !mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Valid category ID is required" 
+      });
+    }
+    
     const subcategories = await SubCategory.find({ 
       category: categoryId,
       isActive: true 
@@ -1158,34 +1349,121 @@ exports.getSubCategoriesByCategory = async (req, res) => {
       .select("name image _id")
       .sort({ name: 1 });
     
-    res.json({ success: true, data: subcategories });
+    res.json({ 
+      success: true, 
+      message: "Subcategories fetched successfully",
+      data: subcategories 
+    });
   } catch (err) {
-    console.error("Get subcategories by category error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("❌ Get subcategories by category error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message 
+    });
   }
 };
 
 /* ================= GET VENDOR PRODUCTS ================= */
 exports.getVendorProducts = async (req, res) => {
   try {
-    const products = await VendorProduct.find({
-      vendor: req.vendor._id,
-    })
+    console.log("🟢 GET VENDOR PRODUCTS API CALLED");
+    console.log("📦 Vendor ID:", req.vendor._id);
+    
+    // Get query parameters
+    const { 
+      page = 1, 
+      limit = 100, 
+      search = "",
+      category = "",
+      isActive = "true",
+      hasVariations = ""
+    } = req.query;
+    
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Build filter
+    const filter = { vendor: req.vendor._id };
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { brandName: { $regex: search, $options: 'i' } },
+        { productTypes: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (category && mongoose.Types.ObjectId.isValid(category)) {
+      filter.category = category;
+    }
+    
+    if (isActive === "true" || isActive === "false") {
+      filter.isActive = isActive === "true";
+    }
+    
+    if (hasVariations === "true" || hasVariations === "false") {
+      filter.hasVariations = hasVariations === "true";
+    }
+    
+    // Get total count
+    const totalProducts = await VendorProduct.countDocuments(filter);
+    
+    // Get products with pagination
+    const products = await VendorProduct.find(filter)
       .populate("category", "name image")
       .populate("subcategory", "name image")
-      .sort({ createdAt: -1 });
-
-    const vendor = await Vendor.findById(req.vendor._id);
-
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+    
+    // Get vendor details
+    const vendor = await Vendor.findById(req.vendor._id).select("storeName restaurantName businessName");
+    
+    // Calculate stats
+    const stats = {
+      total: totalProducts,
+      inStock: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      withVariations: 0
+    };
+    
+    products.forEach(product => {
+      const stockStatus = product.getStockStatus ? product.getStockStatus() : 
+        (product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low Stock" : "Out of Stock");
+      
+      if (stockStatus === "In Stock") stats.inStock++;
+      else if (stockStatus === "Low Stock") stats.lowStock++;
+      else stats.outOfStock++;
+      
+      if (product.hasVariations) stats.withVariations++;
+    });
+    
     res.json({
       success: true,
-      vendorId: vendor._id,
-      storeName: vendor.storeName || vendor.restaurantName || "",
+      message: "Products fetched successfully",
+      vendorId: req.vendor._id,
+      storeName: vendor?.storeName || vendor?.restaurantName || vendor?.businessName || "My Store",
       data: products,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(totalProducts / limitNum),
+        totalProducts: totalProducts
+      },
+      stats: stats
     });
+    
   } catch (err) {
-    console.error("Get products error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("❌ GET VENDOR PRODUCTS ERROR:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message,
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
@@ -1193,8 +1471,8 @@ exports.getVendorProducts = async (req, res) => {
 exports.createVendorProduct = async (req, res) => {
   try {
     console.log("🟢 CREATE VENDOR PRODUCT API CALLED");
-    console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
     
+    // Get vendor
     const vendor = await Vendor.findById(req.vendor._id);
     if (!vendor) {
       return res.status(404).json({ 
@@ -1205,186 +1483,63 @@ exports.createVendorProduct = async (req, res) => {
     
     const data = { ...req.body };
     
-    // Step 1: Category Validation
-    if (!data.category) {
+    // Validate required fields
+    if (!data.name || !data.name.trim()) {
       return res.status(400).json({ 
         success: false, 
-        message: "Category is required" 
+        message: "Product name is required" 
       });
     }
     
-    const categoryExists = await Category.findById(data.category);
-    if (!categoryExists) {
+    // Validate category
+    const categoryValidation = await validateCategory(data.category, data.subcategory);
+    if (!categoryValidation.valid) {
       return res.status(400).json({ 
         success: false, 
-        message: "Invalid category selected" 
+        message: categoryValidation.message 
       });
     }
-
-    // Step 2: Subcategory validation
-    if (data.subcategory && data.subcategory !== 'null' && data.subcategory !== '') {
-      const subcategoryExists = await SubCategory.findById(data.subcategory);
-      if (!subcategoryExists) {
+    
+    // Process form data
+    const productData = processFormData(data, vendor);
+    productData.vendor = req.vendor._id;
+    
+    // Validate price for non-variation products
+    if (!productData.hasVariations && (!productData.price || productData.price <= 0)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Selling price is required for non-variation products" 
+      });
+    }
+    
+    // Validate variations if product has variations
+    if (productData.hasVariations) {
+      if (!Array.isArray(productData.variations) || productData.variations.length === 0) {
         return res.status(400).json({ 
           success: false, 
-          message: "Invalid subcategory selected" 
+          message: "At least one variation is required for variation-based products" 
         });
       }
       
-      // Check if subcategory belongs to selected category
-      if (subcategoryExists.category.toString() !== data.category) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Subcategory does not belong to selected category" 
-        });
-      }
-    } else {
-      data.subcategory = null;
-    }
-    
-    // Step 3: Parse variations
-    let variations = [];
-    if (data.variations && typeof data.variations === 'string') {
-      try {
-        variations = JSON.parse(data.variations);
-      } catch (error) {
-        console.error("Error parsing variations:", error);
-      }
-    } else if (Array.isArray(data.variations)) {
-      variations = data.variations;
-    }
-    
-    // Step 4: Prepare product data with ALL FIELDS
-    const productData = {
-      // Basic Info
-      name: data.name || "",
-      description: data.description || "",
-      restaurantName: data.restaurantName || vendor.storeName || vendor.restaurantName || "",
-      
-      // FSSAI/Brand Info
-      brandName: data.brandName || data.fssaiLicense || "",
-      fssaiLicense: data.fssaiLicense || data.brandName || "",
-      
-      // Variations
-      hasVariations: data.hasVariations === 'true' || data.hasVariations === true || false,
-      variations: variations,
-      
-      // Pricing & Stock
-      oldPrice: parseFloat(data.oldPrice) || 0,
-      price: parseFloat(data.price) || parseFloat(data.newPrice) || 0,
-      sellingPrice: parseFloat(data.sellingPrice) || parseFloat(data.price) || parseFloat(data.newPrice) || 0,
-      stock: parseInt(data.stock) || 0,
-      quality: data.quality || "Standard",
-      dietPreference: data.dietPreference || "Veg",
-      
-      // Category
-      category: data.category,
-      subcategory: data.subcategory,
-      
-      // Product Details
-      productTypes: data.productTypes || "",
-      materialTypes: data.materialTypes || "",
-      ingredients: data.ingredients || "",
-      customWeight: data.customWeight || "",
-      customSizeInput: data.customSizeInput || "",
-      
-      // Product Specifications
-      ageRange: data.ageRange || "",
-      containerType: data.containerType || "",
-      itemForm: data.itemForm || "",
-      specialty: data.specialty || "",
-      itemTypeName: data.itemTypeName || "",
-      countryOfOrigin: data.countryOfOrigin || "",
-      
-      // Compliance
-      legalDisclaimer: data.legalDisclaimer || "",
-      shelfLife: data.shelfLife || "",
-      
-      // Manufacturing
-      manufacturer: data.manufacturer || data.manufacturerName || "",
-      manufacturerContact: data.manufacturerContact || data.manufacturerAddress || "",
-      manufacturerName: data.manufacturerName || data.manufacturer || "",
-      manufacturerAddress: data.manufacturerAddress || data.manufacturerContact || "",
-      
-      // Packager Info
-      packerContact: data.packerContact || "",
-      packagerName: data.packagerName || "",
-      packagerAddress: data.packagerAddress || "",
-      packagerFssaiLicense: data.packagerFssaiLicense || "",
-      
-      // Marketer Info
-      marketerNameAddress: data.marketerNameAddress || "",
-      marketerName: data.marketerName || "",
-      marketerAddress: data.marketerAddress || "",
-      
-      // Package Details
-      packageColour: data.packageColour || "",
-      measurementUnit: data.measurementUnit || "",
-      unitCount: data.unitCount || "",
-      numberOfItems: data.numberOfItems || "",
-      itemWeight: data.itemWeight || "",
-      totalEaches: data.totalEaches || "",
-      itemPackageWeight: data.itemPackageWeight || "",
-      
-      // Dietary & Nutrition
-      dietaryPreferences: data.dietaryPreferences || "",
-      allergenInfo: data.allergenInfo || "",
-      allergenInformation: data.allergenInformation || data.allergenInfo || "",
-      nutrition: data.nutrition || "",
-      cuisine: data.cuisine || "",
-      directions: data.directions || "",
-      
-      // Location
-      State: data.State || "",
-      
-      // Vendor
-      vendor: req.vendor._id,
-    };
-    
-    // Handle flavors array
-    if (data.flavors) {
-      if (typeof data.flavors === 'string') {
-        try {
-          productData.flavors = JSON.parse(data.flavors);
-        } catch (error) {
-          productData.flavors = data.flavors.split(',').map(f => f.trim()).filter(f => f !== '');
+      // Validate each variation
+      for (let i = 0; i < productData.variations.length; i++) {
+        const variation = productData.variations[i];
+        if (!variation.newPrice || variation.newPrice <= 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Variation ${i + 1}: Selling price is required` 
+          });
         }
-      } else if (Array.isArray(data.flavors)) {
-        productData.flavors = data.flavors.filter(f => f && f.trim() !== '');
-      }
-    } else {
-      productData.flavors = [];
-    }
-    
-    // Handle size array
-    if (data.size) {
-      if (typeof data.size === 'string') {
-        try {
-          productData.size = JSON.parse(data.size);
-        } catch (error) {
-          productData.size = data.size.split(',').map(s => s.trim()).filter(s => s !== '');
+        if (!variation.stock && variation.stock !== 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Variation ${i + 1}: Stock quantity is required` 
+          });
         }
-      } else if (Array.isArray(data.size)) {
-        productData.size = data.size.filter(s => s && s.trim() !== '');
       }
-    } else {
-      productData.size = [];
     }
     
-    // Required validation
-    if (!productData.name || !productData.price || !productData.category) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, price and category are required",
-        received: {
-          name: productData.name,
-          price: productData.price,
-          category: productData.category
-        }
-      });
-    }
-    
-    // Step 5: Process images
+    // Process images
     // Main image
     if (req.files?.image?.[0]) {
       try {
@@ -1394,31 +1549,23 @@ exports.createVendorProduct = async (req, res) => {
       }
     }
     
-    // Process gallery images (mandatory + optional)
+    // Process gallery images
     const galleryImages = [];
     
     // Mandatory images
-    if (req.files?.ingredientsImage?.[0]) {
-      try {
-        galleryImages.push(await uploadCloud(req.files.ingredientsImage[0]));
-      } catch (error) {
-        console.error("Ingredients image upload error:", error);
-      }
-    }
+    const mandatoryImages = [
+      { file: req.files?.ingredientsImage?.[0], type: "ingredients" },
+      { file: req.files?.nutritionImage?.[0], type: "nutrition" },
+      { file: req.files?.mfgExpImage?.[0], type: "mfgExp" }
+    ];
     
-    if (req.files?.nutritionImage?.[0]) {
-      try {
-        galleryImages.push(await uploadCloud(req.files.nutritionImage[0]));
-      } catch (error) {
-        console.error("Nutrition image upload error:", error);
-      }
-    }
-    
-    if (req.files?.mfgExpImage?.[0]) {
-      try {
-        galleryImages.push(await uploadCloud(req.files.mfgExpImage[0]));
-      } catch (error) {
-        console.error("MFG/EXP image upload error:", error);
+    for (const img of mandatoryImages) {
+      if (img.file) {
+        try {
+          galleryImages.push(await uploadCloud(img.file));
+        } catch (error) {
+          console.error(`${img.type} image upload error:`, error);
+        }
       }
     }
     
@@ -1438,14 +1585,11 @@ exports.createVendorProduct = async (req, res) => {
     }
     
     // Process variation images
-    if (productData.hasVariations && variations.length > 0 && req.files?.variationImages) {
+    if (productData.hasVariations && productData.variations.length > 0 && req.files?.variationImages) {
       const variationImages = {};
-      
-      // Parse variation info
       const variationInfo = data.variationInfo ? 
         (typeof data.variationInfo === 'string' ? JSON.parse(data.variationInfo) : data.variationInfo) : [];
       
-      // Map variation images
       if (Array.isArray(req.files.variationImages)) {
         for (let i = 0; i < Math.min(req.files.variationImages.length, variationInfo.length); i++) {
           try {
@@ -1458,21 +1602,19 @@ exports.createVendorProduct = async (req, res) => {
       }
       
       // Assign images to variations
-      for (let i = 0; i < variations.length; i++) {
+      for (let i = 0; i < productData.variations.length; i++) {
         if (variationImages[i]) {
-          variations[i].image = variationImages[i];
+          productData.variations[i].image = variationImages[i];
         }
       }
-      
-      productData.variations = variations;
     }
     
-    // Step 6: Create product
-    console.log("📦 Final product data for creation:", JSON.stringify(productData, null, 2));
+    // Create product
+    console.log("📦 Creating product with data:", JSON.stringify(productData, null, 2));
     
     const product = await VendorProduct.create(productData);
     
-    // Step 7: Populate and return
+    // Populate and return
     const populatedProduct = await VendorProduct.findById(product._id)
       .populate("category", "name image")
       .populate("subcategory", "name image");
@@ -1486,10 +1628,29 @@ exports.createVendorProduct = async (req, res) => {
     
   } catch (err) {
     console.error("❌ CREATE PRODUCT ERROR:", err);
+    console.error("❌ Error details:", err.stack);
+    
+    // Handle duplicate key errors
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Product with similar details already exists" 
+      });
+    }
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Validation failed", 
+        errors: errors 
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
-      message: "Server Error: " + err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      message: "Server Error: " + err.message 
     });
   }
 };
@@ -1499,176 +1660,72 @@ exports.updateVendorProduct = async (req, res) => {
   try {
     console.log("🟢 UPDATE VENDOR PRODUCT API CALLED");
     
+    // Find product
     const product = await VendorProduct.findOne({
       _id: req.params.id,
       vendor: req.vendor._id,
     });
 
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found or you don't have permission to edit it" 
+      });
     }
 
     const data = { ...req.body };
     const updateData = {};
 
-    // Category validation
+    // Validate category if being updated
     if (data.category) {
-      const categoryExists = await Category.findById(data.category);
-      if (!categoryExists) {
+      const categoryValidation = await validateCategory(data.category, data.subcategory);
+      if (!categoryValidation.valid) {
         return res.status(400).json({ 
           success: false, 
-          message: "Invalid category selected" 
+          message: categoryValidation.message 
         });
       }
       updateData.category = data.category;
+      updateData.subcategory = data.subcategory === 'null' || data.subcategory === '' ? null : data.subcategory;
     }
 
-    // Subcategory validation
-    if (data.subcategory && data.subcategory !== 'null' && data.subcategory !== '') {
-      const subcategoryExists = await SubCategory.findById(data.subcategory);
-      if (!subcategoryExists) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Invalid subcategory selected" 
-        });
-      }
-      
-      // Check if subcategory belongs to selected category
-      if (data.category && subcategoryExists.category.toString() !== data.category) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Subcategory does not belong to selected category" 
-        });
-      }
-      updateData.subcategory = data.subcategory;
-    } else if (data.subcategory === '' || data.subcategory === 'null') {
-      updateData.subcategory = null;
-    }
+    // Process form data for updates
+    const processedData = processFormData(data, req.vendor);
     
-    // Parse variations
-    let variations = [];
-    if (data.variations && typeof data.variations === 'string') {
-      try {
-        variations = JSON.parse(data.variations);
-      } catch (error) {
-        console.error("Error parsing variations:", error);
-      }
-    } else if (Array.isArray(data.variations)) {
-      variations = data.variations;
-    }
-    
-    // Update all fields
-    const fieldsToUpdate = [
-      // Basic Info
-      'name', 'description', 'restaurantName',
-      // FSSAI/Brand
-      'brandName', 'fssaiLicense',
-      // Variations
-      'hasVariations',
-      // Pricing
-      'oldPrice', 'price', 'sellingPrice', 'stock', 'quality', 'dietPreference',
-      // Product Details
-      'productTypes', 'materialTypes', 'ingredients', 'customWeight', 'customSizeInput',
-      // Specifications
-      'ageRange', 'containerType', 'itemForm', 'specialty', 'itemTypeName', 'countryOfOrigin',
-      // Compliance
-      'legalDisclaimer', 'shelfLife',
-      // Manufacturing
-      'manufacturer', 'manufacturerContact', 'manufacturerName', 'manufacturerAddress',
-      // Packager
-      'packerContact', 'packagerName', 'packagerAddress', 'packagerFssaiLicense',
-      // Marketer
-      'marketerNameAddress', 'marketerName', 'marketerAddress',
-      // Package
-      'packageColour', 'measurementUnit', 'unitCount', 'numberOfItems', 'itemWeight', 
-      'totalEaches', 'itemPackageWeight',
-      // Dietary
-      'dietaryPreferences', 'allergenInfo', 'allergenInformation', 'nutrition', 
-      'cuisine', 'directions',
-      // Location
-      'State'
-    ];
-    
-    fieldsToUpdate.forEach(field => {
-      if (data[field] !== undefined && data[field] !== null) {
-        if (field === 'oldPrice' || field === 'price' || field === 'sellingPrice' || field === 'stock') {
-          updateData[field] = parseFloat(data[field]) || 0;
-        } else if (field === 'hasVariations') {
-          updateData[field] = data[field] === 'true' || data[field] === true;
-        } else {
-          updateData[field] = data[field];
-        }
+    // Merge processed data into updateData
+    Object.keys(processedData).forEach(key => {
+      if (key !== 'vendor' && key !== '_id' && processedData[key] !== undefined) {
+        updateData[key] = processedData[key];
       }
     });
     
-    // Handle variations
-    if (data.variations !== undefined) {
-      updateData.variations = variations;
-    }
-    
-    // Handle flavors array
-    if (data.flavors !== undefined) {
-      if (typeof data.flavors === 'string') {
-        try {
-          updateData.flavors = JSON.parse(data.flavors);
-        } catch (error) {
-          updateData.flavors = data.flavors.split(',').map(f => f.trim()).filter(f => f !== '');
-        }
-      } else if (Array.isArray(data.flavors)) {
-        updateData.flavors = data.flavors.filter(f => f && f.trim() !== '');
-      }
-    }
-    
-    // Handle size array
-    if (data.size !== undefined) {
-      if (typeof data.size === 'string') {
-        try {
-          updateData.size = JSON.parse(data.size);
-        } catch (error) {
-          updateData.size = data.size.split(',').map(s => s.trim()).filter(s => s !== '');
-        }
-      } else if (Array.isArray(data.size)) {
-        updateData.size = data.size.filter(s => s && s.trim() !== '');
-      }
-    }
-    
-    // Update main image
+    // Handle images
     if (req.files?.image?.[0]) {
       try {
         updateData.image = await uploadCloud(req.files.image[0]);
       } catch (error) {
-        console.error("Image upload error:", error);
+        console.error("Main image upload error:", error);
       }
     }
     
-    // Update gallery images
+    // Handle gallery updates
     let gallery = [...(product.gallery || [])];
     
     // Update mandatory images if provided
-    if (req.files?.ingredientsImage?.[0]) {
-      try {
-        const img = await uploadCloud(req.files.ingredientsImage[0]);
-        gallery[0] = img;
-      } catch (error) {
-        console.error("Ingredients image upload error:", error);
-      }
-    }
+    const mandatoryUpdates = [
+      { file: req.files?.ingredientsImage?.[0], index: 0 },
+      { file: req.files?.nutritionImage?.[0], index: 1 },
+      { file: req.files?.mfgExpImage?.[0], index: 2 }
+    ];
     
-    if (req.files?.nutritionImage?.[0]) {
-      try {
-        const img = await uploadCloud(req.files.nutritionImage[0]);
-        gallery[1] = img;
-      } catch (error) {
-        console.error("Nutrition image upload error:", error);
-      }
-    }
-    
-    if (req.files?.mfgExpImage?.[0]) {
-      try {
-        const img = await uploadCloud(req.files.mfgExpImage[0]);
-        gallery[2] = img;
-      } catch (error) {
-        console.error("MFG/EXP image upload error:", error);
+    for (const update of mandatoryUpdates) {
+      if (update.file) {
+        try {
+          const imgUrl = await uploadCloud(update.file);
+          gallery[update.index] = imgUrl;
+        } catch (error) {
+          console.error(`Gallery image update error:`, error);
+        }
       }
     }
     
@@ -1676,8 +1733,8 @@ exports.updateVendorProduct = async (req, res) => {
     if (req.files?.gallery) {
       for (const file of req.files.gallery) {
         try {
-          const img = await uploadCloud(file);
-          gallery.push(img);
+          const imgUrl = await uploadCloud(file);
+          gallery.push(imgUrl);
         } catch (error) {
           console.error("Gallery image upload error:", error);
         }
@@ -1686,19 +1743,16 @@ exports.updateVendorProduct = async (req, res) => {
     
     // Clean gallery
     gallery = gallery.filter(img => img && img.trim() !== '');
-    if (gallery.length > 0) {
+    if (gallery.length > 0 || req.files?.gallery || req.files?.ingredientsImage || req.files?.nutritionImage || req.files?.mfgExpImage) {
       updateData.gallery = gallery;
     }
     
-    // Update variation images
-    if (updateData.hasVariations && variations.length > 0 && req.files?.variationImages) {
+    // Handle variation images
+    if (updateData.hasVariations && updateData.variations && updateData.variations.length > 0 && req.files?.variationImages) {
       const variationImages = {};
-      
-      // Parse variation info
       const variationInfo = data.variationInfo ? 
         (typeof data.variationInfo === 'string' ? JSON.parse(data.variationInfo) : data.variationInfo) : [];
       
-      // Map variation images
       if (Array.isArray(req.files.variationImages)) {
         for (let i = 0; i < Math.min(req.files.variationImages.length, variationInfo.length); i++) {
           try {
@@ -1711,13 +1765,14 @@ exports.updateVendorProduct = async (req, res) => {
       }
       
       // Assign images to variations
-      for (let i = 0; i < variations.length; i++) {
+      for (let i = 0; i < updateData.variations.length; i++) {
         if (variationImages[i]) {
-          variations[i].image = variationImages[i];
+          updateData.variations[i].image = variationImages[i];
+        } else if (updateData.variations[i].image === undefined && product.variations[i]?.image) {
+          // Keep existing image if not updating
+          updateData.variations[i].image = product.variations[i].image;
         }
       }
-      
-      updateData.variations = variations;
     }
     
     // Update product
@@ -1737,6 +1792,16 @@ exports.updateVendorProduct = async (req, res) => {
     
   } catch (err) {
     console.error("❌ UPDATE PRODUCT ERROR:", err);
+    
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Validation failed", 
+        errors: errors 
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
       message: "Server Error: " + err.message 
@@ -1755,7 +1820,7 @@ exports.deleteVendorProduct = async (req, res) => {
     if (result.deletedCount === 0) {
       return res.status(404).json({ 
         success: false, 
-        message: "Product not found" 
+        message: "Product not found or already deleted" 
       });
     }
     
@@ -1764,10 +1829,10 @@ exports.deleteVendorProduct = async (req, res) => {
       message: "Product deleted successfully" 
     });
   } catch (err) {
-    console.error("Delete product error:", err);
+    console.error("❌ Delete product error:", err);
     res.status(500).json({ 
       success: false, 
-      message: "Server Error" 
+      message: "Server Error: " + err.message 
     });
   }
 };
@@ -1776,7 +1841,10 @@ exports.deleteVendorProduct = async (req, res) => {
 exports.importCSV = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "CSV file required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "CSV file is required" 
+      });
     }
 
     const vendorId = req.vendor._id;
@@ -1793,65 +1861,58 @@ exports.importCSV = async (req, res) => {
 
         for (const [index, r] of rows.entries()) {
           try {
-            if (!r.name || !r.price) {
-              errors.push(`Row ${index + 1}: Missing name or price`);
+            // Skip empty rows
+            if (!r.name && !r._id) {
+              errors.push(`Row ${index + 1}: Empty row skipped`);
               continue;
             }
 
-            // Find category
-            let categoryId = null;
-            if (r.category) {
-              const category = await Category.findOne({ 
-                name: { $regex: new RegExp(`^${r.category}$`, 'i') } 
-              });
-              if (category) categoryId = category._id;
-            }
-
-            // Find subcategory
-            let subcategoryId = null;
-            if (r.subcategory) {
-              const subcategory = await SubCategory.findOne({ 
-                name: { $regex: new RegExp(`^${r.subcategory}$`, 'i') },
-                ...(categoryId ? { category: categoryId } : {})
-              });
-              if (subcategory) subcategoryId = subcategory._id;
-            }
-
-            // Parse arrays
-            const flavors = r.flavors ? 
-              (r.flavors.startsWith('[') ? JSON.parse(r.flavors) : r.flavors.split(',').map(f => f.trim()).filter(f => f !== '')) : [];
-            
-            const size = r.size ? 
-              (r.size.startsWith('[') ? JSON.parse(r.size) : r.size.split(',').map(s => s.trim()).filter(s => s !== '')) : [];
-
-            const payload = {
-              name: r.name,
-              brandName: r.brandName || "",
+            // Prepare product data
+            const productData = {
+              name: r.name || "Imported Product",
               description: r.description || "",
-              oldPrice: Number(r.oldPrice) || 0,
-              price: Number(r.price) || Number(r.newPrice) || 0,
-              sellingPrice: Number(r.sellingPrice) || Number(r.price) || Number(r.newPrice) || 0,
-              stock: Number(r.stock) || 0,
+              brandName: r.brandName || r.fssaiLicense || "",
+              fssaiLicense: r.fssaiLicense || r.brandName || "",
+              restaurantName: r.restaurantName || vendor?.storeName || "",
+              
+              oldPrice: parseFloat(r.oldPrice) || 0,
+              price: parseFloat(r.price) || parseFloat(r.newPrice) || 0,
+              sellingPrice: parseFloat(r.sellingPrice) || parseFloat(r.price) || parseFloat(r.newPrice) || 0,
+              stock: parseInt(r.stock) || 0,
               quality: r.quality || "Standard",
-              State: r.State || "",
-              vendor: vendorId,
-              restaurantName: vendor.storeName || r.restaurantName || "",
-              category: categoryId,
-              subcategory: subcategoryId,
-              productTypes: r.productTypes || "",
-              flavors: flavors,
-              size: size,
               dietPreference: r.dietPreference || "Veg",
+              
+              productTypes: r.productTypes || "",
+              materialTypes: r.materialTypes || "",
+              ingredients: r.ingredients || "",
+              customWeight: r.customWeight || "",
+              customSizeInput: r.customSizeInput || "",
+              customFlavorInput: r.customFlavorInput || "",
+              
               ageRange: r.ageRange || "",
               containerType: r.containerType || "",
               itemForm: r.itemForm || "",
               specialty: r.specialty || "",
               itemTypeName: r.itemTypeName || "",
-              countryOfOrigin: r.countryOfOrigin || "",
-              manufacturer: r.manufacturer || "",
-              manufacturerContact: r.manufacturerContact || "",
+              countryOfOrigin: r.countryOfOrigin || "India",
+              
+              legalDisclaimer: r.legalDisclaimer || "",
+              shelfLife: r.shelfLife || "",
+              
+              manufacturer: r.manufacturer || r.manufacturerName || "",
+              manufacturerContact: r.manufacturerContact || r.manufacturerAddress || "",
+              manufacturerName: r.manufacturerName || r.manufacturer || "",
+              manufacturerAddress: r.manufacturerAddress || r.manufacturerContact || "",
+              
               packerContact: r.packerContact || "",
+              packagerName: r.packagerName || "",
+              packagerAddress: r.packagerAddress || "",
+              packagerFssaiLicense: r.packagerFssaiLicense || "",
+              
               marketerNameAddress: r.marketerNameAddress || "",
+              marketerName: r.marketerName || "",
+              marketerAddress: r.marketerAddress || "",
+              
               packageColour: r.packageColour || "",
               measurementUnit: r.measurementUnit || "",
               unitCount: r.unitCount || "",
@@ -1859,29 +1920,53 @@ exports.importCSV = async (req, res) => {
               itemWeight: r.itemWeight || "",
               totalEaches: r.totalEaches || "",
               itemPackageWeight: r.itemPackageWeight || "",
-              shelfLife: r.shelfLife || "",
-              ingredients: r.ingredients || "",
-              allergenInformation: r.allergenInformation || "",
-              directions: r.directions || "",
+              
+              dietaryPreferences: r.dietaryPreferences || "",
+              allergenInfo: r.allergenInfo || "",
+              allergenInformation: r.allergenInformation || r.allergenInfo || "",
               nutrition: r.nutrition || "",
               cuisine: r.cuisine || "",
-              dietaryPreferences: r.dietaryPreferences || "",
-              materialTypes: r.materialTypes || "",
-              customWeight: r.customWeight || "",
-              customSizeInput: r.customSizeInput || "",
-              fssaiLicense: r.fssaiLicense || "",
-              legalDisclaimer: r.legalDisclaimer || "",
-              hasVariations: r.hasVariations === 'true' || false,
+              directions: r.directions || "",
+              
+              State: r.State || "",
+              vendor: vendorId,
+              isActive: r.isActive !== 'false',
+              isFeatured: r.isFeatured === 'true',
+              isApproved: r.isApproved === 'true'
             };
 
+            // Handle arrays
+            if (r.flavors) {
+              productData.flavors = r.flavors.startsWith('[') ? 
+                JSON.parse(r.flavors) : 
+                r.flavors.split(',').map(f => f.trim()).filter(f => f !== '');
+            }
+            
+            if (r.size) {
+              productData.size = r.size.startsWith('[') ? 
+                JSON.parse(r.size) : 
+                r.size.split(',').map(s => s.trim()).filter(s => s !== '');
+            }
+            
+            if (r.variations && r.variations.startsWith('[')) {
+              try {
+                productData.variations = JSON.parse(r.variations);
+                productData.hasVariations = productData.variations.length > 0;
+              } catch (e) {
+                productData.hasVariations = false;
+              }
+            }
+
             if (r._id) {
+              // Update existing
               await VendorProduct.updateOne(
                 { _id: r._id, vendor: vendorId },
-                payload
+                { $set: productData }
               );
               updated++;
             } else {
-              await VendorProduct.create(payload);
+              // Create new
+              await VendorProduct.create(productData);
               created++;
             }
           } catch (error) {
@@ -1889,10 +1974,14 @@ exports.importCSV = async (req, res) => {
           }
         }
 
-        fs.unlinkSync(req.file.path);
+        // Clean up file
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
 
         res.json({
           success: true,
+          message: `CSV import completed: ${created} created, ${updated} updated`,
           created,
           updated,
           total: rows.length,
@@ -1900,8 +1989,17 @@ exports.importCSV = async (req, res) => {
         });
       });
   } catch (err) {
-    console.error("CSV import error:", err);
-    res.status(500).json({ message: "CSV Import Failed" });
+    console.error("❌ CSV import error:", err);
+    
+    // Clean up file on error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "CSV Import Failed: " + err.message 
+    });
   }
 };
 
@@ -1915,35 +2013,90 @@ exports.exportCSV = async (req, res) => {
       .populate("subcategory", "name")
       .lean();
 
-    // Transform data
+    // Transform data for CSV
     const transformedProducts = products.map(product => ({
-      ...product,
-      flavors: Array.isArray(product.flavors) ? JSON.stringify(product.flavors) : product.flavors || "",
-      size: Array.isArray(product.size) ? JSON.stringify(product.size) : product.size || "",
-      variations: Array.isArray(product.variations) ? JSON.stringify(product.variations) : "",
-      gallery: Array.isArray(product.gallery) ? JSON.stringify(product.gallery) : "",
-      category: product.category ? product.category.name : "",
-      subcategory: product.subcategory ? product.subcategory.name : "",
-      categoryId: product.category ? product.category._id : "",
-      subcategoryId: product.subcategory ? product.subcategory._id : ""
+      _id: product._id,
+      name: product.name,
+      description: product.description,
+      brandName: product.brandName,
+      fssaiLicense: product.fssaiLicense,
+      restaurantName: product.restaurantName,
+      hasVariations: product.hasVariations,
+      variations: JSON.stringify(product.variations || []),
+      oldPrice: product.oldPrice,
+      price: product.price,
+      sellingPrice: product.sellingPrice,
+      stock: product.stock,
+      quality: product.quality,
+      dietPreference: product.dietPreference,
+      category: product.category?.name || "",
+      subcategory: product.subcategory?.name || "",
+      categoryId: product.category?._id || "",
+      subcategoryId: product.subcategory?._id || "",
+      productTypes: product.productTypes,
+      flavors: JSON.stringify(product.flavors || []),
+      size: JSON.stringify(product.size || []),
+      materialTypes: product.materialTypes,
+      ingredients: product.ingredients,
+      customWeight: product.customWeight,
+      customSizeInput: product.customSizeInput,
+      customFlavorInput: product.customFlavorInput,
+      ageRange: product.ageRange,
+      containerType: product.containerType,
+      itemForm: product.itemForm,
+      specialty: product.specialty,
+      itemTypeName: product.itemTypeName,
+      countryOfOrigin: product.countryOfOrigin,
+      legalDisclaimer: product.legalDisclaimer,
+      shelfLife: product.shelfLife,
+      manufacturer: product.manufacturer,
+      manufacturerContact: product.manufacturerContact,
+      manufacturerName: product.manufacturerName,
+      manufacturerAddress: product.manufacturerAddress,
+      packerContact: product.packerContact,
+      packagerName: product.packagerName,
+      packagerAddress: product.packagerAddress,
+      packagerFssaiLicense: product.packagerFssaiLicense,
+      marketerNameAddress: product.marketerNameAddress,
+      marketerName: product.marketerName,
+      marketerAddress: product.marketerAddress,
+      packageColour: product.packageColour,
+      measurementUnit: product.measurementUnit,
+      unitCount: product.unitCount,
+      numberOfItems: product.numberOfItems,
+      itemWeight: product.itemWeight,
+      totalEaches: product.totalEaches,
+      itemPackageWeight: product.itemPackageWeight,
+      dietaryPreferences: product.dietaryPreferences,
+      allergenInfo: product.allergenInfo,
+      allergenInformation: product.allergenInformation,
+      nutrition: product.nutrition,
+      cuisine: product.cuisine,
+      directions: product.directions,
+      State: product.State,
+      image: product.image,
+      gallery: JSON.stringify(product.gallery || []),
+      isActive: product.isActive,
+      isFeatured: product.isFeatured,
+      isApproved: product.isApproved,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
     }));
 
     const fields = [
       '_id', 'name', 'description', 'brandName', 'fssaiLicense', 'restaurantName',
-      'hasVariations', 'variations',
-      'oldPrice', 'price', 'sellingPrice', 'stock', 'quality', 'dietPreference', 'State',
-      'category', 'subcategory', 'categoryId', 'subcategoryId',
-      'productTypes', 'flavors', 'size', 'materialTypes', 'ingredients', 
-      'customWeight', 'customSizeInput', 'ageRange', 'containerType', 'itemForm',
+      'hasVariations', 'variations', 'oldPrice', 'price', 'sellingPrice', 'stock',
+      'quality', 'dietPreference', 'category', 'subcategory', 'categoryId', 'subcategoryId',
+      'productTypes', 'flavors', 'size', 'materialTypes', 'ingredients', 'customWeight',
+      'customSizeInput', 'customFlavorInput', 'ageRange', 'containerType', 'itemForm',
       'specialty', 'itemTypeName', 'countryOfOrigin', 'legalDisclaimer', 'shelfLife',
       'manufacturer', 'manufacturerContact', 'manufacturerName', 'manufacturerAddress',
       'packerContact', 'packagerName', 'packagerAddress', 'packagerFssaiLicense',
-      'marketerNameAddress', 'marketerName', 'marketerAddress',
-      'packageColour', 'measurementUnit', 'unitCount', 'numberOfItems', 'itemWeight',
-      'totalEaches', 'itemPackageWeight',
-      'dietaryPreferences', 'allergenInfo', 'allergenInformation', 'nutrition',
-      'cuisine', 'directions',
-      'image', 'gallery'
+      'marketerNameAddress', 'marketerName', 'marketerAddress', 'packageColour',
+      'measurementUnit', 'unitCount', 'numberOfItems', 'itemWeight', 'totalEaches',
+      'itemPackageWeight', 'dietaryPreferences', 'allergenInfo', 'allergenInformation',
+      'nutrition', 'cuisine', 'directions', 'State', 'image', 'gallery', 'isActive',
+      'isFeatured', 'isApproved', 'createdAt', 'updatedAt'
     ];
 
     const parser = new Parser({ fields });
@@ -1956,8 +2109,11 @@ exports.exportCSV = async (req, res) => {
     );
     res.send(csvData);
   } catch (err) {
-    console.error("CSV export error:", err);
-    res.status(500).json({ message: "CSV Export Failed" });
+    console.error("❌ CSV export error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "CSV Export Failed: " + err.message 
+    });
   }
 };
 
@@ -1965,19 +2121,32 @@ exports.exportCSV = async (req, res) => {
 exports.bulkUpdate = async (req, res) => {
   try {
     const { ids, data } = req.body;
+    
     if (!ids?.length) {
-      return res.status(400).json({ message: "IDs required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Product IDs are required" 
+      });
     }
 
-    // Handle price mapping
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Update data is required" 
+      });
+    }
+
+    // Prepare update data
     const updateData = { ...data };
+    
+    // Handle price field mapping
     if (updateData.newPrice !== undefined) {
       updateData.price = updateData.newPrice;
       updateData.sellingPrice = updateData.newPrice;
       delete updateData.newPrice;
     }
-
-    // Handle arrays
+    
+    // Handle array fields
     if (updateData.flavors !== undefined && typeof updateData.flavors === 'string') {
       try {
         updateData.flavors = JSON.parse(updateData.flavors);
@@ -1994,6 +2163,7 @@ exports.bulkUpdate = async (req, res) => {
       }
     }
 
+    // Update products
     const result = await VendorProduct.updateMany(
       { _id: { $in: ids }, vendor: req.vendor._id },
       { $set: updateData }
@@ -2001,12 +2171,15 @@ exports.bulkUpdate = async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: `${result.modifiedCount} products updated`,
+      message: `${result.modifiedCount} products updated successfully`,
       modified: result.modifiedCount 
     });
   } catch (err) {
-    console.error("Bulk update error:", err);
-    res.status(500).json({ message: "Bulk update failed" });
+    console.error("❌ Bulk update error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Bulk update failed: " + err.message 
+    });
   }
 };
 
@@ -2014,8 +2187,12 @@ exports.bulkUpdate = async (req, res) => {
 exports.bulkDelete = async (req, res) => {
   try {
     const { ids } = req.body;
+    
     if (!ids?.length) {
-      return res.status(400).json({ message: "IDs required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Product IDs are required" 
+      });
     }
 
     const result = await VendorProduct.deleteMany({
@@ -2025,11 +2202,77 @@ exports.bulkDelete = async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: `${result.deletedCount} products deleted`,
+      message: `${result.deletedCount} products deleted successfully`,
       deleted: result.deletedCount 
     });
   } catch (err) {
-    console.error("Bulk delete error:", err);
-    res.status(500).json({ message: "Bulk delete failed" });
+    console.error("❌ Bulk delete error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Bulk delete failed: " + err.message 
+    });
+  }
+};
+
+/* ================= GET SINGLE PRODUCT ================= */
+exports.getSingleProduct = async (req, res) => {
+  try {
+    const product = await VendorProduct.findOne({
+      _id: req.params.id,
+      vendor: req.vendor._id,
+    })
+      .populate("category", "name image description")
+      .populate("subcategory", "name image");
+
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Product fetched successfully",
+      data: product 
+    });
+  } catch (err) {
+    console.error("❌ Get single product error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error: " + err.message 
+    });
+  }
+};
+
+/* ================= HEALTH CHECK ================= */
+exports.healthCheck = async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.vendor._id);
+    const productCount = await VendorProduct.countDocuments({ vendor: req.vendor._id });
+    
+    res.json({
+      success: true,
+      message: "Vendor Products API is healthy",
+      vendor: {
+        id: vendor._id,
+        name: vendor.storeName || vendor.restaurantName || vendor.businessName,
+        email: vendor.email
+      },
+      stats: {
+        totalProducts: productCount,
+        activeProducts: await VendorProduct.countDocuments({ vendor: req.vendor._id, isActive: true }),
+        featuredProducts: await VendorProduct.countDocuments({ vendor: req.vendor._id, isFeatured: true }),
+        approvedProducts: await VendorProduct.countDocuments({ vendor: req.vendor._id, isApproved: true })
+      },
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } catch (err) {
+    console.error("❌ Health check error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Health check failed: " + err.message 
+    });
   }
 };
