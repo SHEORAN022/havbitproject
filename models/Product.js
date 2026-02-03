@@ -2398,7 +2398,7 @@ const variationSchema = new mongoose.Schema({
 
 // ==================== PRODUCT SCHEMA ====================
 const productSchema = new mongoose.Schema({
-  // ========== BASIC INFORMATION (formData.basic) ==========
+  // ========== BASIC INFORMATION ==========
   name: {
     type: String,
     required: [true, 'Product name is required'],
@@ -2419,7 +2419,7 @@ const productSchema = new mongoose.Schema({
     default: false
   },
   
-  // ========== PRICING & STOCK (formData.pricing) ==========
+  // ========== PRICING & STOCK ==========
   oldPrice: {
     type: Number,
     default: 0
@@ -2443,13 +2443,13 @@ const productSchema = new mongoose.Schema({
     default: 'Veg'
   },
   
-  // ========== VARIATIONS (formData.variations) ==========
+  // ========== VARIATIONS ==========
   variations: {
     type: [variationSchema],
     default: []
   },
   
-  // ========== PRODUCT DETAILS (formData.details) ==========
+  // ========== PRODUCT DETAILS ==========
   productTypes: {
     type: String,
     default: '',
@@ -2516,7 +2516,7 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ========== COMPLIANCE (formData.compliance) ==========
+  // ========== COMPLIANCE ==========
   fssaiLicense: {
     type: String,
     default: '',
@@ -2533,13 +2533,8 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ========== MANUFACTURING (formData.manufacturing) ==========
+  // ========== MANUFACTURING - EXACT FRONTEND FIELDS ==========
   manufacturerName: {
-    type: String,
-    default: '',
-    trim: true
-  },
-  manufacturer: {
     type: String,
     default: '',
     trim: true
@@ -2549,11 +2544,18 @@ const productSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  manufacturer: {
+    type: String,
+    default: '',
+    trim: true
+  },
   manufacturerContact: {
     type: String,
     default: '',
     trim: true
   },
+  
+  // ========== PACKAGER - EXACT FRONTEND FIELDS ==========
   packagerName: {
     type: String,
     default: '',
@@ -2574,6 +2576,8 @@ const productSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  
+  // ========== MARKETER - EXACT FRONTEND FIELDS ==========
   marketerName: {
     type: String,
     default: '',
@@ -2590,7 +2594,7 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ========== PACKAGE DETAILS (formData.package) ==========
+  // ========== PACKAGE DETAILS ==========
   packageColour: {
     type: String,
     default: '',
@@ -2632,7 +2636,7 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ========== DIETARY & NUTRITION (formData.dietary) ==========
+  // ========== DIETARY & NUTRITION ==========
   dietaryPreferences: {
     type: String,
     default: '',
@@ -2659,7 +2663,7 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ========== LOCATION (formData.location) ==========
+  // ========== LOCATION ==========
   State: {
     type: String,
     default: '',
@@ -2688,7 +2692,7 @@ const productSchema = new mongoose.Schema({
     default: []
   },
   
-  // ========== AUTO-GENERATED FIELDS ==========
+  // ========== AUTO-GENERATED ==========
   slug: {
     type: String,
     unique: true
@@ -2702,39 +2706,20 @@ productSchema.index({ name: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ restaurantName: 1 });
 productSchema.index({ hasVariations: 1 });
-productSchema.index({ quality: 1 });
-productSchema.index({ dietPreference: 1 });
 productSchema.index({ State: 1 });
 productSchema.index({ createdAt: -1 });
 
 // ==================== PRE-SAVE MIDDLEWARE ====================
 productSchema.pre('save', function(next) {
-  // Generate slug from name
+  // Generate slug
   if (this.isModified('name')) {
     this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') + '-' + Date.now();
   }
-  
-  // Copy manufacturerName to manufacturer if not set
-  if (this.manufacturerName && !this.manufacturer) {
-    this.manufacturer = this.manufacturerName;
-  }
-  
-  // Copy fssaiLicense to brandName if not set
-  if (this.fssaiLicense && !this.brandName) {
-    this.brandName = this.fssaiLicense;
-  }
-  
   next();
 });
-
-// ==================== METHODS ====================
-productSchema.methods.toJSON = function() {
-  const obj = this.toObject();
-  return obj;
-};
 
 const Product = mongoose.model('Product', productSchema);
 
