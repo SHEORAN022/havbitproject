@@ -294,6 +294,9 @@
 
 
 
+
+
+
 const VendorOrder = require("../models/VendorOrder");
 
 /* ================= GET ALL VENDOR ORDERS ================= */
@@ -415,3 +418,46 @@ exports.getVendorOrderStats = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+/* ================= CREATE VENDOR ORDER (TEST ONLY) ================= */
+exports.createVendorOrder = async (req, res) => {
+  try {
+    const {
+      vendor,
+      user,
+      orderId,
+      orderItems,
+      amount,
+      paymentMethod,
+      shippingAddress,
+    } = req.body;
+
+    if (!vendor || !user || !orderId || !orderItems || orderItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    const order = await VendorOrder.create({
+      vendor,
+      user,
+      orderId,
+      orderItems,
+      amount,
+      paymentMethod,
+      shippingAddress,
+      orderStatus: "Pending",
+      paymentStatus: "Pending",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Vendor order created",
+      order,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
