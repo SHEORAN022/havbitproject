@@ -74,16 +74,25 @@ const upload = require("../middleware/upload");
 const csvUpload = require("../middleware/csvUpload");
 const P = require("../controllers/vendorProductController");
 
+// Apply vendor authentication to all routes
 router.use(vendorAuth);
 
-/* ===== CATEGORY & SUBCATEGORY ROUTES ===== */
+/* ================= HEALTH CHECK ================= */
+router.get("/health", P.healthCheck);
+
+/* ================= CATEGORY & SUBCATEGORY ROUTES ================= */
 router.get("/categories", P.getCategories);
 router.get("/subcategories", P.getSubCategories);
 router.get("/subcategories/:categoryId", P.getSubCategoriesByCategory);
 
-/* ===== CRUD ===== */
+/* ================= PRODUCT CRUD OPERATIONS ================= */
+// Get all products with pagination and filters
 router.get("/", P.getVendorProducts);
 
+// Get single product by ID
+router.get("/:id", P.getSingleProduct);
+
+// Create new product
 router.post(
   "/",
   upload.fields([
@@ -97,6 +106,7 @@ router.post(
   P.createVendorProduct
 );
 
+// Update existing product
 router.put(
   "/:id",
   upload.fields([
@@ -110,19 +120,25 @@ router.put(
   P.updateVendorProduct
 );
 
+// Delete product
 router.delete("/:id", P.deleteVendorProduct);
 
-/* ===== CSV ===== */
+/* ================= CSV OPERATIONS ================= */
+// Import products from CSV
 router.post(
   "/import-csv",
   csvUpload.single("file"),
   P.importCSV
 );
 
+// Export products to CSV
 router.get("/export-csv", P.exportCSV);
 
-/* ===== BULK ===== */
+/* ================= BULK OPERATIONS ================= */
+// Bulk update products
 router.put("/bulk-update", P.bulkUpdate);
+
+// Bulk delete products
 router.delete("/bulk-delete", P.bulkDelete);
 
 module.exports = router;
