@@ -3050,10 +3050,10 @@
 const Product = require('../models/Product');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp'); // Install: npm install sharp
 
-// ==================== HELPER FUNCTIONS ====================
-
-const saveImage = (file, folder = 'products') => {
+// ==================== IMAGE COMPRESSION & SAVE ====================
+const saveImage = async (file, folder = 'products') => {
   if (!file) return null;
   
   try {
@@ -3062,9 +3062,24 @@ const saveImage = (file, folder = 'products') => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
     
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + '.jpg';
     const filePath = path.join(uploadDir, uniqueName);
-    fs.writeFileSync(filePath, file.buffer);
+    
+    // Compress image using Sharp
+    await sharp(file.buffer)
+      .resize(800, 800, { 
+        fit: 'inside',
+        withoutEnlargement: true 
+      })
+      .jpeg({ 
+        quality: 80,
+        progressive: true 
+      })
+      .toFile(filePath);
+    
+    const fileSize = fs.statSync(filePath).size;
+    console.log(`✅ Image saved & compressed: ${uniqueName} (${(fileSize/1024).toFixed(2)} KB)`);
+    
     return `/uploads/${folder}/${uniqueName}`;
   } catch (error) {
     console.error('❌ Error saving image:', error);
@@ -3078,12 +3093,14 @@ const deleteImage = (imagePath) => {
     const fullPath = path.join(__dirname, '..', imagePath);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
+      console.log(`🗑️  Deleted: ${imagePath}`);
     }
   } catch (error) {
     console.error('❌ Error deleting image:', error);
   }
 };
 
+// ==================== VARIATIONS CLEANER ====================
 const cleanVariationsData = (variationsStr) => {
   if (!variationsStr) return [];
   
@@ -3095,6 +3112,7 @@ const cleanVariationsData = (variationsStr) => {
       const cleaned = {};
       if (variation._id) delete variation._id;
       
+      // Handle variationId
       if (variation.id && typeof variation.id === 'number') {
         cleaned.variationId = `var_${variation.id}`;
       } else if (variation.variationId) {
@@ -3121,25 +3139,30 @@ const cleanVariationsData = (variationsStr) => {
   }
 };
 
+// ==================== PREPARE PRODUCT DATA - COMPLETE MAPPING ====================
 const prepareProductData = (body) => {
+  console.log('\n📋 ========== PREPARING PRODUCT DATA ==========');
   const data = {};
   
-  // BASIC
+  // ========== BASIC ==========
   data.name = String(body.name || '').trim();
   data.description = String(body.description || '').trim();
   data.restaurantName = String(body.restaurantName || 'Havbit').trim();
   data.hasVariations = body.hasVariations === true || body.hasVariations === 'true';
+  console.log('✅ Basic:', { name: data.name, hasVariations: data.hasVariations });
   
-  // PRICING
+  // ========== PRICING ==========
   data.oldPrice = parseFloat(body.oldPrice) || 0;
   data.price = parseFloat(body.price) || 0;
   data.stock = parseInt(body.stock) || 0;
   data.quality = String(body.quality || 'Standard').trim();
   data.dietPreference = String(body.dietPreference || 'Veg').trim();
+  console.log('✅ Pricing:', { oldPrice: data.oldPrice, price: data.price, stock: data.stock });
   
-  // VARIATIONS
+  // ========== VARIATIONS ==========
   if (body.variations) {
     data.variations = cleanVariationsData(body.variations);
+    console.log('✅ Variations:', data.variations.length);
   } else {
     data.variations = [];
   }
@@ -3150,7 +3173,7 @@ const prepareProductData = (body) => {
     data.stock = 0;
   }
   
-  // DETAILS
+  // ========== PRODUCT DETAILS ==========
   data.productTypes = String(body.productTypes || '').trim();
   data.flavors = String(body.flavors || '').trim();
   data.size = String(body.size || '').trim();
@@ -3164,26 +3187,47 @@ const prepareProductData = (body) => {
   data.specialty = String(body.specialty || '').trim();
   data.itemTypeName = String(body.itemTypeName || '').trim();
   data.countryOfOrigin = String(body.countryOfOrigin || '').trim();
+  console.log('✅ Details:', { productTypes: data.productTypes, ageRange: data.ageRange });
   
-  // COMPLIANCE
+  // ========== COMPLIANCE ==========
   data.fssaiLicense = String(body.fssaiLicense || body.brandName || '').trim();
   data.brandName = String(body.brandName || body.fssaiLicense || '').trim();
   data.legalDisclaimer = String(body.legalDisclaimer || '').trim();
+  console.log('✅ Compliance:', { fssaiLicense: data.fssaiLicense });
   
-  // MANUFACTURING
+  // ========== MANUFACTURING - CRITICAL SECTION ==========
+  // Manufacturer fields
   data.manufacturerName = String(body.manufacturerName || '').trim();
-  data.manufacturer = String(body.manufacturer || body.manufacturerName || '').trim();
   data.manufacturerAddress = String(body.manufacturerAddress || '').trim();
-  data.manufacturerContact = String(body.manufacturerContact || body.manufacturerAddress || '').trim();
+  data.manufacturer = String(body.manufacturer || '').trim();
+  data.manufacturerContact = String(body.manufacturerContact || '').trim();
+  
+  // Packager fields
   data.packagerName = String(body.packagerName || '').trim();
   data.packagerAddress = String(body.packagerAddress || '').trim();
   data.packagerFssaiLicense = String(body.packagerFssaiLicense || '').trim();
   data.packerContact = String(body.packerContact || '').trim();
+  
+  // Marketer fields
   data.marketerName = String(body.marketerName || '').trim();
   data.marketerAddress = String(body.marketerAddress || '').trim();
   data.marketerNameAddress = String(body.marketerNameAddress || '').trim();
   
-  // PACKAGE
+  console.log('✅ Manufacturing:', {
+    manufacturerName: data.manufacturerName,
+    manufacturer: data.manufacturer,
+    manufacturerAddress: data.manufacturerAddress,
+    manufacturerContact: data.manufacturerContact,
+    packagerName: data.packagerName,
+    packagerAddress: data.packagerAddress,
+    packagerFssaiLicense: data.packagerFssaiLicense,
+    packerContact: data.packerContact,
+    marketerName: data.marketerName,
+    marketerAddress: data.marketerAddress,
+    marketerNameAddress: data.marketerNameAddress
+  });
+  
+  // ========== PACKAGE ==========
   data.packageColour = String(body.packageColour || '').trim();
   data.measurementUnit = String(body.measurementUnit || '').trim();
   data.unitCount = String(body.unitCount || '').trim();
@@ -3192,25 +3236,166 @@ const prepareProductData = (body) => {
   data.totalEaches = String(body.totalEaches || '').trim();
   data.itemPackageWeight = String(body.itemPackageWeight || '').trim();
   data.shelfLife = String(body.shelfLife || '').trim();
+  console.log('✅ Package:', { packageColour: data.packageColour, shelfLife: data.shelfLife });
   
-  // DIETARY
+  // ========== DIETARY ==========
   data.dietaryPreferences = String(body.dietaryPreferences || '').trim();
   data.allergenInformation = String(body.allergenInformation || '').trim();
   data.nutrition = String(body.nutrition || '').trim();
   data.cuisine = String(body.cuisine || '').trim();
   data.directions = String(body.directions || '').trim();
+  console.log('✅ Dietary:', { cuisine: data.cuisine });
   
-  // LOCATION
+  // ========== LOCATION ==========
   data.State = String(body.State || '').trim();
+  console.log('✅ Location:', { State: data.State });
   
-  // CATEGORY
+  // ========== CATEGORY ==========
   if (body.category) data.category = body.category;
   if (body.subcategory) data.subcategory = body.subcategory;
   
+  console.log('========== DATA PREPARATION COMPLETE ==========\n');
   return data;
 };
 
 // ==================== CONTROLLERS ====================
+
+exports.createProduct = async (req, res) => {
+  try {
+    console.log('\n🆕 ==================== CREATING PRODUCT ====================');
+    console.log('📥 Body Keys:', Object.keys(req.body).length);
+    console.log('📸 Files:', req.files ? Object.keys(req.files) : 'None');
+
+    const data = prepareProductData(req.body);
+
+    // Main image with compression
+    if (req.files?.image?.[0]) {
+      data.image = await saveImage(req.files.image[0], 'products/main');
+      console.log('✅ Main image:', data.image);
+    }
+
+    // Gallery with compression
+    if (req.files?.gallery) {
+      const galleryFiles = Array.isArray(req.files.gallery) ? req.files.gallery : [req.files.gallery];
+      console.log(`📸 Processing ${galleryFiles.length} gallery images...`);
+      
+      const galleryUrls = [];
+      for (const file of galleryFiles) {
+        const url = await saveImage(file, 'products/gallery');
+        if (url) galleryUrls.push(url);
+      }
+      data.gallery = galleryUrls.slice(0, 9);
+      console.log(`✅ Gallery: ${data.gallery.length} images`);
+    }
+
+    // Variation images with compression
+    if (data.hasVariations && data.variations.length > 0 && req.files?.variationImages) {
+      const varImages = Array.isArray(req.files.variationImages) ? req.files.variationImages : [req.files.variationImages];
+      console.log(`📸 Processing ${varImages.length} variation images...`);
+      
+      for (let i = 0; i < varImages.length && i < data.variations.length; i++) {
+        const url = await saveImage(varImages[i], 'products/variations');
+        if (url) {
+          data.variations[i].image = url;
+          console.log(`✅ Variation ${i + 1} image:`, url);
+        }
+      }
+    }
+
+    // Validation
+    if (!data.name) return res.status(400).json({ success: false, message: 'Product name required' });
+    if (!data.category) return res.status(400).json({ success: false, message: 'Category required' });
+    if (!data.hasVariations && data.price <= 0) return res.status(400).json({ success: false, message: 'Price required' });
+    if (data.hasVariations && !data.variations.length) return res.status(400).json({ success: false, message: 'Variations required' });
+
+    const product = await Product.create(data);
+    
+    console.log('✅ ==================== PRODUCT CREATED ====================');
+    console.log('📦 ID:', product._id);
+    console.log('📝 Name:', product.name);
+    console.log('🏭 Manufacturer:', product.manufacturer || product.manufacturerName);
+    console.log('📦 Packager:', product.packagerName);
+    console.log('🏪 Marketer:', product.marketerName);
+    console.log('==================== END ====================\n');
+
+    res.status(201).json({ success: true, message: 'Product created successfully', data: product });
+  } catch (error) {
+    console.error('❌ ERROR:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Validation failed', 
+        errors: Object.values(error.errors).map(e => e.message) 
+      });
+    }
+    res.status(500).json({ success: false, message: 'Failed to create product', error: error.message });
+  }
+};
+
+exports.updateProduct = async (req, res) => {
+  try {
+    console.log('\n🔄 ==================== UPDATING PRODUCT ====================');
+    let product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    console.log('📦 Updating:', product.name);
+    const updateData = prepareProductData(req.body);
+
+    // Main image
+    if (req.files?.image?.[0]) {
+      if (product.image) deleteImage(product.image);
+      updateData.image = await saveImage(req.files.image[0], 'products/main');
+    } else if (product.image) {
+      updateData.image = product.image;
+    }
+
+    // Gallery
+    if (req.files?.gallery) {
+      let galleryUrls = product.gallery ? [...product.gallery] : [];
+      const galleryFiles = Array.isArray(req.files.gallery) ? req.files.gallery : [req.files.gallery];
+      
+      for (const file of galleryFiles) {
+        const url = await saveImage(file, 'products/gallery');
+        if (url) galleryUrls.push(url);
+      }
+      updateData.gallery = galleryUrls.slice(0, 9);
+    } else if (product.gallery) {
+      updateData.gallery = product.gallery;
+    }
+
+    // Variations
+    if (updateData.hasVariations && updateData.variations.length > 0) {
+      if (product.variations?.length > 0) {
+        updateData.variations.forEach((newVar) => {
+          const existingVar = product.variations.find(v => v.variationId === newVar.variationId);
+          if (existingVar?.image && !newVar.image) {
+            newVar.image = existingVar.image;
+          }
+        });
+      }
+      
+      if (req.files?.variationImages) {
+        const varImages = Array.isArray(req.files.variationImages) ? req.files.variationImages : [req.files.variationImages];
+        for (let i = 0; i < varImages.length && i < updateData.variations.length; i++) {
+          const url = await saveImage(varImages[i], 'products/variations');
+          if (url) updateData.variations[i].image = url;
+        }
+      }
+    }
+
+    product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true })
+      .populate('category', 'name')
+      .populate('subcategory', 'name');
+
+    console.log('✅ Product updated');
+    console.log('==================== END ====================\n');
+
+    res.status(200).json({ success: true, message: 'Product updated successfully', data: product });
+  } catch (error) {
+    console.error('❌ ERROR:', error);
+    res.status(500).json({ success: false, message: 'Failed to update product', error: error.message });
+  }
+};
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -3229,7 +3414,6 @@ exports.getAllProducts = async (req, res) => {
     if (category) query.category = category;
     if (quality) query.quality = quality;
     if (dietPreference) query.dietPreference = dietPreference;
-    
     if (inStock === 'true') {
       query.$or = [{ stock: { $gt: 0 } }, { 'variations.stock': { $gt: 0 } }];
     }
@@ -3253,7 +3437,6 @@ exports.getAllProducts = async (req, res) => {
       data: products
     });
   } catch (error) {
-    console.error('❌ Error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch products', error: error.message });
   }
 };
@@ -3263,129 +3446,13 @@ exports.getProduct = async (req, res) => {
     const product = await Product.findById(req.params.id)
       .populate('category', 'name')
       .populate('subcategory', 'name');
-
-    if (!product) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
-    }
-
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
     if (error.name === 'CastError') {
       return res.status(400).json({ success: false, message: 'Invalid product ID' });
     }
     res.status(500).json({ success: false, message: 'Failed to fetch product', error: error.message });
-  }
-};
-
-exports.createProduct = async (req, res) => {
-  try {
-    console.log('🆕 Creating product...');
-    const data = prepareProductData(req.body);
-
-    // Main image
-    if (req.files?.image?.[0]) {
-      data.image = saveImage(req.files.image[0], 'products/main');
-    }
-
-    // Gallery
-    if (req.files?.gallery) {
-      const galleryFiles = Array.isArray(req.files.gallery) ? req.files.gallery : [req.files.gallery];
-      data.gallery = galleryFiles.map(f => saveImage(f, 'products/gallery')).filter(Boolean).slice(0, 9);
-    }
-
-    // Variation images
-    if (data.hasVariations && data.variations.length > 0 && req.files?.variationImages) {
-      const varImages = Array.isArray(req.files.variationImages) ? req.files.variationImages : [req.files.variationImages];
-      varImages.forEach((file, idx) => {
-        if (idx < data.variations.length) {
-          const url = saveImage(file, 'products/variations');
-          if (url) data.variations[idx].image = url;
-        }
-      });
-    }
-
-    // Validation
-    if (!data.name) return res.status(400).json({ success: false, message: 'Product name required' });
-    if (!data.category) return res.status(400).json({ success: false, message: 'Category required' });
-    if (!data.hasVariations && data.price <= 0) return res.status(400).json({ success: false, message: 'Price required' });
-    if (data.hasVariations && !data.variations.length) return res.status(400).json({ success: false, message: 'Variations required' });
-
-    const product = await Product.create(data);
-    console.log('✅ Product created:', product._id);
-
-    res.status(201).json({ success: true, message: 'Product created successfully', data: product });
-  } catch (error) {
-    console.error('❌ Error:', error);
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: Object.values(error.errors).map(e => e.message) });
-    }
-    if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: 'Product already exists' });
-    }
-    res.status(500).json({ success: false, message: 'Failed to create product', error: error.message });
-  }
-};
-
-exports.updateProduct = async (req, res) => {
-  try {
-    console.log('🔄 Updating product:', req.params.id);
-    let product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-
-    const updateData = prepareProductData(req.body);
-
-    // Main image
-    if (req.files?.image?.[0]) {
-      if (product.image) deleteImage(product.image);
-      updateData.image = saveImage(req.files.image[0], 'products/main');
-    } else if (product.image) {
-      updateData.image = product.image;
-    }
-
-    // Gallery
-    if (req.files?.gallery) {
-      let galleryUrls = product.gallery ? [...product.gallery] : [];
-      const galleryFiles = Array.isArray(req.files.gallery) ? req.files.gallery : [req.files.gallery];
-      galleryUrls.push(...galleryFiles.map(f => saveImage(f, 'products/gallery')).filter(Boolean));
-      updateData.gallery = galleryUrls.slice(0, 9);
-    } else if (product.gallery) {
-      updateData.gallery = product.gallery;
-    }
-
-    // Variations
-    if (updateData.hasVariations && updateData.variations.length > 0) {
-      if (product.variations?.length > 0) {
-        updateData.variations.forEach((newVar) => {
-          const existingVar = product.variations.find(v => v.variationId === newVar.variationId);
-          if (existingVar?.image && !newVar.image) {
-            newVar.image = existingVar.image;
-          }
-        });
-      }
-      
-      if (req.files?.variationImages) {
-        const varImages = Array.isArray(req.files.variationImages) ? req.files.variationImages : [req.files.variationImages];
-        varImages.forEach((file, idx) => {
-          if (idx < updateData.variations.length) {
-            const url = saveImage(file, 'products/variations');
-            if (url) updateData.variations[idx].image = url;
-          }
-        });
-      }
-    }
-
-    product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true })
-      .populate('category', 'name')
-      .populate('subcategory', 'name');
-
-    console.log('✅ Product updated');
-    res.status(200).json({ success: true, message: 'Product updated successfully', data: product });
-  } catch (error) {
-    console.error('❌ Error:', error);
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: Object.values(error.errors).map(e => e.message) });
-    }
-    res.status(500).json({ success: false, message: 'Failed to update product', error: error.message });
   }
 };
 
@@ -3428,7 +3495,6 @@ exports.bulkUpdateProducts = async (req, res) => {
   try {
     const { ids, data } = req.body;
     if (!ids?.length) return res.status(400).json({ success: false, message: 'No IDs provided' });
-    if (!data) return res.status(400).json({ success: false, message: 'No data provided' });
 
     const cleanData = {};
     Object.keys(data).forEach(key => {
@@ -3449,9 +3515,9 @@ exports.bulkUpdateProducts = async (req, res) => {
 exports.exportCSV = async (req, res) => {
   try {
     const products = await Product.find().populate('category', 'name').populate('subcategory', 'name').lean();
-    let csv = 'ID,Name,Category,Subcategory,MRP,Price,Stock,Variations,Quality,Diet,State,Brand,Type,Cuisine,Created\n';
+    let csv = 'ID,Name,Category,MRP,Price,Stock,Variations,Quality,Diet,State,Manufacturer,Packager,Marketer\n';
     products.forEach(p => {
-      csv += `"${p._id}","${p.name}","${p.category?.name||'N/A'}","${p.subcategory?.name||'N/A'}",${p.oldPrice||0},${p.price||0},${p.stock||0},"${p.hasVariations?'Yes':'No'}","${p.quality}","${p.dietPreference}","${p.State||''}","${p.brandName||''}","${p.productTypes||''}","${p.cuisine||''}","${new Date(p.createdAt).toLocaleDateString()}"\n`;
+      csv += `"${p._id}","${p.name}","${p.category?.name||''}",${p.oldPrice||0},${p.price||0},${p.stock||0},"${p.hasVariations?'Yes':'No'}","${p.quality}","${p.dietPreference}","${p.State||''}","${p.manufacturer||p.manufacturerName||''}","${p.packagerName||''}","${p.marketerName||''}"\n`;
     });
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=products-${Date.now()}.csv`);
@@ -3463,8 +3529,7 @@ exports.exportCSV = async (req, res) => {
 
 exports.importCSV = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-    
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
     const rows = req.file.buffer.toString().split('\n');
     const headers = rows[0].split(',').map(h => h.trim());
     const imported = [], errors = [];
@@ -3476,9 +3541,6 @@ exports.importCSV = async (req, res) => {
       headers.forEach((h, idx) => { if (values[idx]) productData[h] = values[idx]; });
       
       if (productData.name && productData.category) {
-        productData.price = parseFloat(productData.price) || 0;
-        productData.oldPrice = parseFloat(productData.oldPrice) || 0;
-        productData.stock = parseInt(productData.stock) || 0;
         try {
           imported.push(await Product.create(productData));
         } catch (error) {
@@ -3487,7 +3549,7 @@ exports.importCSV = async (req, res) => {
       }
     }
     
-    res.status(200).json({ success: true, message: `${imported.length} products imported`, imported: imported.length, errors: errors.length ? errors : undefined });
+    res.status(200).json({ success: true, message: `${imported.length} imported`, imported: imported.length, errors: errors.length ? errors : undefined });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Import failed', error: error.message });
   }
@@ -3514,24 +3576,21 @@ exports.getProductBySlug = async (req, res) => {
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Fetch failed', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed', error: error.message });
   }
 };
 
 exports.advancedSearch = async (req, res) => {
   try {
-    const { q = '', category = '', subcategory = '', minPrice = 0, maxPrice = 1000000, quality = '', dietPreference = '', inStock = '', hasVariations = '', sort = '-createdAt', page = 1, limit = 20 } = req.query;
+    const { q = '', category = '', minPrice = 0, maxPrice = 1000000, quality = '', dietPreference = '', sort = '-createdAt', page = 1, limit = 20 } = req.query;
     const query = {};
 
-    if (q) query.$or = [{ name: { $regex: q, $options: 'i' } }, { description: { $regex: q, $options: 'i' } }, { brandName: { $regex: q, $options: 'i' } }];
+    if (q) query.$or = [{ name: { $regex: q, $options: 'i' } }, { description: { $regex: q, $options: 'i' } }];
     if (category) query.category = category;
-    if (subcategory) query.subcategory = subcategory;
     if (quality) query.quality = quality;
     if (dietPreference) query.dietPreference = dietPreference;
-    if (hasVariations === 'true') query.hasVariations = true;
-    if (hasVariations === 'false') query.hasVariations = false;
 
-    const products = await Product.find(query).populate('category', 'name').populate('subcategory', 'name').sort(sort).limit(parseInt(limit)).skip((parseInt(page) - 1) * parseInt(limit)).lean();
+    const products = await Product.find(query).populate('category', 'name').sort(sort).limit(parseInt(limit)).skip((parseInt(page) - 1) * parseInt(limit)).lean();
     const total = await Product.countDocuments(query);
 
     res.status(200).json({ success: true, count: products.length, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)), data: products });
