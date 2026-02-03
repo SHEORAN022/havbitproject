@@ -1,61 +1,111 @@
 
 
-// const router = require("express").Router();
-// const upload = require("../middleware/upload");
 
-// const {
-//   getProducts,
-//   getProductById,
-//   addProduct,
-//   updateProduct,
-//   deleteProduct,
-//   bulkDelete,
-//   bulkUpdate,
-// } = require("../controllers/productController");
+// const express = require('express');
+// const router = express.Router();
+// const productController = require('../controllers/productController');
+// const multer = require('multer');
 
-// router.get("/", getProducts);
-// router.get("/:id", getProductById);
+// // ==================== MULTER CONFIGURATION ====================
+// // Configure multer for memory storage
+// const storage = multer.memoryStorage();
 
-// router.post(
-//   "/",
-//   upload.fields([
-//     { name: "image", maxCount: 1 },
-//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
-//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
-//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-//     { name: "gallery", maxCount: 10 },
-//   ]),
-//   addProduct
-// );
+// const uploadMiddleware = multer({ 
+//   storage: storage,
+//   limits: {
+//     fileSize: 10 * 1024 * 1024, // 10MB limit per file
+//     files: 30 // Maximum 30 files
+//   },
+//   fileFilter: (req, file, cb) => {
+//     // Accept images only
+//     if (!file.mimetype.startsWith('image/')) {
+//       return cb(new Error('Only image files are allowed'), false);
+//     }
+//     cb(null, true);
+//   }
+// });
 
-// router.put(
-//   "/:id",
-//   upload.fields([
-//     { name: "image", maxCount: 1 },
-//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
-//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
-//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-//     { name: "gallery", maxCount: 10 },
-//   ]),
-//   updateProduct
-// );
+// // File upload configuration for product form
+// const uploadFields = uploadMiddleware.fields([
+//   { name: 'image', maxCount: 1 },               // Main product image
+//   { name: 'gallery', maxCount: 9 },             // Gallery images (3 mandatory + 6 optional)
+//   { name: 'variationImages', maxCount: 20 }     // Variation-specific images
+// ]);
 
-// router.delete("/:id", deleteProduct);
-// router.post("/bulk-delete", bulkDelete);
-// router.put("/bulk-update", bulkUpdate);
+// // Error handling middleware for multer
+// const handleMulterError = (err, req, res, next) => {
+//   if (err instanceof multer.MulterError) {
+//     if (err.code === 'LIMIT_FILE_SIZE') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'File size exceeds 10MB limit'
+//       });
+//     }
+//     if (err.code === 'LIMIT_FILE_COUNT') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Too many files uploaded'
+//       });
+//     }
+//     return res.status(400).json({
+//       success: false,
+//       message: err.message
+//     });
+//   }
+  
+//   if (err) {
+//     return res.status(400).json({
+//       success: false,
+//       message: err.message
+//     });
+//   }
+  
+//   next();
+// };
+
+// router.get('/stats', productController.getProductStats);
+
+// router.get('/export-csv', productController.exportCSV);
+
+
+// router.get('/', productController.getAllProducts);
+
+
+// router.get('/:id', productController.getProduct);
+
+
+// router.post('/', uploadFields, handleMulterError, productController.createProduct);
+
+
+// router.put('/:id', uploadFields, handleMulterError, productController.updateProduct);
+
+// router.delete('/:id', productController.deleteProduct);
+
+
+// router.post('/bulk-delete', productController.bulkDeleteProducts);
+
+
+// router.put('/bulk-update', productController.bulkUpdateProducts);
+
+
+// router.post('/import-csv', uploadMiddleware.single('file'), handleMulterError, productController.importCSV);
 
 // module.exports = router;
 
 
 
 
+
+
+
+
+// module.exports = router;
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
 const multer = require('multer');
 
 // ==================== MULTER CONFIGURATION ====================
-// Configure multer for memory storage
 const storage = multer.memoryStorage();
 
 const uploadMiddleware = multer({ 
@@ -76,7 +126,7 @@ const uploadMiddleware = multer({
 // File upload configuration for product form
 const uploadFields = uploadMiddleware.fields([
   { name: 'image', maxCount: 1 },               // Main product image
-  { name: 'gallery', maxCount: 9 },             // Gallery images (3 mandatory + 6 optional)
+  { name: 'gallery', maxCount: 9 },             // Gallery images
   { name: 'variationImages', maxCount: 20 }     // Variation-specific images
 ]);
 
@@ -111,33 +161,42 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
+// ==================== ROUTES ====================
+
+// Stats route
 router.get('/stats', productController.getProductStats);
 
+// Export CSV route
 router.get('/export-csv', productController.exportCSV);
 
-
+// Get all products route
 router.get('/', productController.getAllProducts);
 
-
+// Get single product by ID route
 router.get('/:id', productController.getProduct);
 
+// Get product by slug route
+router.get('/slug/:slug', productController.getProductBySlug);
 
+// Create product route
 router.post('/', uploadFields, handleMulterError, productController.createProduct);
 
-
+// Update product route
 router.put('/:id', uploadFields, handleMulterError, productController.updateProduct);
 
+// Delete product route
 router.delete('/:id', productController.deleteProduct);
 
-
+// Bulk delete route
 router.post('/bulk-delete', productController.bulkDeleteProducts);
 
-
+// Bulk update route
 router.put('/bulk-update', productController.bulkUpdateProducts);
 
-
+// Import CSV route
 router.post('/import-csv', uploadMiddleware.single('file'), handleMulterError, productController.importCSV);
 
+// Advanced search route
+router.get('/search/advanced', productController.advancedSearch);
+
 module.exports = router;
-
-
