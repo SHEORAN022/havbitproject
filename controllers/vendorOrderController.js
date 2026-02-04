@@ -3,280 +3,232 @@
 
 
 
-//   // controllers/vendorOrderController.js
-// const VendorOrder = require("../models/VendorOrder");
+// //   // controllers/vendorOrderController.js
+// // const VendorOrder = require("../models/VendorOrder");
 
-// /* ================= GET ALL VENDOR ORDERS ================= */
-// exports.getVendorOrders = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
+// // /* ================= GET ALL VENDOR ORDERS ================= */
+// // exports.getVendorOrders = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
 
-//     const orders = await VendorOrder.find({ vendor: vendorId })
-//       .populate("customer", "name email phone")
-//       .sort({ createdAt: -1 });
+// //     const orders = await VendorOrder.find({ vendor: vendorId })
+// //       .populate("customer", "name email phone")
+// //       .sort({ createdAt: -1 });
 
-//     res.json({
-//       success: true,
-//       orders,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+// //     res.json({
+// //       success: true,
+// //       orders,
+// //     });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
-// /* ================= GET SINGLE ORDER ================= */
-// exports.getVendorOrderById = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
+// // /* ================= GET SINGLE ORDER ================= */
+// // exports.getVendorOrderById = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
 
-//     const order = await VendorOrder.findOne({
-//       _id: req.params.id,
-//       vendor: vendorId,
-//     }).populate("customer", "name email phone");
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     }).populate("customer", "name email phone");
 
-//     if (!order) {
-//       return res.status(404).json({ success: false, message: "Order not found" });
-//     }
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
 
-//     res.json({ success: true, order });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+// //     res.json({ success: true, order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
-// /* ================= UPDATE ORDER STATUS ================= */
-// exports.updateVendorOrderStatus = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
-//     const { status, carrier, trackingNumber, trackingUrl } = req.body;
+// // /* ================= UPDATE ORDER STATUS ================= */
+// // exports.updateVendorOrderStatus = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+// //     const { status, carrier, trackingNumber, trackingUrl } = req.body;
 
-//     const allowed = [
-//       "confirmed",
-//       "processing",
-//       "shipped",
-//       "delivered",
-//       "cancelled",
-//     ];
-//     if (!allowed.includes(status)) {
-//       return res.status(400).json({ success: false, message: "Invalid status" });
-//     }
+// //     const allowed = [
+// //       "confirmed",
+// //       "processing",
+// //       "shipped",
+// //       "delivered",
+// //       "cancelled",
+// //     ];
+// //     if (!allowed.includes(status)) {
+// //       return res.status(400).json({ success: false, message: "Invalid status" });
+// //     }
 
-//     const order = await VendorOrder.findOne({
-//       _id: req.params.id,
-//       vendor: vendorId,
-//     });
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     });
 
-//     if (!order) {
-//       return res.status(404).json({ success: false, message: "Order not found" });
-//     }
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
 
-//     order.orderStatus = status;
+// //     order.orderStatus = status;
 
-//     if (status === "shipped") {
-//       order.shipping = { carrier, trackingNumber, trackingUrl };
-//     }
+// //     if (status === "shipped") {
+// //       order.shipping = { carrier, trackingNumber, trackingUrl };
+// //     }
 
-//     if (status === "delivered") {
-//       order.deliveredAt = new Date();
-//     }
+// //     if (status === "delivered") {
+// //       order.deliveredAt = new Date();
+// //     }
 
-//     if (status === "cancelled") {
-//       order.cancelledAt = new Date();
-//     }
+// //     if (status === "cancelled") {
+// //       order.cancelledAt = new Date();
+// //     }
 
-//     await order.save();
+// //     await order.save();
 
-//     res.json({ success: true, message: "Order updated", order });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+// //     res.json({ success: true, message: "Order updated", order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
-// /* ================= VENDOR STATS ================= */
-// exports.getVendorOrderStats = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
+// // /* ================= VENDOR STATS ================= */
+// // exports.getVendorOrderStats = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
 
-//     const orders = await VendorOrder.find({ vendor: vendorId });
+// //     const orders = await VendorOrder.find({ vendor: vendorId });
 
-//     const stats = {
-//       totalOrders: orders.length,
-//       totalRevenue: orders.reduce((s, o) => s + o.amount.final, 0),
-//       byStatus: {
-//         pending: 0,
-//         confirmed: 0,
-//         processing: 0,
-//         shipped: 0,
-//         delivered: 0,
-//         cancelled: 0,
-//       },
-//     };
+// //     const stats = {
+// //       totalOrders: orders.length,
+// //       totalRevenue: orders.reduce((s, o) => s + o.amount.final, 0),
+// //       byStatus: {
+// //         pending: 0,
+// //         confirmed: 0,
+// //         processing: 0,
+// //         shipped: 0,
+// //         delivered: 0,
+// //         cancelled: 0,
+// //       },
+// //     };
 
-//     orders.forEach(o => stats.byStatus[o.orderStatus]++);
-
-
+// //     orders.forEach(o => stats.byStatus[o.orderStatus]++);
 
 
 
 
-//   // controllers/vendorOrderController.js
-// const VendorOrder = require("../models/VendorOrder");
-
-// /* ================= GET ALL VENDOR ORDERS ================= */
-// exports.getVendorOrders = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
-
-//     const orders = await VendorOrder.find({ vendor: vendorId })
-//       .populate("customer", "name email phone")
-//       .sort({ createdAt: -1 });
-
-//     res.json({
-//       success: true,
-//       orders,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
-
-// /* ================= GET SINGLE ORDER ================= */
-// exports.getVendorOrderById = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
-
-//     const order = await VendorOrder.findOne({
-//       _id: req.params.id,
-//       vendor: vendorId,
-//     }).populate("customer", "name email phone");
-
-//     if (!order) {
-//       return res.status(404).json({ success: false, message: "Order not found" });
-//     }
-
-//     res.json({ success: true, order });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
-
-// /* ================= UPDATE ORDER STATUS ================= */
-// exports.updateVendorOrderStatus = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
-//     const { status, carrier, trackingNumber, trackingUrl } = req.body;
-
-//     const allowed = [
-//       "confirmed",
-//       "processing",
-//       "shipped",
-//       "delivered",
-//       "cancelled",
-//     ];
-//     if (!allowed.includes(status)) {
-//       return res.status(400).json({ success: false, message: "Invalid status" });
-//     }
-
-//     const order = await VendorOrder.findOne({
-//       _id: req.params.id,
-//       vendor: vendorId,
-//     });
-
-//     if (!order) {
-//       return res.status(404).json({ success: false, message: "Order not found" });
-//     }
-
-//     order.orderStatus = status;
-
-//     if (status === "shipped") {
-//       order.shipping = { carrier, trackingNumber, trackingUrl };
-//     }
-
-//     if (status === "delivered") {
-//       order.deliveredAt = new Date();
-//     }
-
-//     if (status === "cancelled") {
-//       order.cancelledAt = new Date();
-//     }
-
-//     await order.save();
-
-//     res.json({ success: true, message: "Order updated", order });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
-
-// /* ================= VENDOR STATS ================= */
-// exports.getVendorOrderStats = async (req, res) => {
-//   try {
-//     const vendorId = req.vendor._id;
-
-//     const orders = await VendorOrder.find({ vendor: vendorId });
-
-//     const stats = {
-//       totalOrders: orders.length,
-//       totalRevenue: orders.reduce((s, o) => s + o.amount.final, 0),
-//       byStatus: {
-//         pending: 0,
-//         confirmed: 0,
-//         processing: 0,
-//         shipped: 0,
-//         delivered: 0,
-//         cancelled: 0,
-//       },
-//     };
-
-//     orders.forEach(o => stats.byStatus[o.orderStatus]++);
-
-//     res.json({ success: true, stats });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
 
 
-// //=========single product 
+// //   // controllers/vendorOrderController.js
+// // const VendorOrder = require("../models/VendorOrder");
 
-// exports.getVendorSingleProduct = async(req,res)=> {
+// // /* ================= GET ALL VENDOR ORDERS ================= */
+// // exports.getVendorOrders = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
 
-//   console.log("getSingleOrder===============lopgsssssssss");
-//   console.log("Body======================", req.params);
+// //     const orders = await VendorOrder.find({ vendor: vendorId })
+// //       .populate("customer", "name email phone")
+// //       .sort({ createdAt: -1 });
 
+// //     res.json({
+// //       success: true,
+// //       orders,
+// //     });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
-//       const { orderId } = req.params;
-//           // const vendorId = req..name;
+// // /* ================= GET SINGLE ORDER ================= */
+// // exports.getVendorOrderById = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
 
-//           if(!orderId){
-//              return res.status(400).json({
-//         success: false,
-//         message: "orderId is required",
-//       });
-//           }
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     }).populate("customer", "name email phone");
 
-//           else{
-//             const order = await VendorOrder.findOne({
-//       orderId: orderId,
-//       vendor: vendorId,
-//     })
-//       .populate("customer", "name email phone")
-//       .lean();
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
 
-//     if (!order) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Order not found",
-//       });
-//     }
-//        return res.status(200).json({
-//       success: true,
-//       data: order,
-//     });
+// //     res.json({ success: true, order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
-//           }
+// // /* ================= UPDATE ORDER STATUS ================= */
+// // exports.updateVendorOrderStatus = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+// //     const { status, carrier, trackingNumber, trackingUrl } = req.body;
 
-// }
+// //     const allowed = [
+// //       "confirmed",
+// //       "processing",
+// //       "shipped",
+// //       "delivered",
+// //       "cancelled",
+// //     ];
+// //     if (!allowed.includes(status)) {
+// //       return res.status(400).json({ success: false, message: "Invalid status" });
+// //     }
+
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     });
+
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
+
+// //     order.orderStatus = status;
+
+// //     if (status === "shipped") {
+// //       order.shipping = { carrier, trackingNumber, trackingUrl };
+// //     }
+
+// //     if (status === "delivered") {
+// //       order.deliveredAt = new Date();
+// //     }
+
+// //     if (status === "cancelled") {
+// //       order.cancelledAt = new Date();
+// //     }
+
+// //     await order.save();
+
+// //     res.json({ success: true, message: "Order updated", order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
+
+// // /* ================= VENDOR STATS ================= */
+// // exports.getVendorOrderStats = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+
+// //     const orders = await VendorOrder.find({ vendor: vendorId });
+
+// //     const stats = {
+// //       totalOrders: orders.length,
+// //       totalRevenue: orders.reduce((s, o) => s + o.amount.final, 0),
+// //       byStatus: {
+// //         pending: 0,
+// //         confirmed: 0,
+// //         processing: 0,
+// //         shipped: 0,
+// //         delivered: 0,
+// //         cancelled: 0,
+// //       },
+// //     };
+
+// //     orders.forEach(o => stats.byStatus[o.orderStatus]++);
 
 // //     res.json({ success: true, stats });
 // //   } catch (err) {
@@ -285,6 +237,52 @@
 // // };
 
 
+// // //=========single product 
+
+// // exports.getVendorSingleProduct = async(req,res)=> {
+
+// //   console.log("getSingleOrder===============lopgsssssssss");
+// //   console.log("Body======================", req.params);
+
+
+// //       const { orderId } = req.params;
+// //           // const vendorId = req..name;
+
+// //           if(!orderId){
+// //              return res.status(400).json({
+// //         success: false,
+// //         message: "orderId is required",
+// //       });
+// //           }
+
+// //           else{
+// //             const order = await VendorOrder.findOne({
+// //       orderId: orderId,
+// //       vendor: vendorId,
+// //     })
+// //       .populate("customer", "name email phone")
+// //       .lean();
+
+// //     if (!order) {
+// //       return res.status(404).json({
+// //         success: false,
+// //         message: "Order not found",
+// //       });
+// //     }
+// //        return res.status(200).json({
+// //       success: true,
+// //       data: order,
+// //     });
+
+// //           }
+
+// // }
+
+// // //     res.json({ success: true, stats });
+// // //   } catch (err) {
+// // //     res.status(500).json({ success: false, message: err.message });
+// // //   }
+// // // };
 
 
 
@@ -293,6 +291,174 @@
 
 
 
+
+
+
+
+
+
+// // const VendorOrder = require("../models/VendorOrder");
+
+// // /* ================= GET ALL VENDOR ORDERS ================= */
+// // exports.getVendorOrders = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+
+// //     const orders = await VendorOrder.find({ vendor: vendorId })
+// //       .populate("user", "name email phone")
+// //       .sort({ createdAt: -1 });
+
+// //     res.json({ success: true, orders });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
+
+// // /* ================= GET SINGLE VENDOR ORDER ================= */
+// // exports.getVendorOrderById = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     }).populate("user", "name email phone");
+
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
+
+// //     res.json({ success: true, order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
+
+// // /* ================= UPDATE VENDOR ORDER STATUS ================= */
+// // exports.updateVendorOrderStatus = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+// //     const { orderStatus, tracking } = req.body;
+
+// //     const allowedStatus = [
+// //       "Pending",
+// //       "Confirmed",
+// //       "Processing",
+// //       "Shipped",
+// //       "Delivered",
+// //       "Cancelled",
+// //     ];
+
+// //     if (!allowedStatus.includes(orderStatus)) {
+// //       return res.status(400).json({
+// //         success: false,
+// //         message: "Invalid order status",
+// //       });
+// //     }
+
+// //     const order = await VendorOrder.findOne({
+// //       _id: req.params.id,
+// //       vendor: vendorId,
+// //     });
+
+// //     if (!order) {
+// //       return res.status(404).json({ success: false, message: "Order not found" });
+// //     }
+
+// //     order.orderStatus = orderStatus;
+
+// //     if (orderStatus === "Shipped" && tracking) {
+// //       order.tracking = tracking;
+// //     }
+
+// //     if (orderStatus === "Delivered") {
+// //       order.deliveredAt = new Date();
+// //     }
+
+// //     if (orderStatus === "Cancelled") {
+// //       order.cancelledAt = new Date();
+// //     }
+
+// //     await order.save();
+
+// //     res.json({ success: true, message: "Order updated", order });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
+
+// // /* ================= VENDOR ORDER STATS ================= */
+// // exports.getVendorOrderStats = async (req, res) => {
+// //   try {
+// //     const vendorId = req.vendor._id;
+
+// //     const orders = await VendorOrder.find({ vendor: vendorId });
+
+// //     const stats = {
+// //       totalOrders: orders.length,
+// //       totalRevenue: orders.reduce((sum, o) => sum + o.amount, 0),
+// //       byStatus: {
+// //         Pending: 0,
+// //         Confirmed: 0,
+// //         Processing: 0,
+// //         Shipped: 0,
+// //         Delivered: 0,
+// //         Cancelled: 0,
+// //       },
+// //     };
+
+// //     orders.forEach(o => {
+// //       if (stats.byStatus[o.orderStatus] !== undefined) {
+// //         stats.byStatus[o.orderStatus]++;
+// //       }
+// //     });
+
+// //     res.json({ success: true, stats });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
+// // /* ================= CREATE VENDOR ORDER (TEST ONLY) ================= */
+// // exports.createVendorOrder = async (req, res) => {
+// //   try {
+// //     const {
+// //       vendor,
+// //       user,
+// //       orderId,
+// //       orderItems,
+// //       amount,
+// //       paymentMethod,
+// //       shippingAddress,
+// //     } = req.body;
+
+// //     if (!vendor || !user || !orderId || !orderItems || orderItems.length === 0) {
+// //       return res.status(400).json({
+// //         success: false,
+// //         message: "Missing required fields",
+// //       });
+// //     }
+
+// //     const order = await VendorOrder.create({
+// //       vendor,
+// //       user,
+// //       orderId,
+// //       orderItems,
+// //       amount,
+// //       paymentMethod,
+// //       shippingAddress,
+// //       orderStatus: "Pending",
+// //       paymentStatus: "Pending",
+// //     });
+
+// //     res.status(201).json({
+// //       success: true,
+// //       message: "Vendor order created",
+// //       order,
+// //     });
+// //   } catch (err) {
+// //     res.status(500).json({ success: false, message: err.message });
+// //   }
+// // };
 
 
 
@@ -421,8 +587,9 @@
 // /* ================= CREATE VENDOR ORDER (TEST ONLY) ================= */
 // exports.createVendorOrder = async (req, res) => {
 //   try {
+//     const vendorId = req.vendor._id;
+
 //     const {
-//       vendor,
 //       user,
 //       orderId,
 //       orderItems,
@@ -431,15 +598,8 @@
 //       shippingAddress,
 //     } = req.body;
 
-//     if (!vendor || !user || !orderId || !orderItems || orderItems.length === 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Missing required fields",
-//       });
-//     }
-
 //     const order = await VendorOrder.create({
-//       vendor,
+//       vendor: vendorId, // 🔥 token se
 //       user,
 //       orderId,
 //       orderItems,
@@ -461,20 +621,24 @@
 // };
 
 
-
-
 const VendorOrder = require("../models/VendorOrder");
 
 /* ================= GET ALL VENDOR ORDERS ================= */
 exports.getVendorOrders = async (req, res) => {
   try {
-    const vendorId = req.vendor._id;
+    if (!req.vendor || !req.vendor._id) {
+      return res.status(401).json({ success: false, message: "Unauthorized vendor" });
+    }
 
-    const orders = await VendorOrder.find({ vendor: vendorId })
+    const orders = await VendorOrder.find({ vendor: req.vendor._id })
       .populate("user", "name email phone")
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, orders });
+    res.status(200).json({
+      success: true,
+      total: orders.length,
+      orders,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -483,18 +647,22 @@ exports.getVendorOrders = async (req, res) => {
 /* ================= GET SINGLE VENDOR ORDER ================= */
 exports.getVendorOrderById = async (req, res) => {
   try {
-    const vendorId = req.vendor._id;
-
     const order = await VendorOrder.findOne({
       _id: req.params.id,
-      vendor: vendorId,
+      vendor: req.vendor._id,
     }).populate("user", "name email phone");
 
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
     }
 
-    res.json({ success: true, order });
+    res.status(200).json({
+      success: true,
+      order,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -503,7 +671,6 @@ exports.getVendorOrderById = async (req, res) => {
 /* ================= UPDATE VENDOR ORDER STATUS ================= */
 exports.updateVendorOrderStatus = async (req, res) => {
   try {
-    const vendorId = req.vendor._id;
     const { orderStatus, tracking } = req.body;
 
     const allowedStatus = [
@@ -515,7 +682,7 @@ exports.updateVendorOrderStatus = async (req, res) => {
       "Cancelled",
     ];
 
-    if (!allowedStatus.includes(orderStatus)) {
+    if (!orderStatus || !allowedStatus.includes(orderStatus)) {
       return res.status(400).json({
         success: false,
         message: "Invalid order status",
@@ -524,17 +691,24 @@ exports.updateVendorOrderStatus = async (req, res) => {
 
     const order = await VendorOrder.findOne({
       _id: req.params.id,
-      vendor: vendorId,
+      vendor: req.vendor._id,
     });
 
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
     }
 
     order.orderStatus = orderStatus;
 
     if (orderStatus === "Shipped" && tracking) {
-      order.tracking = tracking;
+      order.tracking = {
+        provider: tracking.provider || "",
+        trackingId: tracking.trackingId || "",
+        estimatedDelivery: tracking.estimatedDelivery || null,
+      };
     }
 
     if (orderStatus === "Delivered") {
@@ -547,7 +721,11 @@ exports.updateVendorOrderStatus = async (req, res) => {
 
     await order.save();
 
-    res.json({ success: true, message: "Order updated", order });
+    res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+      order,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -556,13 +734,11 @@ exports.updateVendorOrderStatus = async (req, res) => {
 /* ================= VENDOR ORDER STATS ================= */
 exports.getVendorOrderStats = async (req, res) => {
   try {
-    const vendorId = req.vendor._id;
-
-    const orders = await VendorOrder.find({ vendor: vendorId });
+    const orders = await VendorOrder.find({ vendor: req.vendor._id });
 
     const stats = {
       totalOrders: orders.length,
-      totalRevenue: orders.reduce((sum, o) => sum + o.amount, 0),
+      totalRevenue: 0,
       byStatus: {
         Pending: 0,
         Confirmed: 0,
@@ -573,22 +749,26 @@ exports.getVendorOrderStats = async (req, res) => {
       },
     };
 
-    orders.forEach(o => {
-      if (stats.byStatus[o.orderStatus] !== undefined) {
-        stats.byStatus[o.orderStatus]++;
+    orders.forEach((order) => {
+      stats.totalRevenue += order.amount || 0;
+      if (stats.byStatus[order.orderStatus] !== undefined) {
+        stats.byStatus[order.orderStatus]++;
       }
     });
 
-    res.json({ success: true, stats });
+    res.status(200).json({
+      success: true,
+      stats,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-/* ================= CREATE VENDOR ORDER (TEST ONLY) ================= */
+
+/* ================= CREATE VENDOR ORDER ================= */
+/* ⚠️ Usually customer order se auto create hota hai */
 exports.createVendorOrder = async (req, res) => {
   try {
-    const vendorId = req.vendor._id;
-
     const {
       user,
       orderId,
@@ -598,13 +778,21 @@ exports.createVendorOrder = async (req, res) => {
       shippingAddress,
     } = req.body;
 
+    // 🔒 VALIDATION
+    if (!user || !orderId || !orderItems || orderItems.length === 0 || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
     const order = await VendorOrder.create({
-      vendor: vendorId, // 🔥 token se
+      vendor: req.vendor._id,
       user,
       orderId,
       orderItems,
       amount,
-      paymentMethod,
+      paymentMethod: paymentMethod || "cod",
       shippingAddress,
       orderStatus: "Pending",
       paymentStatus: "Pending",
@@ -612,7 +800,7 @@ exports.createVendorOrder = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Vendor order created",
+      message: "Vendor order created successfully",
       order,
     });
   } catch (err) {
