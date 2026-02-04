@@ -3622,52 +3622,27 @@ exports.createVendorProduct = async (req, res) => {
     }
     
     const data = { ...req.body };
-    // ================= VARIATION FLAGS =================
-const hasVariations =
-  data.hasVariations === true ||
-  data.hasVariations === "true";
-if (data.variations) {
-  updateData.variations =
-    typeof data.variations === "string"
-      ? JSON.parse(data.variations)
-      : data.variations;
-
-  updateData.hasVariations = hasVariations;
-}
-if (
-  hasVariations &&
-  updateData.variations &&
-  req.files?.variationImages
-) {
-  for (let i = 0; i < updateData.variations.length; i++) {
-    if (req.files.variationImages[i]) {
-      const img = await uploadCloud(
-        req.files.variationImages[i],
-        "vendor_products/variations"
-      );
-      if (img) {
-        updateData.variations[i].image = img;
+    
+    // ================= VARIATION FLAGS - FIXED =================
+    const hasVariations = data.hasVariations === true || data.hasVariations === "true";
+    
+    // Parse variations from request
+    let variations = [];
+    if (data.variations) {
+      try {
+        variations = typeof data.variations === "string" 
+          ? JSON.parse(data.variations) 
+          : data.variations;
+      } catch (e) {
+        console.error("Error parsing variations:", e);
+        variations = [];
       }
     }
-  }
-}
 
-let variations = [];
-if (data.variations) {
-  try {
-    variations =
-      typeof data.variations === "string"
-        ? JSON.parse(data.variations)
-        : data.variations;
-  } catch (e) {
-    variations = [];
-  }
-}
-
-    // Step 1: Parse and prepare product data
+    // Step 1: Initialize product data
     let productData = {};
     productData.hasVariations = hasVariations;
-productData.variations = hasVariations ? variations : [];
+    productData.variations = hasVariations ? variations : [];
 
     // Helper functions
     const safeString = (value) => (value !== undefined && value !== null ? String(value).trim() : '');
@@ -3710,7 +3685,6 @@ productData.variations = hasVariations ? variations : [];
         });
       }
       
-      // Check if subcategory belongs to selected category
       if (subcategoryExists.category && subcategoryExists.category.toString() !== data.category) {
         return res.status(400).json({ 
           success: false, 
@@ -3736,19 +3710,30 @@ productData.variations = hasVariations ? variations : [];
       productData.description = safeString(data.formData.basic?.description || data.description);
       productData.restaurantName = safeString(vendor.storeName || data.formData.basic?.restaurantName || "");
       
-      // Pricing
-      if (data.formData.pricing) {
-        productData.oldPrice = safeNumber(data.formData.pricing.oldPrice);
-        productData.price = safeNumber(data.formData.pricing.newPrice || data.formData.pricing.price);
-        productData.stock = safeNumber(data.formData.pricing.stock);
-        productData.quality = safeString(data.formData.pricing.quality) || "Standard";
-        productData.dietPreference = safeString(data.formData.pricing.dietPreference) || "Veg";
+      // Pricing - ONLY IF NO VARIATIONS
+      if (!hasVariations) {
+        if (data.formData.pricing) {
+          productData.oldPrice = safeNumber(data.formData.pricing.oldPrice);
+          productData.price = safeNumber(data.formData.pricing.newPrice || data.formData.pricing.price);
+          productData.stock = safeNumber(data.formData.pricing.stock);
+          productData.quality = safeString(data.formData.pricing.quality) || "Standard";
+          productData.dietPreference = safeString(data.formData.pricing.dietPreference) || "Veg";
+        } else {
+          productData.oldPrice = safeNumber(data.oldPrice);
+          productData.price = safeNumber(data.newPrice || data.price);
+          productData.stock = safeNumber(data.stock);
+          productData.quality = safeString(data.quality) || "Standard";
+          productData.dietPreference = safeString(data.dietPreference) || "Veg";
+        }
       } else {
-        productData.oldPrice = safeNumber(data.oldPrice);
-        productData.price = safeNumber(data.newPrice || data.price);
-        productData.stock = safeNumber(data.stock);
-        productData.quality = safeString(data.quality) || "Standard";
-        productData.dietPreference = safeString(data.dietPreference) || "Veg";
+        // For variations, just set quality and dietPreference
+        if (data.formData.pricing) {
+          productData.quality = safeString(data.formData.pricing.quality) || "Standard";
+          productData.dietPreference = safeString(data.formData.pricing.dietPreference) || "Veg";
+        } else {
+          productData.quality = "Standard";
+          productData.dietPreference = "Veg";
+        }
       }
       
       // Product Details
@@ -3849,128 +3834,111 @@ productData.variations = hasVariations ? variations : [];
       
     } else {
       // Direct fields without formData
-      productData = {
-        // Basic
-        name: safeString(data.name),
-        description: safeString(data.description),
-        restaurantName: safeString(vendor.storeName || data.restaurantName || ""),
-        
-        // Pricing
-        oldPrice: safeNumber(data.oldPrice),
-        price: safeNumber(data.newPrice || data.price),
-        stock: safeNumber(data.stock),
-        quality: safeString(data.quality) || "Standard",
-        dietPreference: safeString(data.dietPreference) || "Veg",
-        
-        // Category
-        category: data.category || data.selectedCategory,
-        subcategory: data.subcategory || data.selectedSubCategory,
-        
-        // Details
-        productTypes: safeString(data.productTypes),
-        ingredients: safeString(data.ingredients),
-        materialTypes: safeString(data.materialTypes),
-        customWeight: safeString(data.customWeight),
-        customSizeInput: safeString(data.customSizeInput),
-        ageRange: safeString(data.ageRange),
-        containerType: safeString(data.containerType),
-        itemForm: safeString(data.itemForm),
-        specialty: safeString(data.specialty),
-        itemTypeName: safeString(data.itemTypeName),
-        countryOfOrigin: safeString(data.countryOfOrigin),
-        
-        // Arrays
-        flavors: safeArray(data.flavors),
-        size: safeArray(data.size),
-        
-        // Compliance
-        brandName: safeString(data.brandName || data.fssaiLicenseNumber),
-        fssaiLicense: safeString(data.fssaiLicense || data.fssaiLicenseNumber),
-        legalDisclaimer: safeString(data.legalDisclaimer),
-        shelfLife: safeString(data.shelfLife),
-        
-        // Manufacturing
-        manufacturerName: safeString(data.manufacturerName || data.manufacturer),
-        manufacturerAddress: safeString(data.manufacturerAddress || data.manufacturerContact),
-        manufacturer: safeString(data.manufacturer || data.manufacturerName),
-        manufacturerContact: safeString(data.manufacturerContact || data.manufacturerAddress),
-        
-        // Packager
-        packagerName: safeString(data.packagerName),
-        packagerAddress: safeString(data.packagerAddress),
-        packagerFssaiLicense: safeString(data.packagerFssaiLicense),
-        packerContact: safeString(data.packerContact),
-        
-        // Marketer
-        marketerName: safeString(data.marketerName),
-        marketerAddress: safeString(data.marketerAddress),
-        marketerNameAddress: safeString(data.marketerNameAddress),
-        
-        // Package
-        packageColour: safeString(data.packageColour),
-        measurementUnit: safeString(data.measurementUnit),
-        unitCount: safeString(data.unitCount),
-        numberOfItems: safeString(data.numberOfItems),
-        itemWeight: safeString(data.itemWeight),
-        totalEaches: safeString(data.totalEaches),
-        itemPackageWeight: safeString(data.itemPackageWeight),
-        
-        // Dietary
-        dietaryPreferences: safeString(data.dietaryPreferences),
-        allergenInformation: safeString(data.allergenInformation || data.allergenInfo),
-        nutrition: safeString(data.nutrition),
-        cuisine: safeString(data.cuisine),
-        directions: safeString(data.directions),
-        
-        // Location
-        State: safeString(data.State),
-        
-        // Status
-        status: safeString(data.status) || 'pending_approval',
-      };
+      productData.name = safeString(data.name);
+      productData.description = safeString(data.description);
+      productData.restaurantName = safeString(vendor.storeName || data.restaurantName || "");
+      
+      // Pricing - ONLY IF NO VARIATIONS
+      if (!hasVariations) {
+        productData.oldPrice = safeNumber(data.oldPrice);
+        productData.price = safeNumber(data.newPrice || data.price);
+        productData.stock = safeNumber(data.stock);
+        productData.quality = safeString(data.quality) || "Standard";
+        productData.dietPreference = safeString(data.dietPreference) || "Veg";
+      } else {
+        productData.quality = safeString(data.quality) || "Standard";
+        productData.dietPreference = safeString(data.dietPreference) || "Veg";
+      }
+      
+      // Category
+      productData.category = data.category || data.selectedCategory;
+      productData.subcategory = data.subcategory || data.selectedSubCategory;
+      
+      // Details
+      productData.productTypes = safeString(data.productTypes);
+      productData.ingredients = safeString(data.ingredients);
+      productData.materialTypes = safeString(data.materialTypes);
+      productData.customWeight = safeString(data.customWeight);
+      productData.customSizeInput = safeString(data.customSizeInput);
+      productData.ageRange = safeString(data.ageRange);
+      productData.containerType = safeString(data.containerType);
+      productData.itemForm = safeString(data.itemForm);
+      productData.specialty = safeString(data.specialty);
+      productData.itemTypeName = safeString(data.itemTypeName);
+      productData.countryOfOrigin = safeString(data.countryOfOrigin);
+      
+      // Arrays
+      productData.flavors = safeArray(data.flavors);
+      productData.size = safeArray(data.size);
+      
+      // Compliance
+      productData.brandName = safeString(data.brandName || data.fssaiLicenseNumber);
+      productData.fssaiLicense = safeString(data.fssaiLicense || data.fssaiLicenseNumber);
+      productData.legalDisclaimer = safeString(data.legalDisclaimer);
+      productData.shelfLife = safeString(data.shelfLife);
+      
+      // Manufacturing
+      productData.manufacturerName = safeString(data.manufacturerName || data.manufacturer);
+      productData.manufacturerAddress = safeString(data.manufacturerAddress || data.manufacturerContact);
+      productData.manufacturer = safeString(data.manufacturer || data.manufacturerName);
+      productData.manufacturerContact = safeString(data.manufacturerContact || data.manufacturerAddress);
+      
+      // Packager
+      productData.packagerName = safeString(data.packagerName);
+      productData.packagerAddress = safeString(data.packagerAddress);
+      productData.packagerFssaiLicense = safeString(data.packagerFssaiLicense);
+      productData.packerContact = safeString(data.packerContact);
+      
+      // Marketer
+      productData.marketerName = safeString(data.marketerName);
+      productData.marketerAddress = safeString(data.marketerAddress);
+      productData.marketerNameAddress = safeString(data.marketerNameAddress);
+      
+      // Package
+      productData.packageColour = safeString(data.packageColour);
+      productData.measurementUnit = safeString(data.measurementUnit);
+      productData.unitCount = safeString(data.unitCount);
+      productData.numberOfItems = safeString(data.numberOfItems);
+      productData.itemWeight = safeString(data.itemWeight);
+      productData.totalEaches = safeString(data.totalEaches);
+      productData.itemPackageWeight = safeString(data.itemPackageWeight);
+      
+      // Dietary
+      productData.dietaryPreferences = safeString(data.dietaryPreferences);
+      productData.allergenInformation = safeString(data.allergenInformation || data.allergenInfo);
+      productData.nutrition = safeString(data.nutrition);
+      productData.cuisine = safeString(data.cuisine);
+      productData.directions = safeString(data.directions);
+      
+      // Location
+      productData.State = safeString(data.State);
+      
+      // Status
+      productData.status = safeString(data.status) || 'pending_approval';
     }
     
-    // Required validation
-    // if (!productData.name || !productData.price || !productData.category) {
-    if (
-  !productData.name ||
-  !productData.category ||
-  (!hasVariations && !productData.price)
-) {
-
+    // Required validation - FIXED
+    if (!productData.name || !productData.category || (!hasVariations && !productData.price)) {
       console.log("❌ Validation failed:", {
         name: productData.name,
         price: productData.price,
-        category: productData.category
+        category: productData.category,
+        hasVariations: hasVariations
       });
       
       return res.status(400).json({
         success: false,
-        message: "Name, price and category are required",
-        received: productData
+        message: "Name and category are required. Price is required for non-variation products.",
+        received: {
+          name: productData.name,
+          category: productData.category,
+          hasVariations: hasVariations,
+          price: productData.price
+        }
       });
     }
     
     // Step 5: Process images
-    /* ================= VARIATION IMAGES ================= */
-if (
-  hasVariations &&
-  Array.isArray(productData.variations) &&
-  req.files?.variationImages
-) {
-  for (let i = 0; i < productData.variations.length; i++) {
-    if (req.files.variationImages[i]) {
-      const img = await uploadCloud(
-        req.files.variationImages[i],
-        "vendor_products/variations"
-      );
-      if (img) {
-        productData.variations[i].image = img;
-      }
-    }
-  }
-}
-
     // Main image
     if (req.files?.image?.[0]) {
       productData.image = await uploadCloud(req.files.image[0], 'vendor_products/main');
@@ -4005,11 +3973,28 @@ if (
     
     // Clean gallery
     productData.gallery = galleryImages.filter(img => img && img.trim() !== '');
+    
+    // ================= VARIATION IMAGES - FIXED ================= 
+    if (hasVariations && Array.isArray(productData.variations) && req.files?.variationImages) {
+      for (let i = 0; i < productData.variations.length; i++) {
+        if (req.files.variationImages[i]) {
+          const img = await uploadCloud(
+            req.files.variationImages[i],
+            "vendor_products/variations"
+          );
+          if (img) {
+            productData.variations[i].image = img;
+          }
+        }
+      }
+    }
+    
+    // If has variations, remove base price/stock fields - MOVED TO CORRECT POSITION
     if (hasVariations) {
-  delete productData.price;
-  delete productData.stock;
-  delete productData.oldPrice;
-}
+      delete productData.price;
+      delete productData.stock;
+      delete productData.oldPrice;
+    }
 
     // Add vendor ID
     productData.vendor = req.vendor._id;
@@ -4070,6 +4055,21 @@ exports.updateVendorProduct = async (req, res) => {
 
     const data = { ...req.body };
     const updateData = {};
+
+    // ================= VARIATION FLAGS =================
+    const hasVariations = data.hasVariations === true || data.hasVariations === "true";
+    
+    // Parse variations
+    if (data.variations) {
+      try {
+        updateData.variations = typeof data.variations === "string"
+          ? JSON.parse(data.variations)
+          : data.variations;
+        updateData.hasVariations = hasVariations;
+      } catch (e) {
+        console.error("Error parsing variations:", e);
+      }
+    }
 
     // Helper functions
     const safeString = (value) => (value !== undefined && value !== null ? String(value).trim() : '');
@@ -4134,10 +4134,10 @@ exports.updateVendorProduct = async (req, res) => {
         'description': 'formData.basic.description',
         'restaurantName': 'formData.basic.restaurantName',
         
-        // Pricing
-        'oldPrice': 'formData.pricing.oldPrice',
-        'price': 'formData.pricing.newPrice',
-        'stock': 'formData.pricing.stock',
+        // Pricing - Only if no variations
+        'oldPrice': !hasVariations ? 'formData.pricing.oldPrice' : null,
+        'price': !hasVariations ? 'formData.pricing.newPrice' : null,
+        'stock': !hasVariations ? 'formData.pricing.stock' : null,
         'quality': 'formData.pricing.quality',
         'dietPreference': 'formData.pricing.dietPreference',
         
@@ -4186,7 +4186,6 @@ exports.updateVendorProduct = async (req, res) => {
         'itemWeight': 'formData.package.itemWeight',
         'totalEaches': 'formData.package.totalEaches',
         'itemPackageWeight': 'formData.package.itemPackageWeight',
-        'shelfLife': 'formData.package.shelfLife',
         
         // Dietary
         'dietaryPreferences': 'formData.dietary.dietaryPreferences',
@@ -4198,6 +4197,8 @@ exports.updateVendorProduct = async (req, res) => {
       
       // Process each field
       Object.entries(fieldMappings).forEach(([field, path]) => {
+        if (path === null) return; // Skip if path is null (variations case)
+        
         const value = path.split('.').reduce((obj, key) => obj?.[key], data);
         if (value !== undefined) {
           if (field.includes('Price') || field === 'stock') {
@@ -4271,6 +4272,11 @@ exports.updateVendorProduct = async (req, res) => {
       
       directFields.forEach(field => {
         if (data[field] !== undefined) {
+          // Skip price/stock fields if has variations
+          if (hasVariations && (field === 'price' || field === 'stock' || field === 'oldPrice' || field === 'newPrice')) {
+            return;
+          }
+          
           if (field === 'newPrice') {
             updateData.price = safeNumber(data[field]);
           } else if (field.includes('Price') || field === 'stock') {
@@ -4325,6 +4331,28 @@ exports.updateVendorProduct = async (req, res) => {
     // Clean gallery
     updateData.gallery = gallery.filter(img => img && img.trim() !== '');
     
+    // ================= VARIATION IMAGES =================
+    if (hasVariations && updateData.variations && req.files?.variationImages) {
+      for (let i = 0; i < updateData.variations.length; i++) {
+        if (req.files.variationImages[i]) {
+          const img = await uploadCloud(
+            req.files.variationImages[i],
+            "vendor_products/variations"
+          );
+          if (img) {
+            updateData.variations[i].image = img;
+          }
+        }
+      }
+    }
+    
+    // If has variations, remove base price/stock fields
+    if (hasVariations) {
+      updateData.price = undefined;
+      updateData.stock = undefined;
+      updateData.oldPrice = undefined;
+    }
+    
     // Update product
     Object.assign(product, updateData);
     await product.save();
@@ -4374,6 +4402,15 @@ exports.deleteVendorProduct = async (req, res) => {
       for (const imageUrl of product.gallery) {
         if (imageUrl && imageUrl.includes('cloudinary.com')) {
           await deleteCloudinaryImage(imageUrl);
+        }
+      }
+    }
+    
+    // Delete variation images
+    if (product.hasVariations && product.variations && product.variations.length > 0) {
+      for (const variation of product.variations) {
+        if (variation.image && variation.image.includes('cloudinary.com')) {
+          await deleteCloudinaryImage(variation.image);
         }
       }
     }
@@ -4619,6 +4656,7 @@ exports.exportCSV = async (req, res) => {
       customSizeInput: product.customSizeInput || "",
       legalDisclaimer: product.legalDisclaimer || "",
       status: product.status || "pending_approval",
+      hasVariations: product.hasVariations || false,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt
     }));
@@ -4637,7 +4675,8 @@ exports.exportCSV = async (req, res) => {
       'itemWeight', 'totalEaches', 'itemPackageWeight', 'shelfLife',
       'ingredients', 'allergenInformation', 'directions', 'nutrition',
       'cuisine', 'dietaryPreferences', 'materialTypes', 'customWeight',
-      'customSizeInput', 'legalDisclaimer', 'status', 'createdAt', 'updatedAt'
+      'customSizeInput', 'legalDisclaimer', 'status', 'hasVariations',
+      'createdAt', 'updatedAt'
     ];
 
     const parser = new Parser({ fields });
@@ -4742,6 +4781,15 @@ exports.bulkDelete = async (req, res) => {
           }
         }
       }
+      
+      // Delete variation images
+      if (product.hasVariations && product.variations && product.variations.length > 0) {
+        for (const variation of product.variations) {
+          if (variation.image && variation.image.includes('cloudinary.com')) {
+            await deleteCloudinaryImage(variation.image);
+          }
+        }
+      }
     }
 
     const result = await VendorProduct.deleteMany({
@@ -4808,5 +4856,3 @@ exports.updateProductStatus = async (req, res) => {
     });
   }
 };
-
-
