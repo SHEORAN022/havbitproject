@@ -432,3 +432,21 @@ exports.deleteOrder = async (req, res) => {
   }
 };
 
+exports.getMyOrders = async (req, res) => {
+  try {
+    const customerId = req.user._id; // auth middleware se aata hai
+
+    const orders = await CustomerOrder.find({ customer: customerId })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
