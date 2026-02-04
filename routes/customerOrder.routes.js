@@ -43,6 +43,7 @@ const {
   createOrder,
   getCustomerOrders,
   getOrderById,
+    getMyOrders, 
   cancelOrder,
   updateOrderStatus,
   getVendorOrders,
@@ -52,6 +53,7 @@ const {
 
 router.post("/order/create", createOrder);
 router.get("/orders/:customerId", getCustomerOrders);
+router.get("/my-orders", customerAuth, getMyOrders);
 router.get("/order/:id", getOrderById);
 router.put("/order/cancel/:id", cancelOrder);
 router.put("/order/status/:id", updateOrderStatus);
