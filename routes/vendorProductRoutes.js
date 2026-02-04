@@ -209,6 +209,72 @@
 
 
 
+// // module.exports = router;
+// const express = require("express");
+// const router = express.Router();
+// const vendorAuth = require("../middleware/vendorAuth");
+// const upload = require("../middleware/upload");
+// const csvUpload = require("../middleware/csvUpload");
+// const vendorProductController = require("../controllers/vendorProductController");
+
+// // Apply vendor authentication to all routes
+// router.use(vendorAuth);
+
+// /* ===== CATEGORY & SUBCATEGORY ROUTES ===== */
+// router.get("/categories", vendorProductController.getCategories);
+// router.get("/subcategories/:categoryId", vendorProductController.getSubCategories);
+
+// /* ===== CRUD OPERATIONS ===== */
+// router.get("/", vendorProductController.getVendorProducts);
+// router.get("/:id", vendorProductController.getVendorProducts);
+
+// router.post(
+//   "/",
+//   upload.fields([
+//     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
+//     { name: "gallery", maxCount: 10 },
+//   ]),
+//   vendorProductController.createVendorProduct
+// );
+
+// router.put(
+//   "/:id",
+//   upload.fields([
+//     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
+//     { name: "gallery", maxCount: 10 },
+//   ]),
+//   vendorProductController.updateVendorProduct
+// );
+
+// // Update product status
+// router.patch("/:id/status", vendorProductController.updateProductStatus);
+
+// router.delete("/:id", vendorProductController.deleteVendorProduct);
+
+// /* ===== CSV OPERATIONS ===== */
+// router.post(
+//   "/import-csv",
+//   csvUpload.single("file"),
+//   vendorProductController.importCSV
+// );
+
+// router.get("/export-csv", vendorProductController.exportCSV);
+
+// /* ===== BULK OPERATIONS ===== */
+// router.put("/bulk-update", vendorProductController.bulkUpdate);
+// router.delete("/bulk-delete", vendorProductController.bulkDelete);
+
+// module.exports = router;
+
+
+
+
 // module.exports = router;
 const express = require("express");
 const router = express.Router();
@@ -224,9 +290,14 @@ router.use(vendorAuth);
 router.get("/categories", vendorProductController.getCategories);
 router.get("/subcategories/:categoryId", vendorProductController.getSubCategories);
 
-/* ===== CRUD OPERATIONS ===== */
+/* ===== PRODUCT CRUD OPERATIONS ===== */
 router.get("/", vendorProductController.getVendorProducts);
-router.get("/:id", vendorProductController.getVendorProducts);
+router.get("/deleted", vendorProductController.getDeletedProducts);
+router.get("/search", vendorProductController.searchProducts);
+router.get("/low-stock", vendorProductController.getLowStockProducts);
+router.get("/out-of-stock", vendorProductController.getOutOfStockProducts);
+router.get("/category/:categoryId", vendorProductController.getProductsByCategory);
+router.get("/:id", vendorProductController.getVendorProduct);
 
 router.post(
   "/",
@@ -235,7 +306,9 @@ router.post(
     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
+    { name: "gallery", maxCount: 20 },
+    { name: "documents", maxCount: 10 },
+    // Dynamic variation fields will be handled in controller
   ]),
   vendorProductController.createVendorProduct
 );
@@ -247,15 +320,44 @@ router.put(
     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
+    { name: "gallery", maxCount: 20 },
+    { name: "documents", maxCount: 10 },
+    // Dynamic variation fields will be handled in controller
   ]),
   vendorProductController.updateVendorProduct
 );
 
-// Update product status
+// Product status operations
 router.patch("/:id/status", vendorProductController.updateProductStatus);
+router.patch("/:id/approval-status", vendorProductController.updateApprovalStatus);
+router.patch("/:id/stock", vendorProductController.updateStock);
 
+// Delete operations
 router.delete("/:id", vendorProductController.deleteVendorProduct);
+router.delete("/:id/hard", vendorProductController.hardDeleteVendorProduct);
+router.patch("/:id/restore", vendorProductController.restoreVendorProduct);
+
+/* ===== VARIATION OPERATIONS ===== */
+router.post("/:id/variations", 
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 10 }
+  ]),
+  vendorProductController.addVariation
+);
+
+router.put("/:id/variations/:variationId",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 10 }
+  ]),
+  vendorProductController.updateVariation
+);
+
+router.delete("/:id/variations/:variationId", vendorProductController.deleteVariation);
+router.patch("/:id/variations/:variationId/status", vendorProductController.updateVariationStatus);
+router.patch("/:id/variations/:variationId/stock", vendorProductController.updateVariationStock);
+router.patch("/:id/variations/:variationId/default", vendorProductController.setDefaultVariation);
 
 /* ===== CSV OPERATIONS ===== */
 router.post(
@@ -269,5 +371,10 @@ router.get("/export-csv", vendorProductController.exportCSV);
 /* ===== BULK OPERATIONS ===== */
 router.put("/bulk-update", vendorProductController.bulkUpdate);
 router.delete("/bulk-delete", vendorProductController.bulkDelete);
+router.delete("/bulk-hard-delete", vendorProductController.bulkHardDelete);
+router.patch("/bulk-restore", vendorProductController.bulkRestore);
+
+/* ===== STATISTICS & ANALYTICS ===== */
+router.get("/stats/summary", vendorProductController.getProductStatistics);
 
 module.exports = router;
