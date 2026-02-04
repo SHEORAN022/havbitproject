@@ -431,10 +431,9 @@ exports.deleteOrder = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 exports.getMyOrders = async (req, res) => {
   try {
-    const customerId = req.user._id; // auth middleware se aata hai
+    const customerId = req.user.id; // ✅ FIXED
 
     const orders = await CustomerOrder.find({ customer: customerId })
       .sort({ createdAt: -1 });
