@@ -146,22 +146,87 @@
 
 
 
+// const express = require("express");
+// const router = express.Router();
+
+// const vendorAuth = require("../middleware/vendorAuth");
+// const upload = require("../middleware/upload");
+// const csvUpload = require("../middleware/csvUpload");
+// const P = require("../controllers/vendorProductController");
+
+// router.use(vendorAuth);
+
+// /* ===== CATEGORY & SUBCATEGORY ROUTES ===== */
+// router.get("/categories", P.getCategories);
+// router.get("/subcategories/:categoryId", P.getSubCategories);
+
+// /* ===== CRUD ===== */
+// router.get("/", P.getVendorProducts);
+
+// router.post(
+//   "/",
+//   upload.fields([
+//     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
+//     { name: "gallery", maxCount: 10 },
+//   ]),
+//   P.createVendorProduct
+// );
+
+// router.put(
+//   "/:id",
+//   upload.fields([
+//     { name: "image", maxCount: 1 },
+//     { name: "mandatoryImages.ingredientsImage", maxCount: 1 },
+//     { name: "mandatoryImages.nutritionImage", maxCount: 1 },
+//     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
+//     { name: "gallery", maxCount: 10 },
+//   ]),
+//   P.updateVendorProduct
+// );
+
+// router.delete("/:id", P.deleteVendorProduct);
+
+// /* ===== CSV ===== */
+// router.post(
+//   "/import-csv",
+//   csvUpload.single("file"),
+//   P.importCSV
+// );
+
+// router.get("/export-csv", P.exportCSV);
+
+// /* ===== BULK ===== */
+// router.put("/bulk-update", P.bulkUpdate);
+// router.delete("/bulk-delete", P.bulkDelete);
+
+// module.exports = router;
+
+
+
+
+
+
+// module.exports = router;
 const express = require("express");
 const router = express.Router();
-
 const vendorAuth = require("../middleware/vendorAuth");
 const upload = require("../middleware/upload");
 const csvUpload = require("../middleware/csvUpload");
-const P = require("../controllers/vendorProductController");
+const vendorProductController = require("../controllers/vendorProductController");
 
+// Apply vendor authentication to all routes
 router.use(vendorAuth);
 
 /* ===== CATEGORY & SUBCATEGORY ROUTES ===== */
-router.get("/categories", P.getCategories);
-router.get("/subcategories/:categoryId", P.getSubCategories);
+router.get("/categories", vendorProductController.getCategories);
+router.get("/subcategories/:categoryId", vendorProductController.getSubCategories);
 
-/* ===== CRUD ===== */
-router.get("/", P.getVendorProducts);
+/* ===== CRUD OPERATIONS ===== */
+router.get("/", vendorProductController.getVendorProducts);
+router.get("/:id", vendorProductController.getVendorProducts);
 
 router.post(
   "/",
@@ -172,7 +237,7 @@ router.post(
     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
     { name: "gallery", maxCount: 10 },
   ]),
-  P.createVendorProduct
+  vendorProductController.createVendorProduct
 );
 
 router.put(
@@ -184,22 +249,25 @@ router.put(
     { name: "mandatoryImages.mfgExpImage", maxCount: 1 },
     { name: "gallery", maxCount: 10 },
   ]),
-  P.updateVendorProduct
+  vendorProductController.updateVendorProduct
 );
 
-router.delete("/:id", P.deleteVendorProduct);
+// Update product status
+router.patch("/:id/status", vendorProductController.updateProductStatus);
 
-/* ===== CSV ===== */
+router.delete("/:id", vendorProductController.deleteVendorProduct);
+
+/* ===== CSV OPERATIONS ===== */
 router.post(
   "/import-csv",
   csvUpload.single("file"),
-  P.importCSV
+  vendorProductController.importCSV
 );
 
-router.get("/export-csv", P.exportCSV);
+router.get("/export-csv", vendorProductController.exportCSV);
 
-/* ===== BULK ===== */
-router.put("/bulk-update", P.bulkUpdate);
-router.delete("/bulk-delete", P.bulkDelete);
+/* ===== BULK OPERATIONS ===== */
+router.put("/bulk-update", vendorProductController.bulkUpdate);
+router.delete("/bulk-delete", vendorProductController.bulkDelete);
 
 module.exports = router;
