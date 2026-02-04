@@ -433,10 +433,25 @@ exports.deleteOrder = async (req, res) => {
 };
 exports.getMyOrders = async (req, res) => {
   try {
-    const customerId = req.user.id; // ✅ FIXED
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const customerId = req.user.id;
 
     const orders = await CustomerOrder.find({ customer: customerId })
       .sort({ createdAt: -1 });
+
+    if (!orders.length) {
+      return res.json({
+        success: true,
+        orders: [],
+        message: "No orders found",
+      });
+    }
 
     res.json({
       success: true,
@@ -449,3 +464,4 @@ exports.getMyOrders = async (req, res) => {
     });
   }
 };
+
