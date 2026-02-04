@@ -163,6 +163,173 @@
 
 
 
+// const mongoose = require("mongoose");
+
+// const VendorProductSchema = new mongoose.Schema(
+//   {
+//     /* ================= BASIC INFO ================= */
+//     name: { 
+//       type: String, 
+//       required: [true, "Product name is required"],
+//       trim: true 
+//     },
+//     description: String,
+    
+//     /* ================= BRAND & SHOP INFO ================= */
+//     brandName: String,  // FSSAI License Number goes here
+//     restaurantName: { 
+//       type: String, 
+//       default: "" 
+//     },
+    
+//     /* ================= PRICING & STOCK ================= */
+//     oldPrice: { 
+//       type: Number, 
+//       default: 0,
+//       min: 0
+//     },
+//     price: {  // CHANGED: newPrice -> price
+//       type: Number, 
+//       required: [true, "Selling price is required"],
+//       min: 0
+//     },
+//     stock: { 
+//       type: Number, 
+//       default: 0,
+//       min: 0
+//     },
+//     quality: { 
+//       type: String, 
+//       default: "Standard",
+//       enum: ["Standard", "Premium", "Good", "Fresh", "Butter"]
+//     },
+//     dietPreference: {
+//       type: String,
+//       default: "Veg",
+//       enum: ["Veg", "Non-Veg", "Egg"]
+//     },
+    
+//     /* ================= CATEGORY ================= */
+//     category: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Category",
+//       required: [true, "Category is required"]
+//     },
+//     subcategory: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "SubCategory",
+//       default: null
+//     },
+    
+//     /* ================= PRODUCT DETAILS ================= */
+//     productTypes: String,
+//     flavors: [String],  // ARRAY OF STRINGS
+//     size: [String],     // ARRAY OF STRINGS
+//     materialTypes: String,
+//     ingredients: String,
+//     customWeight: String,
+//     customSizeInput: String,
+    
+//     /* ================= PRODUCT SPECIFICATIONS ================= */
+//     ageRange: String,
+//     containerType: String,
+//     itemForm: String,
+//     specialty: String,
+//     itemTypeName: String,
+//     countryOfOrigin: String,
+    
+//     /* ================= COMPLIANCE ================= */
+//     fssaiLicense: String,  // DONO FSSAI FIELDS
+//     legalDisclaimer: String,
+//     shelfLife: String,
+    
+//     /* ================= MANUFACTURING ================= */
+//     manufacturer: String,
+//     manufacturerContact: String,
+//     packerContact: String,
+//     marketerNameAddress: String,
+    
+//     /* ================= PACKAGE DETAILS ================= */
+//     packageColour: String,
+//     measurementUnit: String,
+//     unitCount: String,
+//     numberOfItems: String,
+//     itemWeight: String,
+//     totalEaches: String,
+//     itemPackageWeight: String,
+    
+//     /* ================= DIETARY & NUTRITION ================= */
+//     dietaryPreferences: String,
+//     allergenInfo: String,
+//     allergenInformation: String,
+//     nutrition: String,
+//     cuisine: String,
+//     directions: String,
+    
+//     /* ================= LOCATION ================= */
+//     State: String,  // Capital 'S' as per mapping
+    
+//     /* ================= MEDIA ================= */
+//     image: String,
+//     gallery: [String],
+    
+//     /* ================= VENDOR ================= */
+//     vendor: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Vendor",
+//       required: true
+//     }
+//   },
+//   {
+//     timestamps: true,
+//   }
+// );
+
+// // Indexes
+// VendorProductSchema.index({ vendor: 1 });
+// VendorProductSchema.index({ category: 1 });
+// VendorProductSchema.index({ name: 1 });
+// VendorProductSchema.index({ price: 1 });
+// VendorProductSchema.index({ brandName: 1 });
+// VendorProductSchema.index({ fssaiLicense: 1 });
+
+// // Pre-save middleware for arrays
+// VendorProductSchema.pre('save', function(next) {
+//   // Ensure arrays exist
+//   if (!Array.isArray(this.flavors)) this.flavors = [];
+//   if (!Array.isArray(this.size)) this.size = [];
+//   if (!Array.isArray(this.gallery)) this.gallery = [];
+  
+//   // Clean and trim
+//   this.flavors = this.flavors
+//     .filter(f => f && typeof f === 'string' && f.trim() !== '')
+//     .map(f => f.trim());
+    
+//   this.size = this.size
+//     .filter(s => s && typeof s === 'string' && s.trim() !== '')
+//     .map(s => s.trim());
+    
+//   this.gallery = this.gallery
+//     .filter(img => img && typeof img === 'string' && img.trim() !== '')
+//     .map(img => img.trim());
+  
+//   // Ensure both FSSAI fields have same value
+//   if (this.brandName && !this.fssaiLicense) {
+//     this.fssaiLicense = this.brandName;
+//   }
+//   if (this.fssaiLicense && !this.brandName) {
+//     this.brandName = this.fssaiLicense;
+//   }
+  
+//   next();
+// });
+
+// module.exports = mongoose.model("VendorProduct", VendorProductSchema);
+
+
+
+
+
 const mongoose = require("mongoose");
 
 const VendorProductSchema = new mongoose.Schema(
@@ -176,7 +343,7 @@ const VendorProductSchema = new mongoose.Schema(
     description: String,
     
     /* ================= BRAND & SHOP INFO ================= */
-    brandName: String,  // FSSAI License Number goes here
+    brandName: String,
     restaurantName: { 
       type: String, 
       default: "" 
@@ -188,7 +355,7 @@ const VendorProductSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
-    price: {  // CHANGED: newPrice -> price
+    price: {
       type: Number, 
       required: [true, "Selling price is required"],
       min: 0
@@ -206,7 +373,7 @@ const VendorProductSchema = new mongoose.Schema(
     dietPreference: {
       type: String,
       default: "Veg",
-      enum: ["Veg", "Non-Veg", "Egg"]
+      enum: ["Veg", "Non-Veg", "Egg", "Vegan"]
     },
     
     /* ================= CATEGORY ================= */
@@ -223,8 +390,8 @@ const VendorProductSchema = new mongoose.Schema(
     
     /* ================= PRODUCT DETAILS ================= */
     productTypes: String,
-    flavors: [String],  // ARRAY OF STRINGS
-    size: [String],     // ARRAY OF STRINGS
+    flavors: [String],
+    size: [String],
     materialTypes: String,
     ingredients: String,
     customWeight: String,
@@ -239,14 +406,25 @@ const VendorProductSchema = new mongoose.Schema(
     countryOfOrigin: String,
     
     /* ================= COMPLIANCE ================= */
-    fssaiLicense: String,  // DONO FSSAI FIELDS
+    fssaiLicense: String,
     legalDisclaimer: String,
     shelfLife: String,
     
     /* ================= MANUFACTURING ================= */
+    manufacturerName: String,
+    manufacturerAddress: String,
     manufacturer: String,
     manufacturerContact: String,
+    
+    /* ================= PACKAGER ================= */
+    packagerName: String,
+    packagerAddress: String,
+    packagerFssaiLicense: String,
     packerContact: String,
+    
+    /* ================= MARKETER ================= */
+    marketerName: String,
+    marketerAddress: String,
     marketerNameAddress: String,
     
     /* ================= PACKAGE DETAILS ================= */
@@ -267,7 +445,7 @@ const VendorProductSchema = new mongoose.Schema(
     directions: String,
     
     /* ================= LOCATION ================= */
-    State: String,  // Capital 'S' as per mapping
+    State: String,
     
     /* ================= MEDIA ================= */
     image: String,
@@ -278,42 +456,105 @@ const VendorProductSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
       required: true
-    }
+    },
+    
+    /* ================= STATUS ================= */
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'draft', 'out_of_stock', 'pending_approval'],
+      default: 'pending_approval'
+    },
+    
+    /* ================= TAGS ================= */
+    tags: {
+      type: [String],
+      default: []
+    },
+    
+    /* ================= SEO ================= */
+    metaTitle: String,
+    metaDescription: String,
+    keywords: [String]
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
-// Indexes
-VendorProductSchema.index({ vendor: 1 });
-VendorProductSchema.index({ category: 1 });
-VendorProductSchema.index({ name: 1 });
-VendorProductSchema.index({ price: 1 });
-VendorProductSchema.index({ brandName: 1 });
-VendorProductSchema.index({ fssaiLicense: 1 });
+// ==================== VIRTUAL FIELDS ====================
+VendorProductSchema.virtual('categoryName').get(function() {
+  return this.category?.name || '';
+});
 
-// Pre-save middleware for arrays
+VendorProductSchema.virtual('subcategoryName').get(function() {
+  return this.subcategory?.name || '';
+});
+
+VendorProductSchema.virtual('vendorName').get(function() {
+  return this.vendor?.storeName || this.vendor?.name || '';
+});
+
+VendorProductSchema.virtual('discountPercentage').get(function() {
+  if (this.oldPrice > 0 && this.price > 0 && this.oldPrice > this.price) {
+    return Math.round(((this.oldPrice - this.price) / this.oldPrice) * 100);
+  }
+  return 0;
+});
+
+VendorProductSchema.virtual('isInStock').get(function() {
+  return this.stock > 0;
+});
+
+// ==================== PRE-SAVE MIDDLEWARE ====================
 VendorProductSchema.pre('save', function(next) {
-  // Ensure arrays exist
-  if (!Array.isArray(this.flavors)) this.flavors = [];
-  if (!Array.isArray(this.size)) this.size = [];
-  if (!Array.isArray(this.gallery)) this.gallery = [];
+  // Ensure arrays
+  if (!Array.isArray(this.flavors)) {
+    if (typeof this.flavors === 'string' && this.flavors.trim() !== '') {
+      this.flavors = this.flavors.split(',')
+        .map(f => f.trim())
+        .filter(f => f !== '');
+    } else {
+      this.flavors = [];
+    }
+  }
   
-  // Clean and trim
-  this.flavors = this.flavors
-    .filter(f => f && typeof f === 'string' && f.trim() !== '')
-    .map(f => f.trim());
-    
-  this.size = this.size
-    .filter(s => s && typeof s === 'string' && s.trim() !== '')
-    .map(s => s.trim());
-    
-  this.gallery = this.gallery
-    .filter(img => img && typeof img === 'string' && img.trim() !== '')
-    .map(img => img.trim());
+  if (!Array.isArray(this.size)) {
+    if (typeof this.size === 'string' && this.size.trim() !== '') {
+      this.size = this.size.split(',')
+        .map(s => s.trim())
+        .filter(s => s !== '');
+    } else {
+      this.size = [];
+    }
+  }
   
-  // Ensure both FSSAI fields have same value
+  if (!Array.isArray(this.gallery)) {
+    this.gallery = [];
+  }
+  
+  if (!Array.isArray(this.tags)) {
+    if (typeof this.tags === 'string' && this.tags.trim() !== '') {
+      this.tags = this.tags.split(',')
+        .map(t => t.trim())
+        .filter(t => t !== '');
+    } else {
+      this.tags = [];
+    }
+  }
+  
+  if (!Array.isArray(this.keywords)) {
+    if (typeof this.keywords === 'string' && this.keywords.trim() !== '') {
+      this.keywords = this.keywords.split(',')
+        .map(k => k.trim())
+        .filter(k => k !== '');
+    } else {
+      this.keywords = [];
+    }
+  }
+  
+  // Ensure FSSAI consistency
   if (this.brandName && !this.fssaiLicense) {
     this.fssaiLicense = this.brandName;
   }
@@ -321,7 +562,62 @@ VendorProductSchema.pre('save', function(next) {
     this.brandName = this.fssaiLicense;
   }
   
+  // Auto-update status based on stock
+  if (this.stock <= 0 && this.status !== 'inactive') {
+    this.status = 'out_of_stock';
+  } else if (this.status === 'out_of_stock' && this.stock > 0) {
+    this.status = 'active';
+  }
+  
+  // Set manufacturer fields if not set
+  if (!this.manufacturerName && this.manufacturer) {
+    this.manufacturerName = this.manufacturer;
+  }
+  if (!this.manufacturer && this.manufacturerName) {
+    this.manufacturer = this.manufacturerName;
+  }
+  
+  if (!this.manufacturerAddress && this.manufacturerContact) {
+    this.manufacturerAddress = this.manufacturerContact;
+  }
+  if (!this.manufacturerContact && this.manufacturerAddress) {
+    this.manufacturerContact = this.manufacturerAddress;
+  }
+  
   next();
 });
+
+// ==================== INDEXES ====================
+VendorProductSchema.index({ vendor: 1 });
+VendorProductSchema.index({ category: 1 });
+VendorProductSchema.index({ subcategory: 1 });
+VendorProductSchema.index({ name: 1 });
+VendorProductSchema.index({ price: 1 });
+VendorProductSchema.index({ brandName: 1 });
+VendorProductSchema.index({ fssaiLicense: 1 });
+VendorProductSchema.index({ status: 1 });
+VendorProductSchema.index({ createdAt: -1 });
+VendorProductSchema.index({ tags: 1 });
+VendorProductSchema.index({ "vendor.storeName": 1 });
+
+// ==================== METHODS ====================
+VendorProductSchema.methods.getVendorInfo = function() {
+  return {
+    vendorId: this.vendor?._id,
+    storeName: this.vendor?.storeName,
+    vendorName: this.vendor?.name,
+    email: this.vendor?.email,
+    phone: this.vendor?.phone
+  };
+};
+
+VendorProductSchema.methods.updateStatus = function(newStatus) {
+  const allowedStatuses = ['active', 'inactive', 'draft', 'out_of_stock', 'pending_approval'];
+  if (allowedStatuses.includes(newStatus)) {
+    this.status = newStatus;
+    return true;
+  }
+  return false;
+};
 
 module.exports = mongoose.model("VendorProduct", VendorProductSchema);
