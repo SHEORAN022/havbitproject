@@ -357,6 +357,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 const couponRoutes = require("./routes/couponRoutes");
 const vendorOrderRoutes = require("./routes/vendorOrderRoutes");
+const parcelxRoutes = require("./routes/parcelx.routes");
 require("dotenv").config();
 
 
@@ -435,6 +436,7 @@ app.use("/api/products", require("./routes/productRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/subcategories", require("./routes/subCategoryRoutes"));
 app.use("/api/public", require("./routes/publicProducts"));
+app.use("/api/parcelx", parcelxRoutes);
 
 /* CUSTOMER ORDERS */
 app.use("/api/customer", require("./routes/customerOrder.routes"));
