@@ -494,6 +494,10 @@ app.use((req, res) => {
   });
 });
 
+
+
+
+app.use("/api/shipping", require("./routes/shipping.routes"));
 /* ======================================================
    GLOBAL ERROR HANDLER
 ====================================================== */
