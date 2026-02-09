@@ -911,8 +911,15 @@ exports.createOrder = async (req, res) => {
       paymentMethod,
       shippingAddress,
       couponCode,
-      couponDiscount = 0
+      couponDiscount = 0,
+      // ParcelX specific data from frontend
+      parcelxData,
+      pickupLocationId,
+      generateAWB
     } = req.body;
+
+    console.log("📦 Received ParcelX data from frontend:", parcelxData);
+    console.log("📍 Pickup Location ID from frontend:", pickupLocationId);
 
     if (!customer)
       return res.status(400).json({ success: false, message: "Customer required" });
@@ -970,6 +977,9 @@ exports.createOrder = async (req, res) => {
       shippingAddress,
       paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Pending',
       orderStatus: "Confirmed",
+      // Store ParcelX data
+      parcelxData: parcelxData || {},
+      pickupLocationId: pickupLocationId || parcelxData?.pick_address_id || "90533"
     });
 
     console.log("✅ Order created in DB:", order._id);
@@ -978,65 +988,97 @@ exports.createOrder = async (req, res) => {
     try {
       console.log("🚀 Creating ParcelX shipment for order:", order._id);
       
-      const shipment = await createShipment(order);
+      // Add parcelxData to order object for shipment creation
+      const orderWithParcelxData = order.toObject();
+      orderWithParcelxData.parcelxData = parcelxData || {};
+      orderWithParcelxData.pickupLocationId = pickupLocationId || parcelxData?.pick_address_id || "90533";
       
-      console.log("📦 ParcelX shipment response:", shipment);
+      const shipment = await createShipment(orderWithParcelxData);
+      
+      console.log("📦 ParcelX shipment response:", JSON.stringify(shipment, null, 2));
       
       if (shipment && shipment.status === true && shipment.data) {
+        // Check multiple possible AWB field names
+        const awbNumber = shipment.data.awb_number || 
+                         shipment.data.waybill_number || 
+                         shipment.data.awb ||
+                         shipment.data?.shipment_data?.awb_number;
+        
+        const courierName = shipment.data.courier_name || 
+                           shipment.data.courier || 
+                           "ParcelX Partner";
+        
+        const parcelxOrderId = shipment.data.order_id || 
+                              shipment.data.parcelx_order_id;
+        
+        console.log("✅ AWB Found:", awbNumber);
+        
         // Update order with shipment details
-        order.awbNumber = shipment.data.awb_number || null;
-        order.courierName = shipment.data.courier_name || null;
-        order.parcelxOrderId = shipment.data.order_id || null;
-        order.shipmentData = shipment.data;
+        order.awbNumber = awbNumber;
+        order.courierName = courierName;
+        order.parcelxOrderId = parcelxOrderId;
+        order.shipmentData = shipment.data; // Store complete response
+        order.parcelxStatus = "Created";
         order.orderStatus = "Processing";
         order.paymentStatus = paymentMethod === 'cod' ? 'Pending' : 'Pending';
         
         await order.save();
         
-        console.log("✅ Order updated with AWB:", order.awbNumber);
-        
-        // Optionally: Get AWB label PDF
-        if (order.awbNumber) {
-          try {
-            const label = await getParcelxAWBLabel(order.awbNumber);
-            // Save label URL or base64 to order if needed
-            order.awbLabel = `data:application/pdf;base64,${label.toString('base64')}`;
-            await order.save();
-          } catch (labelError) {
-            console.log("⚠️ Could not fetch AWB label:", labelError.message);
-          }
-        }
+        console.log("🎉 Order updated with AWB:", {
+          orderId: order._id,
+          awb: order.awbNumber,
+          courier: order.courierName,
+          parcelxId: order.parcelxOrderId
+        });
       } else {
-        console.error("❌ ParcelX shipment creation failed:", shipment);
+        console.error("❌ ParcelX shipment creation failed:", shipment?.message || "No response");
+        // Don't fail the order, just log the error
+        order.parcelxStatus = "Failed: " + (shipment?.message || "Unknown error");
+        await order.save();
       }
     } catch (shipmentError) {
       console.error("❌ ParcelX shipment creation error:", shipmentError.message);
       // Continue with order even if shipment fails
-      // But still return success to user
+      order.parcelxStatus = "Error: " + shipmentError.message;
+      await order.save();
     }
+
+    // Fetch the updated order
+    const updatedOrder = await CustomerOrder.findById(order._id);
+
+    // Check for AWB in multiple places
+    const awbNumber = updatedOrder.awbNumber || 
+                     updatedOrder.shipmentData?.awb_number ||
+                     updatedOrder.shipmentData?.waybill_number ||
+                     updatedOrder.shipmentData?.awb;
 
     res.status(201).json({
       success: true,
       message: "Order created successfully",
       order: {
-        _id: order._id,
-        orderId: order._id,
-        amount: order.amount,
-        subtotal: order.subtotal,
-        shippingCharge: order.shippingCharge,
-        platformFee: order.platformFee,
-        gst: order.gst,
-        totalBeforeDiscount: order.totalBeforeDiscount,
-        totalPayable: order.totalPayable,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        orderStatus: order.orderStatus,
-        awbNumber: order.awbNumber,
-        courierName: order.courierName,
-        createdAt: order.createdAt,
-        shippingAddress: order.shippingAddress,
-        couponDiscount: order.couponDiscount,
-        couponCode: order.couponCode
+        _id: updatedOrder._id,
+        orderId: updatedOrder._id,
+        amount: updatedOrder.amount,
+        subtotal: updatedOrder.subtotal,
+        shippingCharge: updatedOrder.shippingCharge,
+        platformFee: updatedOrder.platformFee,
+        gst: updatedOrder.gst,
+        totalBeforeDiscount: updatedOrder.totalBeforeDiscount,
+        totalPayable: updatedOrder.totalPayable,
+        paymentMethod: updatedOrder.paymentMethod,
+        paymentStatus: updatedOrder.paymentStatus,
+        orderStatus: updatedOrder.orderStatus,
+        awbNumber: awbNumber, // ✅ AWB from multiple sources
+        courierName: updatedOrder.courierName,
+        parcelxAWB: awbNumber, // Alternative field name
+        trackingNumber: awbNumber, // Another alternative
+        parcelxOrderId: updatedOrder.parcelxOrderId,
+        parcelxStatus: updatedOrder.parcelxStatus,
+        shipmentData: updatedOrder.shipmentData,
+        createdAt: updatedOrder.createdAt,
+        shippingAddress: updatedOrder.shippingAddress,
+        couponDiscount: updatedOrder.couponDiscount,
+        couponCode: updatedOrder.couponCode
       },
     });
 
@@ -1060,8 +1102,8 @@ exports.verifyRazorpayPayment = async (req, res) => {
     order.razorpayPaymentId = razorpayPaymentId;
     order.razorpaySignature = razorpaySignature;
 
-    /* 🔥 Create ParcelX shipment after payment success */
-    if (!order.awbNumber) {
+    /* 🔥 Create ParcelX shipment after payment success if not already created */
+    if (!order.awbNumber && order.paymentMethod !== 'cod') {
       try {
         console.log("🚀 Creating ParcelX shipment for Razorpay order:", order._id);
         const shipment = await createShipment(order);
@@ -1072,9 +1114,11 @@ exports.verifyRazorpayPayment = async (req, res) => {
           order.parcelxOrderId = shipment.data.order_id || null;
           order.shipmentData = shipment.data;
           order.orderStatus = "Processing";
+          order.parcelxStatus = "Created";
         }
       } catch (shipmentError) {
         console.error("Shipment creation failed:", shipmentError.message);
+        order.parcelxStatus = "Error: " + shipmentError.message;
       }
     }
 
@@ -1135,6 +1179,7 @@ exports.getOrderById = async (req, res) => {
       },
       trackingInfo,
       awbLink: order.awbNumber ? `https://app.parcelx.in/tracking/${order.awbNumber}` : null,
+      parcelxTrackingLink: order.awbNumber ? `https://track.parcelx.com/track/${order.awbNumber}` : null,
     };
 
     res.json({ success: true, order: orderWithDetails });
