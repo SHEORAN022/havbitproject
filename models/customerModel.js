@@ -1,13 +1,5 @@
 
 
-
-
-
-
-
-
-
-
 // // models/customerModel.js
 // const mongoose = require("mongoose");
 // const bcrypt = require("bcryptjs");
@@ -138,9 +130,6 @@
 
 
 
-
-
-
 // models/customerModel.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
@@ -263,3 +252,4 @@ customerSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 module.exports = mongoose.model("Customer", customerSchema);
+
