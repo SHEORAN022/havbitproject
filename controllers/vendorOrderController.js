@@ -620,191 +620,240 @@
 //   }
 // };
 
+const VendorOrder = require('../models/VendorOrder');
+const CustomerOrder = require('../models/CustomerOrder');
 
-const VendorOrder = require("../models/VendorOrder");
-
-/* ================= GET ALL VENDOR ORDERS ================= */
+// ✅ Get vendor orders
 exports.getVendorOrders = async (req, res) => {
   try {
-    if (!req.vendor || !req.vendor._id) {
-      return res.status(401).json({ success: false, message: "Unauthorized vendor" });
-    }
-
-    const orders = await VendorOrder.find({ vendor: req.vendor._id })
-      .populate("user", "name email phone")
+    const vendorId = req.vendor.id;
+    
+    const orders = await VendorOrder.find({ vendor: vendorId })
+      .populate('user', 'name email phone')
+      .populate('orderId')
       .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      total: orders.length,
-      orders,
+    
+    res.json({ 
+      success: true, 
+      count: orders.length,
+      orders 
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (error) {
+    console.error('Get vendor orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 };
 
-/* ================= GET SINGLE VENDOR ORDER ================= */
+// ✅ Get vendor order by ID
 exports.getVendorOrderById = async (req, res) => {
   try {
+    const { id } = req.params;
+    const vendorId = req.vendor.id;
+    
     const order = await VendorOrder.findOne({
-      _id: req.params.id,
-      vendor: req.vendor._id,
-    }).populate("user", "name email phone");
-
+      _id: id,
+      vendor: vendorId
+    })
+    .populate('user', 'name email phone')
+    .populate('orderId');
+    
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Order not found' 
       });
     }
-
-    res.status(200).json({
-      success: true,
-      order,
+    
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Get vendor order error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/* ================= UPDATE VENDOR ORDER STATUS ================= */
+// ✅ Update vendor order status
 exports.updateVendorOrderStatus = async (req, res) => {
   try {
+    const { id } = req.params;
     const { orderStatus, tracking } = req.body;
-
-    const allowedStatus = [
-      "Pending",
-      "Confirmed",
-      "Processing",
-      "Shipped",
-      "Delivered",
-      "Cancelled",
-    ];
-
-    if (!orderStatus || !allowedStatus.includes(orderStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order status",
+    const vendorId = req.vendor.id;
+    
+    const updateData = { orderStatus };
+    if (tracking) {
+      updateData.tracking = tracking;
+    }
+    
+    const order = await VendorOrder.findOneAndUpdate(
+      { _id: id, vendor: vendorId },
+      updateData,
+      { new: true }
+    );
+    
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Order not found' 
       });
     }
-
-    const order = await VendorOrder.findOne({
-      _id: req.params.id,
-      vendor: req.vendor._id,
+    
+    res.json({ 
+      success: true, 
+      message: 'Order status updated',
+      order 
     });
+  } catch (error) {
+    console.error('Update vendor order error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
 
+// ✅ Get vendor order stats
+exports.getVendorOrderStats = async (req, res) => {
+  try {
+    const vendorId = req.vendor.id;
+    
+    const stats = await VendorOrder.aggregate([
+      { $match: { vendor: vendorId } },
+      {
+        $group: {
+          _id: '$orderStatus',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$amount' }
+        }
+      }
+    ]);
+    
+    // Get total orders count
+    const totalOrders = await VendorOrder.countDocuments({ vendor: vendorId });
+    
+    // Get today's orders
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todaysOrders = await VendorOrder.countDocuments({
+      vendor: vendorId,
+      createdAt: { $gte: today }
+    });
+    
+    res.json({ 
+      success: true, 
+      stats,
+      summary: {
+        totalOrders,
+        todaysOrders
+      }
+    });
+  } catch (error) {
+    console.error('Get vendor stats error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
+// ✅ Create vendor order (for manual creation if needed)
+exports.createVendorOrder = async (req, res) => {
+  try {
+    const vendorId = req.vendor.id;
+    const { 
+      user, 
+      orderId, 
+      orderItems, 
+      amount, 
+      paymentMethod, 
+      shippingAddress 
+    } = req.body;
+    
+    // Validate required fields
+    if (!user || !orderId || !orderItems || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Required fields missing: user, orderId, orderItems, amount'
+      });
+    }
+    
+    // Check if main order exists
+    const mainOrder = await CustomerOrder.findById(orderId);
+    if (!mainOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Main order not found'
+      });
+    }
+    
+    // Create vendor order
+    const vendorOrder = new VendorOrder({
+      vendor: vendorId,
+      user,
+      orderId,
+      orderItems,
+      amount,
+      paymentMethod: paymentMethod || 'cod',
+      shippingAddress,
+      orderStatus: 'Confirmed',
+      paymentStatus: 'Pending'
+    });
+    
+    await vendorOrder.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Vendor order created successfully',
+      order: vendorOrder
+    });
+    
+  } catch (error) {
+    console.error('Create vendor order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// ✅ Cancel vendor order
+exports.cancelVendorOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendorId = req.vendor.id;
+    
+    const order = await VendorOrder.findOneAndUpdate(
+      { _id: id, vendor: vendorId },
+      { 
+        orderStatus: 'Cancelled',
+        cancelledAt: new Date()
+      },
+      { new: true }
+    );
+    
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found",
+        message: 'Order not found'
       });
     }
-
-    order.orderStatus = orderStatus;
-
-    if (orderStatus === "Shipped" && tracking) {
-      order.tracking = {
-        provider: tracking.provider || "",
-        trackingId: tracking.trackingId || "",
-        estimatedDelivery: tracking.estimatedDelivery || null,
-      };
-    }
-
-    if (orderStatus === "Delivered") {
-      order.deliveredAt = new Date();
-    }
-
-    if (orderStatus === "Cancelled") {
-      order.cancelledAt = new Date();
-    }
-
-    await order.save();
-
-    res.status(200).json({
+    
+    res.json({
       success: true,
-      message: "Order status updated successfully",
-      order,
+      message: 'Order cancelled successfully',
+      order
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    
+  } catch (error) {
+    console.error('Cancel vendor order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
-
-/* ================= VENDOR ORDER STATS ================= */
-exports.getVendorOrderStats = async (req, res) => {
-  try {
-    const orders = await VendorOrder.find({ vendor: req.vendor._id });
-
-    const stats = {
-      totalOrders: orders.length,
-      totalRevenue: 0,
-      byStatus: {
-        Pending: 0,
-        Confirmed: 0,
-        Processing: 0,
-        Shipped: 0,
-        Delivered: 0,
-        Cancelled: 0,
-      },
-    };
-
-    orders.forEach((order) => {
-      stats.totalRevenue += order.amount || 0;
-      if (stats.byStatus[order.orderStatus] !== undefined) {
-        stats.byStatus[order.orderStatus]++;
-      }
-    });
-
-    res.status(200).json({
-      success: true,
-      stats,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-/* ================= CREATE VENDOR ORDER ================= */
-/* ⚠️ Usually customer order se auto create hota hai */
-exports.createVendorOrder = async (req, res) => {
-  try {
-    const {
-      user,
-      orderId,
-      orderItems,
-      amount,
-      paymentMethod,
-      shippingAddress,
-    } = req.body;
-
-    // 🔒 VALIDATION
-    if (!user || !orderId || !orderItems || orderItems.length === 0 || !amount) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields",
-      });
-    }
-
-    const order = await VendorOrder.create({
-      vendor: req.vendor._id,
-      user,
-      orderId,
-      orderItems,
-      amount,
-      paymentMethod: paymentMethod || "cod",
-      shippingAddress,
-      orderStatus: "Pending",
-      paymentStatus: "Pending",
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Vendor order created successfully",
-      order,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
