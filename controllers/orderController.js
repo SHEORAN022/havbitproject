@@ -90,9 +90,6 @@
 // };
 
 
-
-
-
 const mongoose = require("mongoose");
 const CustomerOrder = require("../models/CustomerOrder");
 const VendorOrder = require("../models/VendorOrder");
@@ -101,6 +98,9 @@ const parcelxService = require("../services/parcelx.service");
 
 /* ================= CREATE MULTI-VENDOR ORDER ================= */
 exports.createOrder = async (req, res) => {
+  console.log("📦 Order creation request received");
+  console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
+  
   const session = await mongoose.startSession();
   session.startTransaction();
   
@@ -117,38 +117,41 @@ exports.createOrder = async (req, res) => {
       createShipmentForCOD = false
     } = req.body;
 
-    // Validation
+    // 🔴 CRITICAL VALIDATION
     if (!customer) {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ 
         success: false, 
-        message: "Customer required" 
+        message: "Customer ID is required" 
       });
     }
 
-    if (!orderItems || orderItems.length === 0) {
+    if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ 
         success: false, 
-        message: "Order items required" 
+        message: "Order items array is required and must not be empty" 
       });
     }
 
-    console.log("📦 Creating multi-vendor order with", orderItems.length, "items");
+    console.log("📦 Processing order with", orderItems.length, "items");
 
     /* 🔥 STEP 1: CALCULATE TOTALS & GROUP BY VENDOR */
     let subtotal = 0;
     const vendorGroups = {};
     
     for (let item of orderItems) {
+      console.log("📦 Processing item:", item);
+      
       if (!item.vendorId) {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({
           success: false,
-          message: "vendorId required in all order items",
+          message: "vendorId is required in all order items",
+          item: item
         });
       }
       
@@ -163,7 +166,9 @@ exports.createOrder = async (req, res) => {
         });
       }
       
-      const itemTotal = (parseFloat(item.price) || 0) * (parseInt(item.qty) || 1);
+      const itemPrice = parseFloat(item.price) || 0;
+      const itemQty = parseInt(item.qty) || 1;
+      const itemTotal = itemPrice * itemQty;
       subtotal += itemTotal;
       
       // Group by vendor
@@ -179,10 +184,11 @@ exports.createOrder = async (req, res) => {
       vendorGroups[vendorId].items.push({
         productId: item.productId,
         productName: item.productName || "Product",
-        price: parseFloat(item.price) || 0,
-        qty: parseInt(item.qty) || 1,
+        price: itemPrice,
+        qty: itemQty,
         image: item.image || "",
         category: item.category || "General",
+        brand: item.brand || "",
         vendorId: item.vendorId,
         vendorName: vendor.shopName || vendor.name
       });
@@ -190,33 +196,69 @@ exports.createOrder = async (req, res) => {
       vendorGroups[vendorId].total += itemTotal;
     }
 
+    // Check if we have valid items
+    if (Object.keys(vendorGroups).length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: "No valid items found to process"
+      });
+    }
+
     // Calculate fees
-    const deliveryFee = subtotal > 299 ? 0 : (shippingCharge || 29);
+    const deliveryFee = subtotal > 299 ? 0 : (parseFloat(shippingCharge) || 29);
     const platformFee = 2;
     const gst = subtotal * 0.05;
     const totalBeforeDiscount = subtotal + deliveryFee + platformFee + gst;
-    const totalPayable = totalBeforeDiscount - discount - couponDiscount;
+    const totalPayable = totalBeforeDiscount - 
+                        (parseFloat(discount) || 0) - 
+                        (parseFloat(couponDiscount) || 0);
 
     console.log("💰 Order Calculation:");
-    console.log("- Vendors:", Object.keys(vendorGroups).length);
+    console.log("- Subtotal:", subtotal);
+    console.log("- Delivery Fee:", deliveryFee);
+    console.log("- Platform Fee:", platformFee);
+    console.log("- GST:", gst);
     console.log("- Total Payable:", totalPayable);
+    console.log("- Vendor Groups:", Object.keys(vendorGroups).length);
 
     /* 🔥 STEP 2: CREATE MAIN CUSTOMER ORDER */
     const customerOrderData = {
       customer,
-      orderItems,
+      orderItems: orderItems.map(item => ({
+        productId: item.productId,
+        productName: item.productName || "Product",
+        qty: parseInt(item.qty) || 1,
+        price: parseFloat(item.price) || 0,
+        vendorId: item.vendorId,
+        vendorName: item.vendorName || "Vendor",
+        image: item.image || "",
+        category: item.category || "",
+        brand: item.brand || "",
+        description: item.description || ""
+      })),
       amount: subtotal,
       subtotal: subtotal,
       shippingCharge: deliveryFee,
       platformFee,
       gst,
-      discount,
-      couponDiscount,
+      discount: parseFloat(discount) || 0,
+      couponDiscount: parseFloat(couponDiscount) || 0,
       couponCode,
       totalBeforeDiscount,
       totalPayable,
-      paymentMethod,
-      shippingAddress,
+      paymentMethod: paymentMethod || "cod",
+      shippingAddress: {
+        name: shippingAddress?.name || "",
+        phone: shippingAddress?.phone || "",
+        email: shippingAddress?.email || "",
+        address: shippingAddress?.address || "",
+        city: shippingAddress?.city || "",
+        state: shippingAddress?.state || "",
+        pincode: shippingAddress?.pincode || "",
+        landmark: shippingAddress?.landmark || ""
+      },
       paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Pending',
       orderStatus: "Confirmed",
       isSplitOrder: Object.keys(vendorGroups).length > 1
@@ -225,7 +267,11 @@ exports.createOrder = async (req, res) => {
     const order = await CustomerOrder.create([customerOrderData], { session });
     const savedOrder = order[0];
     
-    console.log("✅ Main Customer Order created:", savedOrder._id);
+    console.log("✅ Main Customer Order created:", {
+      orderId: savedOrder._id,
+      orderNumber: savedOrder.orderId,
+      total: savedOrder.totalPayable
+    });
 
     /* 🔥 STEP 3: CREATE SEPARATE VENDOR ORDERS */
     const vendorOrders = [];
@@ -237,42 +283,50 @@ exports.createOrder = async (req, res) => {
         orderId: savedOrder._id,
         orderItems: vendorData.items,
         amount: vendorData.total,
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod || "cod",
         paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Pending',
         orderStatus: "Confirmed",
-        shippingAddress: shippingAddress,
+        shippingAddress: customerOrderData.shippingAddress,
         vendorDetails: {
-          name: vendorData.vendor.shopName || vendorData.vendor.name,
-          warehouseId: vendorData.vendor.parcelxWarehouseId,
-          city: vendorData.vendor.warehouseAddress?.city,
-          state: vendorData.vendor.warehouseAddress?.state,
-          phone: vendorData.vendor.phone
+          name: vendorData.vendor.shopName || vendorData.vendor.name || "Vendor",
+          warehouseId: vendorData.vendor.parcelxWarehouseId || null,
+          city: vendorData.vendor.warehouseAddress?.city || "",
+          state: vendorData.vendor.warehouseAddress?.state || "",
+          phone: vendorData.vendor.phone || ""
         }
       };
       
       const vendorOrder = await VendorOrder.create([vendorOrderData], { session });
       vendorOrders.push(vendorOrder[0]);
+      
+      console.log(`✅ Vendor order created for ${vendorId}:`, vendorOrder[0]._id);
     }
     
     console.log(`✅ Created ${vendorOrders.length} Vendor Orders`);
 
-    /* 🔥 STEP 4: CREATE PARCELX SHIPMENTS FOR EACH VENDOR */
+    /* 🔥 STEP 4: CREATE PARCELX SHIPMENTS (Optional) */
     const shipmentResults = [];
+    let shouldCreateShipments = false;
     
-    // Check if we should create shipments
-    const shouldCreateShipments = paymentMethod !== 'cod' || createShipmentForCOD === true;
+    // Determine if shipments should be created
+    if (paymentMethod !== 'cod') {
+      shouldCreateShipments = true;
+      console.log('🚀 Creating shipments for prepaid order');
+    } else if (createShipmentForCOD === true) {
+      shouldCreateShipments = true;
+      console.log('🚀 Creating shipments for COD order (requested)');
+    }
     
     if (shouldCreateShipments) {
       console.log('🚀 Creating ParcelX shipments for vendors...');
       
-      // Process each vendor shipment
       for (const [vendorId, vendorData] of Object.entries(vendorGroups)) {
         try {
           const vendor = vendorData.vendor;
           
           // Check if vendor has warehouse
           if (!vendor.parcelxWarehouseId) {
-            console.log(`⚠️ Vendor ${vendor.shopName} has no warehouse. Skipping shipment.`);
+            console.log(`⚠️ Vendor ${vendor.shopName || vendor.name} has no warehouse. Skipping shipment.`);
             shipmentResults.push({
               vendorId: vendorId,
               vendorName: vendor.shopName || vendor.name,
@@ -282,7 +336,7 @@ exports.createOrder = async (req, res) => {
             continue;
           }
           
-          // Create shipment in ParcelX
+          // Create shipment
           const shipment = await parcelxService.createVendorShipment(
             vendorId,
             savedOrder,
@@ -341,7 +395,7 @@ exports.createOrder = async (req, res) => {
                 warehouseCity: vendor.warehouseAddress?.city
               });
               
-              console.log(`✅ Shipment created for ${vendor.shopName}: ${shipment.awbNumber}`);
+              console.log(`✅ Shipment created for ${vendor.shopName || vendor.name}: ${shipment.awbNumber}`);
             }
           } else {
             shipmentResults.push({
@@ -351,7 +405,7 @@ exports.createOrder = async (req, res) => {
               error: shipment.error
             });
             
-            console.log(`❌ Shipment failed for ${vendor.shopName}: ${shipment.error}`);
+            console.log(`❌ Shipment failed for ${vendor.shopName || vendor.name}: ${shipment.error}`);
           }
         } catch (error) {
           console.error(`❌ Error creating shipment for vendor ${vendorId}:`, error);
@@ -407,13 +461,13 @@ exports.createOrder = async (req, res) => {
           vendorName: vo.vendorDetails?.name,
           amount: vo.amount,
           orderStatus: vo.orderStatus,
-          tracking: vo.tracking
+          tracking: vo.tracking || null
         })),
         shipmentResults: shipmentResults
       }
     };
 
-    console.log("🎉 Multi-vendor order creation completed!");
+    console.log("🎉 Order creation completed successfully!");
     
     res.status(201).json(responseData);
 
@@ -422,7 +476,9 @@ exports.createOrder = async (req, res) => {
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
-    session.endSession();
+    if (session) {
+      session.endSession();
+    }
     
     console.error("🔥 Order creation error:", error);
     res.status(500).json({ 
