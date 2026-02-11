@@ -7,26 +7,47 @@
 //     email: { type: String, unique: true },
 //     password: { type: String, required: true },
 //     image: { type: String, default: "" },
+    
+//     // Contact info
+//     phone: String,
+//     shopName: String,
+    
+//     // ✅ PARCELX INTEGRATION
+//     parcelxWarehouseId: String,
+    
+//     warehouseAddress: {
+//       address: String,
+//       city: String,
+//       state: String,
+//       pincode: String,
+//       phone: String
+//     },
+    
+//     // Business details
+//     gstin: String,
+//     pan: String,
+    
+//     // Status
+//     isActive: {
+//       type: Boolean,
+//       default: true
+//     },
+    
+//     // Timestamps
+//     warehouseCreatedAt: Date,
+//     lastWarehouseUpdate: Date
 //   },
 //   { timestamps: true }
 // );
 
-// module.exports =
-//   mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
+// // Virtual for full warehouse address
+// vendorSchema.virtual('fullWarehouseAddress').get(function() {
+//   if (!this.warehouseAddress) return '';
+//   const wa = this.warehouseAddress;
+//   return `${wa.address}, ${wa.city}, ${wa.state} - ${wa.pincode}`;
+// });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+// module.exports = mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
 const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
@@ -107,5 +128,3 @@ vendorSchema.methods.getWarehouseForParcelX = function() {
 };
 
 module.exports = mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
-
-
