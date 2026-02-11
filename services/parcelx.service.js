@@ -210,7 +210,7 @@ class ParcelXService {
         return phone.toString().replace(/\D/g, '').substring(0, 10);
       };
       
-      // Prepare shipment payload (EXACTLY as per your ParcelX example)
+      // Prepare shipment payload
       const payload = {
         client_order_id: `${orderData._id}_${vendorId}_${Date.now()}`,
         consignee_emailid: orderData.shippingAddress?.email || 'test@example.com',
@@ -280,72 +280,6 @@ class ParcelXService {
         success: false,
         error: error.message,
         vendorId: vendorId
-      };
-    }
-  }
-  
-  // ================= CREATE MULTIPLE VENDOR SHIPMENTS =================
-  async createMultiVendorShipments(orderData) {
-    try {
-      console.log('🚀 Creating shipments for multiple vendors');
-      
-      // Group items by vendor
-      const vendorGroups = {};
-      orderData.orderItems.forEach(item => {
-        const vendorId = item.vendorId.toString();
-        if (!vendorGroups[vendorId]) {
-          vendorGroups[vendorId] = {
-            vendorId: item.vendorId,
-            items: []
-          };
-        }
-        vendorGroups[vendorId].items.push(item);
-      });
-      
-      console.log(`📊 Found ${Object.keys(vendorGroups).length} vendors in order`);
-      
-      // Create shipments for each vendor
-      const shipmentPromises = Object.entries(vendorGroups).map(
-        async ([vendorId, vendorData]) => {
-          return await this.createVendorShipment(vendorId, orderData, vendorData.items);
-        }
-      );
-      
-      const results = await Promise.allSettled(shipmentPromises);
-      
-      // Process results
-      const successfulShipments = [];
-      const failedShipments = [];
-      
-      results.forEach((result, index) => {
-        const vendorId = Object.keys(vendorGroups)[index];
-        
-        if (result.status === 'fulfilled' && result.value.success) {
-          successfulShipments.push({
-            vendorId: vendorId,
-            ...result.value
-          });
-        } else {
-          failedShipments.push({
-            vendorId: vendorId,
-            error: result.reason?.message || result.value?.error || 'Unknown error'
-          });
-        }
-      });
-      
-      console.log(`✅ ${successfulShipments.length} shipments created, ${failedShipments.length} failed`);
-      
-      return {
-        success: successfulShipments.length > 0,
-        successful: successfulShipments,
-        failed: failedShipments,
-        totalVendors: Object.keys(vendorGroups).length
-      };
-    } catch (error) {
-      console.error('❌ Create multi-vendor shipments error:', error.message);
-      return {
-        success: false,
-        error: error.message
       };
     }
   }
