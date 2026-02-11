@@ -811,8 +811,6 @@
 
 
 
-
-
 const mongoose = require("mongoose");
 
 const VendorOrderSchema = new mongoose.Schema(
@@ -1006,18 +1004,6 @@ VendorOrderSchema.statics.findByAWB = function(awbNumber) {
 };
 
 module.exports = mongoose.model("VendorOrder", VendorOrderSchema);
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
