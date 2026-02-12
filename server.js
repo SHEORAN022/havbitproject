@@ -798,15 +798,16 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-       "https://havbit.in",
-        "https://admin.havbit.in",
-        "https://vendor.havbit.in",
-       "https://seller.havbit.in",
+     "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "https://havbit.in",
+  "https://admin.havbit.in",
+  "https://vendor.havbit.in",
+  "https://seller.havbit.in",
+  "https://havbitproject.onrender.com",
       
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
