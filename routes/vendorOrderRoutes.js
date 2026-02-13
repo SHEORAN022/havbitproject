@@ -21,6 +21,31 @@
 // // router.post("/create", createVendorOrder);
 
 // module.exports = router;
+// const express = require("express");
+// const router = express.Router();
+// const vendorAuth = require("../middleware/vendorAuth");
+
+// const {
+//   getVendorOrders,
+//   getVendorOrderById,
+//   updateVendorOrderStatus,
+//   getVendorOrderStats,
+//   cancelVendorOrder
+// } = require("../controllers/vendorOrderController");
+
+// router.use(vendorAuth);
+
+// router.get("/", getVendorOrders);
+// router.get("/stats", getVendorOrderStats);
+// router.get("/:id", getVendorOrderById);
+// router.put("/:id/status", updateVendorOrderStatus);
+// router.put("/:id/cancel", cancelVendorOrder);
+
+// module.exports = router;
+
+
+
+
 const express = require("express");
 const router = express.Router();
 const vendorAuth = require("../middleware/vendorAuth");
@@ -30,7 +55,7 @@ const {
   getVendorOrderById,
   updateVendorOrderStatus,
   getVendorOrderStats,
-  cancelVendorOrder
+  createVendorOrder,
 } = require("../controllers/vendorOrderController");
 
 router.use(vendorAuth);
@@ -39,6 +64,8 @@ router.get("/", getVendorOrders);
 router.get("/stats", getVendorOrderStats);
 router.get("/:id", getVendorOrderById);
 router.put("/:id/status", updateVendorOrderStatus);
-router.put("/:id/cancel", cancelVendorOrder);
+router.post("/create", createVendorOrder);
 
 module.exports = router;
+
+
