@@ -708,6 +708,104 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ success: false, message: "Login failed" });
   }
 });
+/* =========================================================
+   UPDATE VENDOR PROFILE (JSON + FILE SUPPORT)
+========================================================= */
+
+const vendorAuth = require("../middleware/vendorAuth");
+
+// middleware wrapper so JSON bhi chale aur form-data bhi
+const optionalMulter = (req, res, next) => {
+  if (req.headers["content-type"]?.includes("multipart/form-data")) {
+    fileFields(req, res, next);
+  } else {
+    next();
+  }
+};
+
+router.put(
+  "/update-profile",
+  vendorAuth,
+  optionalMulter,
+  async (req, res) => {
+    try {
+      const vendor = req.vendor;
+
+      const {
+        contactName,
+        phone,
+        gstNumber,
+        panNumber,
+        aadharNumber,
+        accountNumber,
+        ifsc,
+        beneficiary,
+        address,
+        city,
+        state,
+        pincode,
+      } = req.body;
+
+      /* ================= TEXT FIELD UPDATE ================= */
+
+      if (contactName) vendor.contactName = contactName;
+      if (phone) vendor.phone = phone;
+
+      if (gstNumber) vendor.gstNumber = gstNumber.toUpperCase();
+      if (panNumber) vendor.panNumber = panNumber.toUpperCase();
+      if (aadharNumber) vendor.aadharNumber = aadharNumber;
+
+      if (accountNumber) vendor.accountNumber = accountNumber;
+      if (ifsc) vendor.ifsc = ifsc.toUpperCase();
+      if (beneficiary) vendor.beneficiary = beneficiary;
+
+      if (address) vendor.address = address;
+      if (city) vendor.city = city;
+      if (state) vendor.state = state;
+      if (pincode) vendor.pincode = pincode;
+
+      /* ================= FILE UPDATE ================= */
+
+      if (req.files) {
+        const uploaded = {};
+
+        await Promise.all(
+          Object.keys(req.files).map(async (key) => {
+            const file = req.files[key][0];
+            uploaded[key] = await uploadToCloudinary(
+              file.buffer,
+              `vendors/${vendor.brandName || "documents"}`
+            );
+          })
+        );
+
+        if (uploaded.gstFile) vendor.gstFile = uploaded.gstFile;
+        if (uploaded.panFile) vendor.panFile = uploaded.panFile;
+        if (uploaded.aadharFile) vendor.aadharFile = uploaded.aadharFile;
+        if (uploaded.fssaiFile) vendor.fssaiFile = uploaded.fssaiFile;
+        if (uploaded.msmeFile) vendor.msmeFile = uploaded.msmeFile;
+        if (uploaded.ownerPhoto) vendor.ownerPhoto = uploaded.ownerPhoto;
+        if (uploaded.supportingDoc)
+          vendor.supportingDoc = uploaded.supportingDoc;
+      }
+
+      await vendor.save();
+
+      res.json({
+        success: true,
+        message: "Profile updated successfully",
+        vendor,
+      });
+    } catch (err) {
+      console.error("Update Profile Error:", err);
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+      });
+    }
+  }
+);
+
 
 module.exports = router;
 
