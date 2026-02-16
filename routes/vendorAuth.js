@@ -810,239 +810,202 @@
 // module.exports = router;
 
 
-
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const multer = require("multer");
-const cloudinary = require("../config/cloudinary");
-const Vendor = require("../models/VendorModel");
-const vendorAuth = require("../middleware/vendorAuth");
-
 const router = express.Router();
+const Vendor = require("../models/VendorModel");
 
-/* =========================================================
-   MULTER (Memory Storage)
-   ========================================================= */
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-/* ================= FILE FIELDS ================= */
-const fileFields = upload.fields([
-  { name: "gstFile", maxCount: 1 },
-  { name: "panFile", maxCount: 1 },
-  { name: "aadharFile", maxCount: 1 },
-  { name: "fssaiFile", maxCount: 1 },
-  { name: "msmeFile", maxCount: 1 },
-  { name: "ownerPhoto", maxCount: 1 },
-  { name: "supportingDoc", maxCount: 1 },
-]);
-
-/* ================= CLOUDINARY HELPER ================= */
-const uploadToCloudinary = (buffer, folder) =>
-  new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder },
-      (err, result) => {
-        if (err) reject(err);
-        else resolve(result.secure_url);
-      }
+/* =====================================================
+   APPROVE VENDOR
+===================================================== */
+router.put("/vendor/approve/:vendorId", async (req, res) => {
+  try {
+    const vendor = await Vendor.findByIdAndUpdate(
+      req.params.vendorId,
+      {
+        $set: {
+          status: "APPROVED",
+          approvedAt: new Date(),
+          approvedBy: req.admin?._id, // If you have admin auth
+        },
+      },
+      { new: true }
     );
-    stream.end(buffer);
-  });
 
-/* =========================================================
-   VENDOR SIGNUP
-   ========================================================= */
-router.post("/signup", fileFields, async (req, res) => {
-  try {
-    const body = req.body || {};
-    let { email, password, contactName, phone, brandName } = body;
-
-    /* ===== VALIDATION ===== */
-    if (typeof email !== "string" || typeof password !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Email & password required",
-      });
-    }
-
-    email = email.trim().toLowerCase();
-
-    /* ===== CHECK EXISTING ===== */
-    const exists = await Vendor.findOne({ email });
-    if (exists) {
-      return res.status(400).json({
-        success: false,
-        message: "Vendor already exists",
-      });
-    }
-
-    /* ===== UPLOAD FILES ===== */
-    const uploaded = {};
-    if (req.files) {
-      for (const key of Object.keys(req.files)) {
-        const file = req.files[key][0];
-        uploaded[key] = await uploadToCloudinary(
-          file.buffer,
-          `vendors/${brandName || "documents"}`
-        );
-      }
-    }
-
-    /* ===== HASH PASSWORD ===== */
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    /* ===== CREATE VENDOR ===== */
-    await Vendor.create({
-      contactName,
-      phone,
-      email,
-      password: hashedPassword,
-      brandName,
-      gstFile: uploaded.gstFile || null,
-      panFile: uploaded.panFile || null,
-      aadharFile: uploaded.aadharFile || null,
-      fssaiFile: uploaded.fssaiFile || null,
-      msmeFile: uploaded.msmeFile || null,
-      ownerPhoto: uploaded.ownerPhoto || null,
-      supportingDoc: uploaded.supportingDoc || null,
-      status: "PENDING",
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "Signup successful. Waiting for admin approval.",
-    });
-  } catch (err) {
-    console.error("Vendor Signup Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Signup failed",
-    });
-  }
-});
-
-/* =========================================================
-   VENDOR LOGIN ✅ FULLY FIXED
-   ========================================================= */
-router.post("/login", async (req, res) => {
-  try {
-    const body = req.body || {};
-    let { email, password } = body;
-
-    /* ===== VALIDATION ===== */
-    if (typeof email !== "string" || typeof password !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Email & password required",
-      });
-    }
-
-    email = email.trim().toLowerCase();
-
-    /* ===== FIND VENDOR ===== */
-    const vendor = await Vendor.findOne({ email }).select("+password");
     if (!vendor) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
-        message: "Invalid credentials",
+        message: "Vendor not found",
       });
     }
-
-    /* ===== 🔥 FIXED STATUS CHECK (MAIN CHANGE) ===== */
-    // Handle case-insensitive status comparison and trim whitespace
-    const status = (vendor.status || "PENDING").toUpperCase().trim();
-    
-    // Debug log to see actual status value in console
-    console.log("🔍 VENDOR LOGIN DEBUG:", {
-      email: vendor.email,
-      rawStatus: vendor.status,
-      normalizedStatus: status,
-      isApproved: status === "APPROVED"
-    });
-
-    if (status !== "APPROVED") {
-      return res.status(403).json({
-        success: false,
-        message: `Account ${status.toLowerCase()}. Please contact admin.`,
-      });
-    }
-
-    /* ===== PASSWORD CHECK ===== */
-    const isMatch = await bcrypt.compare(password, vendor.password);
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
-
-    /* ===== TOKEN ===== */
-    const token = jwt.sign(
-      { id: vendor._id, role: "vendor" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
 
     return res.json({
       success: true,
-      token,
+      message: "Vendor approved successfully",
       vendor: {
         id: vendor._id,
-        name: vendor.contactName,
         email: vendor.email,
-        brand: vendor.brandName,
+        status: vendor.status,
+        approvedAt: vendor.approvedAt,
       },
     });
-  } catch (err) {
-    console.error("Vendor Login Error:", err);
+  } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Login failed",
+      message: error.message,
     });
   }
 });
 
-/* =========================================================
-   UPDATE VENDOR PROFILE
-   ========================================================= */
-const optionalMulter = (req, res, next) => {
-  if (req.headers["content-type"]?.includes("multipart/form-data")) {
-    fileFields(req, res, next);
-  } else {
-    next();
-  }
-};
-
-router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
+/* =====================================================
+   REJECT VENDOR
+===================================================== */
+router.put("/vendor/reject/:vendorId", async (req, res) => {
   try {
-    const vendor = req.vendor;
+    const { reason } = req.body;
 
-    Object.assign(vendor, req.body);
+    const vendor = await Vendor.findByIdAndUpdate(
+      req.params.vendorId,
+      {
+        $set: {
+          status: "REJECTED",
+          rejectedAt: new Date(),
+          rejectionReason: reason || "Not specified",
+        },
+      },
+      { new: true }
+    );
 
-    if (req.files) {
-      for (const key of Object.keys(req.files)) {
-        const file = req.files[key][0];
-        vendor[key] = await uploadToCloudinary(
-          file.buffer,
-          `vendors/${vendor.brandName || "documents"}`
-        );
-      }
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: "Vendor not found",
+      });
     }
-
-    await vendor.save();
 
     return res.json({
       success: true,
-      message: "Profile updated successfully",
-      vendor,
+      message: "Vendor rejected",
+      vendor: {
+        id: vendor._id,
+        email: vendor.email,
+        status: vendor.status,
+      },
     });
-  } catch (err) {
-    console.error("Update Profile Error:", err);
+  } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
+/* =====================================================
+   GET ALL VENDORS (ADMIN PANEL)
+===================================================== */
+router.get("/vendors", async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const filter = {};
+    if (status) {
+      filter.status = status.toUpperCase();
+    }
+
+    const vendors = await Vendor.find(filter)
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    // Group by status for admin dashboard
+    const stats = {
+      total: vendors.length,
+      pending: vendors.filter((v) => v.status === "PENDING").length,
+      approved: vendors.filter((v) => v.status === "APPROVED").length,
+      rejected: vendors.filter((v) => v.status === "REJECTED").length,
+    };
+
+    return res.json({
+      success: true,
+      stats,
+      vendors,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+/* =====================================================
+   GET SINGLE VENDOR
+===================================================== */
+router.get("/vendor/:vendorId", async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.vendorId).select("-password");
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: "Vendor not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      vendor,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+/* =====================================================
+   UPDATE VENDOR STATUS (GENERIC)
+===================================================== */
+router.put("/vendor/status/:vendorId", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const updateData = { status };
+
+    if (status === "APPROVED") {
+      updateData.approvedAt = new Date();
+    } else if (status === "REJECTED") {
+      updateData.rejectedAt = new Date();
+    }
+
+    const vendor = await Vendor.findByIdAndUpdate(
+      req.params.vendorId,
+      { $set: updateData },
+      { new: true }
+    ).select("-password");
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: "Vendor not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Vendor ${status.toLowerCase()}`,
+      vendor,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 });
