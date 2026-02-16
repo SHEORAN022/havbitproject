@@ -811,7 +811,6 @@
 
 
 
-
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -824,7 +823,7 @@ const router = express.Router();
 
 /* =========================================================
    MULTER (Memory Storage)
-========================================================= */
+   ========================================================= */
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -854,7 +853,7 @@ const uploadToCloudinary = (buffer, folder) =>
 
 /* =========================================================
    VENDOR SIGNUP
-========================================================= */
+   ========================================================= */
 router.post("/signup", fileFields, async (req, res) => {
   try {
     const body = req.body || {};
@@ -901,7 +900,6 @@ router.post("/signup", fileFields, async (req, res) => {
       email,
       password: hashedPassword,
       brandName,
-
       gstFile: uploaded.gstFile || null,
       panFile: uploaded.panFile || null,
       aadharFile: uploaded.aadharFile || null,
@@ -909,7 +907,6 @@ router.post("/signup", fileFields, async (req, res) => {
       msmeFile: uploaded.msmeFile || null,
       ownerPhoto: uploaded.ownerPhoto || null,
       supportingDoc: uploaded.supportingDoc || null,
-
       status: "PENDING",
     });
 
@@ -927,8 +924,8 @@ router.post("/signup", fileFields, async (req, res) => {
 });
 
 /* =========================================================
-   VENDOR LOGIN  ✅ FULLY SAFE
-========================================================= */
+   VENDOR LOGIN ✅ FULLY FIXED
+   ========================================================= */
 router.post("/login", async (req, res) => {
   try {
     const body = req.body || {};
@@ -946,7 +943,6 @@ router.post("/login", async (req, res) => {
 
     /* ===== FIND VENDOR ===== */
     const vendor = await Vendor.findOne({ email }).select("+password");
-
     if (!vendor) {
       return res.status(400).json({
         success: false,
@@ -954,8 +950,17 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* ===== STATUS SAFE CHECK (🔥 MAIN FIX) ===== */
-    const status = vendor.status || "PENDING";
+    /* ===== 🔥 FIXED STATUS CHECK (MAIN CHANGE) ===== */
+    // Handle case-insensitive status comparison and trim whitespace
+    const status = (vendor.status || "PENDING").toUpperCase().trim();
+    
+    // Debug log to see actual status value in console
+    console.log("🔍 VENDOR LOGIN DEBUG:", {
+      email: vendor.email,
+      rawStatus: vendor.status,
+      normalizedStatus: status,
+      isApproved: status === "APPROVED"
+    });
 
     if (status !== "APPROVED") {
       return res.status(403).json({
@@ -1001,7 +1006,7 @@ router.post("/login", async (req, res) => {
 
 /* =========================================================
    UPDATE VENDOR PROFILE
-========================================================= */
+   ========================================================= */
 const optionalMulter = (req, res, next) => {
   if (req.headers["content-type"]?.includes("multipart/form-data")) {
     fileFields(req, res, next);
