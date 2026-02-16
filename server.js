@@ -894,7 +894,7 @@ app.use("/api/vendor/orders", vendorOrderRoutes);
 app.use("/api/vendor", require("./routes/vendorBrandRoutes"));
 app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/public", require("./routes/publicBrandRoutes"));
-
+app.use("/api/parcelx", require("./routes/parcelxRoutes"));
 
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
