@@ -822,6 +822,13 @@ const vendorAuth = require("../middleware/vendorAuth");
 
 const router = express.Router();
 
+/* =========================================================
+   ⚠️ IMPORTANT (SERVER SIDE)
+   Make sure app.js / server.js has:
+   app.use(express.json());
+   app.use(express.urlencoded({ extended: true }));
+========================================================= */
+
 /* ================= MULTER (Memory Storage) ================= */
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -855,43 +862,18 @@ const uploadToCloudinary = (buffer, folder) =>
 ========================================================= */
 router.post("/signup", fileFields, async (req, res) => {
   try {
-    let {
-      email,
-      password,
-      contactName,
-      phone,
-      vendorType,
-      brandName,
-      annualTurnover,
-      onlineTurnover,
-      minSellingPrice,
-      maxSellingPrice,
-      website,
-      presence,
-      demographic,
-      gstNumber,
-      panNumber,
-      aadharNumber,
-      accountNumber,
-      ifsc,
-      beneficiary,
-      address,
-      city,
-      state,
-      pincode,
-    } = req.body;
+    const body = req.body || {};
+    let { email, password, contactName, phone, brandName } = body;
 
-    /* ===== VALIDATION ===== */
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string") {
       return res.status(400).json({
         success: false,
         message: "Email & password required",
       });
     }
 
-    email = email.toLowerCase(); // 🔥 VERY IMPORTANT
+    email = email.trim().toLowerCase();
 
-    /* ===== CHECK EXISTING ===== */
     const exists = await Vendor.findOne({ email });
     if (exists) {
       return res.status(400).json({
@@ -900,54 +882,28 @@ router.post("/signup", fileFields, async (req, res) => {
       });
     }
 
-    /* ===== UPLOAD FILES ===== */
     const uploaded = {};
     if (req.files) {
-      await Promise.all(
-        Object.keys(req.files).map(async (key) => {
-          const file = req.files[key][0];
-          uploaded[key] = await uploadToCloudinary(
-            file.buffer,
-            `vendors/${brandName || "documents"}`
-          );
-        })
-      );
+      for (const key of Object.keys(req.files)) {
+        const file = req.files[key][0];
+        uploaded[key] = await uploadToCloudinary(
+          file.buffer,
+          `vendors/${brandName || "documents"}`
+        );
+      }
     }
 
-    /* ===== HASH PASSWORD ===== */
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    /* ===== CREATE VENDOR ===== */
     await Vendor.create({
       contactName,
       phone,
       email,
       password: hashedPassword,
-      vendorType,
       brandName,
 
-      annualTurnover,
-      onlineTurnover,
-      minSellingPrice,
-      maxSellingPrice,
-      website,
-      presence: presence ? presence.split(",") : [],
-      demographic,
-
-      accountNumber,
-      ifsc,
-      beneficiary,
-
-      address,
-      city,
-      state,
-      pincode,
-
-      gstNumber,
       gstFile: uploaded.gstFile || null,
-      panNumber,
       panFile: uploaded.panFile || null,
-      aadharNumber,
       aadharFile: uploaded.aadharFile || null,
       fssaiFile: uploaded.fssaiFile || null,
       msmeFile: uploaded.msmeFile || null,
@@ -971,24 +927,23 @@ router.post("/signup", fileFields, async (req, res) => {
 });
 
 /* =========================================================
-   VENDOR LOGIN  ✅ FIXED
+   VENDOR LOGIN (🔥 FULLY CRASH-PROOF)
 ========================================================= */
 router.post("/login", async (req, res) => {
   try {
-    let { email, password } = req.body;
+    const body = req.body || {};
+    let { email, password } = body;
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string") {
       return res.status(400).json({
         success: false,
         message: "Email & password required",
       });
     }
 
-    email = email.toLowerCase(); // 🔥 MAIN FIX
+    email = email.trim().toLowerCase();
 
     const vendor = await Vendor.findOne({ email }).select("+password");
-
-    /* 🔥 NULL CHECK (MOST IMPORTANT) */
     if (!vendor) {
       return res.status(400).json({
         success: false,
@@ -996,7 +951,6 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* ===== STATUS CHECK ===== */
     if (vendor.status !== "APPROVED") {
       return res.status(403).json({
         success: false,
@@ -1004,7 +958,6 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* ===== PASSWORD CHECK ===== */
     const isMatch = await bcrypt.compare(password, vendor.password);
     if (!isMatch) {
       return res.status(400).json({
@@ -1013,7 +966,6 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* ===== TOKEN ===== */
     const token = jwt.sign(
       { id: vendor._id, role: "vendor" },
       process.env.JWT_SECRET,
@@ -1083,4 +1035,3 @@ router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
 });
 
 module.exports = router;
-
