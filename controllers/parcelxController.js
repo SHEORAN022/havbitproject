@@ -217,3 +217,40 @@ exports.shipmentDetails = async (req, res) => {
     });
   }
 };
+
+
+
+exports.getCourierRates = async (req, res) => {
+  try {
+    const { pick_address_id, delivery_pincode, weight } = req.query;
+
+    if (!pick_address_id || !delivery_pincode || !weight) {
+      return res.status(400).json({
+        success: false,
+        message: "pick_address_id, delivery_pincode, weight are required",
+      });
+    }
+
+    const payload = {
+      pick_address_id: Number(pick_address_id),
+      delivery_pincode,
+      weight,
+      payment_mode: "Prepaid",
+    };
+
+    console.log("ParcelX Courier Rate Payload:", payload);
+
+    const response = await parcelx.post("/courier/rates", payload);
+
+    return res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+  }
+};
+
