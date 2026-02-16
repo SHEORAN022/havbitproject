@@ -219,10 +219,9 @@ exports.shipmentDetails = async (req, res) => {
 };
 
 
-
 exports.getCourierRates = async (req, res) => {
   try {
-    const { pick_address_id, delivery_pincode, weight } = req.query;
+    const { pick_address_id, delivery_pincode, weight } = req.body;
 
     if (!pick_address_id || !delivery_pincode || !weight) {
       return res.status(400).json({
@@ -253,4 +252,3 @@ exports.getCourierRates = async (req, res) => {
     });
   }
 };
-
