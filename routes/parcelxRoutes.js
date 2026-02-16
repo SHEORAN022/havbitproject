@@ -26,7 +26,7 @@ const {
 } = require("../controllers/parcelxController");
 
 router.post("/warehouse", createWarehouse);
-router.get("/courier/rates", getCourierRates);
+router.post("/courier/rates", getCourierRates);
 router.post("/order", createOrder);
 router.get("/order/track", trackOrder);
 router.get("/shipment", shipmentDetails);
