@@ -1671,24 +1671,26 @@
 //   }
 // };
 
-
 const CustomerOrder = require("../models/CustomerOrder");
 const Warehouse = require("../models/Warehouse");
 const parcelx = require("../config/parcelx");
 
-/* ================= CREATE ORDER (DB + PARCELX) ================= */
+/* ======================================================
+   CREATE ORDER (DB + PARCELX) ✅ LIVE READY
+====================================================== */
 exports.createOrder = async (req, res) => {
   try {
     const {
       customer,
       orderItems,
-      warehouseId,            // 🔥 REQUIRED
+      warehouseId,                 // 🔥 MongoDB _id (NOT pick_address_id)
       shippingCharge = 0,
       discount = 0,
       paymentMethod = "cod",
       shippingAddress,
     } = req.body;
 
+    /* ================= VALIDATIONS ================= */
     if (!customer) {
       return res.status(400).json({ success: false, message: "Customer required" });
     }
@@ -1705,7 +1707,7 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "shippingAddress required" });
     }
 
-    /* 🔥 GET WAREHOUSE */
+    /* ================= GET WAREHOUSE ================= */
     const warehouse = await Warehouse.findById(warehouseId);
     if (!warehouse) {
       return res.status(400).json({
@@ -1714,8 +1716,9 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    /* 🔥 AUTO CALCULATE AMOUNT */
+    /* ================= CALCULATE AMOUNT ================= */
     let amount = 0;
+
     for (let item of orderItems) {
       if (!item.vendorId) {
         return res.status(400).json({
@@ -1728,7 +1731,7 @@ exports.createOrder = async (req, res) => {
 
     const totalPayable = amount + shippingCharge - discount;
 
-    /* 🔥 CREATE ORDER IN DB */
+    /* ================= CREATE ORDER IN DB ================= */
     const order = await CustomerOrder.create({
       customer,
       orderItems,
@@ -1748,7 +1751,7 @@ exports.createOrder = async (req, res) => {
       shippingAddress,
     });
 
-    /* 🔥 CREATE PARCELX ORDER */
+    /* ================= PARCELX ORDER PAYLOAD ================= */
     const parcelxPayload = {
       client_order_id: order._id.toString(),
 
@@ -1758,6 +1761,8 @@ exports.createOrder = async (req, res) => {
       consignee_pincode: shippingAddress.pincode,
 
       pick_address_id: warehouse.pick_address_id,
+
+      express_type: "surface", // 🔥 REQUIRED BY PARCELX
 
       products: orderItems.map((item) => ({
         product_name: item.productName,
@@ -1774,9 +1779,15 @@ exports.createOrder = async (req, res) => {
       shipment_height: ["1"],
     };
 
+    // 🔥 COD amount (recommended)
+    if (paymentMethod === "cod") {
+      parcelxPayload.cod_amount = totalPayable;
+    }
+
+    /* ================= CREATE PARCELX ORDER ================= */
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
 
-    /* 🔥 SAVE AWB */
+    /* ================= SAVE PARCELX DATA ================= */
     order.parcelx = {
       awb: pxRes?.data?.data?.awb_number || "",
       courier: pxRes?.data?.data?.courier_name || "",
@@ -1794,12 +1805,14 @@ exports.createOrder = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.response?.data || error.message,
     });
   }
 };
 
-/* ================= GET CUSTOMER ORDERS ================= */
+/* ======================================================
+   GET CUSTOMER ORDERS
+====================================================== */
 exports.getCustomerOrders = async (req, res) => {
   try {
     const orders = await CustomerOrder.find({
@@ -1814,7 +1827,9 @@ exports.getCustomerOrders = async (req, res) => {
   }
 };
 
-/* ================= SINGLE ORDER ================= */
+/* ======================================================
+   GET SINGLE ORDER
+====================================================== */
 exports.getOrderById = async (req, res) => {
   try {
     const order = await CustomerOrder.findById(req.params.id).populate("warehouse");
@@ -1829,7 +1844,9 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-/* ================= CANCEL ORDER ================= */
+/* ======================================================
+   CANCEL ORDER
+====================================================== */
 exports.cancelOrder = async (req, res) => {
   try {
     const order = await CustomerOrder.findById(req.params.id);
@@ -1852,7 +1869,9 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-/* ================= UPDATE ORDER STATUS ================= */
+/* ======================================================
+   UPDATE ORDER STATUS (ADMIN)
+====================================================== */
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { orderStatus } = req.body;
@@ -1871,13 +1890,15 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res.json({ message: "Order status updated", order });
+    res.json({ success: true, message: "Order status updated", order });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-/* ================= VENDOR ORDERS ================= */
+/* ======================================================
+   VENDOR ORDERS
+====================================================== */
 exports.getVendorOrders = async (req, res) => {
   try {
     const orders = await CustomerOrder.find({
@@ -1890,7 +1911,9 @@ exports.getVendorOrders = async (req, res) => {
   }
 };
 
-/* ================= ADMIN ORDERS ================= */
+/* ======================================================
+   ADMIN – ALL ORDERS
+====================================================== */
 exports.getAllOrdersForAdmin = async (req, res) => {
   try {
     const orders = await CustomerOrder.find().sort({ createdAt: -1 });
@@ -1900,17 +1923,21 @@ exports.getAllOrdersForAdmin = async (req, res) => {
   }
 };
 
-/* ================= DELETE ORDER ================= */
+/* ======================================================
+   DELETE ORDER
+====================================================== */
 exports.deleteOrder = async (req, res) => {
   try {
     await CustomerOrder.findByIdAndDelete(req.params.id);
-    res.json({ message: "Order deleted" });
+    res.json({ success: true, message: "Order deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-/* ================= MY ORDERS ================= */
+/* ======================================================
+   MY ORDERS (LOGGED IN USER)
+====================================================== */
 exports.getMyOrders = async (req, res) => {
   try {
     const customerId = req.user.id;
