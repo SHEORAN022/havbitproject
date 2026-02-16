@@ -59,107 +59,6 @@ exports.createWarehouse = async (req, res) => {
 };
 
 
-// exports.createOrder = async (req, res) => {
-//   try {
-//     const {
-//       client_order_id,
-//       consignee_emailid,
-//       consignee_pincode,
-//       consignee_mobile,
-//       consignee_phone,
-//       consignee_address1,
-//       consignee_address2,
-//       consignee_name,
-//       invoice_number,
-//       express_type,
-//       pick_address_id,
-//       return_address_id,
-//       cod_amount,
-//       tax_amount,
-//       mps,
-//       courier_type,
-//       courier_code,
-//       products,
-//       address_type,
-//       payment_mode,
-//       order_amount,
-//       extra_charges,
-//       shipment_width,
-//       shipment_height,
-//       shipment_length,
-//       shipment_weight,
-//     } = req.body;
-
-//     /* ================= VALIDATION ================= */
-//     if (
-//       !client_order_id ||
-//       !consignee_pincode ||
-//       !consignee_mobile ||
-//       !consignee_address1 ||
-//       !consignee_name ||
-//       !pick_address_id ||
-//       !products ||
-//       !shipment_weight
-//     ) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Missing required order fields",
-//       });
-//     }
-
-//     /* ============== PARCELX PAYLOAD (EXACT) ============== */
-//     const parcelxPayload = {
-//       client_order_id,
-//       consignee_emailid: consignee_emailid || "",
-//       consignee_pincode,
-//       consignee_mobile,
-//       consignee_phone: consignee_phone || "",
-//       consignee_address1,
-//       consignee_address2: consignee_address2 || "",
-//       consignee_name,
-//       invoice_number,
-//       express_type,
-//       pick_address_id,
-//       return_address_id: return_address_id || "",
-//       cod_amount: cod_amount || "0",
-//       tax_amount: tax_amount || "0",
-//       mps: mps || "0",
-//       courier_type,
-//       courier_code,
-//       products,
-//       address_type,
-//       payment_mode,
-//       order_amount,
-//       extra_charges: extra_charges || "0",
-//       shipment_width,
-//       shipment_height,
-//       shipment_length,
-//       shipment_weight,
-//     };
-
-//     // 🔍 Debug (remove later)
-//     console.log("ParcelX Create Order Payload:", parcelxPayload);
-
-//     /* ============== API CALL ===================== */
-//     const response = await parcelx.post(
-//       "/order/create_order",
-//       parcelxPayload
-//     );
-
-//     /* ============== SUCCESS RESPONSE ============= */
-//     return res.status(200).json({
-//       success: true,
-//       data: response.data,
-//     });
-//   } catch (error) {
-//     /* ============== ERROR HANDLING =============== */
-//     return res.status(500).json({
-//       success: false,
-//       error: error.response?.data || error.message,
-//     });
-//   }
-// };
-
 exports.createOrder = async (req, res) => {
   try {
     const {
@@ -174,8 +73,12 @@ exports.createOrder = async (req, res) => {
       invoice_number,
       express_type,
       pick_address_id,
+      return_address_id,
       cod_amount,
       tax_amount,
+      mps,
+      courier_type,
+      courier_code,
       products,
       address_type,
       payment_mode,
@@ -187,6 +90,7 @@ exports.createOrder = async (req, res) => {
       shipment_weight,
     } = req.body;
 
+    /* ================= VALIDATION ================= */
     if (
       !client_order_id ||
       !consignee_pincode ||
@@ -203,6 +107,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
+    /* ============== PARCELX PAYLOAD (EXACT) ============== */
     const parcelxPayload = {
       client_order_id,
       consignee_emailid: consignee_emailid || "",
@@ -215,8 +120,12 @@ exports.createOrder = async (req, res) => {
       invoice_number,
       express_type,
       pick_address_id,
+      return_address_id: return_address_id || "",
       cod_amount: cod_amount || "0",
       tax_amount: tax_amount || "0",
+      mps: mps || "0",
+      courier_type,
+      courier_code,
       products,
       address_type,
       payment_mode,
@@ -228,18 +137,22 @@ exports.createOrder = async (req, res) => {
       shipment_weight,
     };
 
-    console.log("ParcelX Order Payload:", parcelxPayload);
+    // 🔍 Debug (remove later)
+    console.log("ParcelX Create Order Payload:", parcelxPayload);
 
+    /* ============== API CALL ===================== */
     const response = await parcelx.post(
       "/order/create_order",
       parcelxPayload
     );
 
+    /* ============== SUCCESS RESPONSE ============= */
     return res.status(200).json({
       success: true,
       data: response.data,
     });
   } catch (error) {
+    /* ============== ERROR HANDLING =============== */
     return res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
