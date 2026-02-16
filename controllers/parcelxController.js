@@ -1,62 +1,63 @@
 const parcelx = require("../config/parcelx");
 
-/* =====================================================
-   1️⃣ CREATE WAREHOUSE (DYNAMIC)
-===================================================== */
+
 exports.createWarehouse = async (req, res) => {
   try {
     const {
-      warehouse_name,
-      contact_person,
+      address_title,
+      sender_name,
+      full_address,
       phone,
-      email,
-      address,
-      city,
-      state,
       pincode,
-      country,
     } = req.body;
 
+    /* ================= VALIDATION ================= */
     if (
-      !warehouse_name ||
-      !contact_person ||
+      !address_title ||
+      !sender_name ||
+      !full_address ||
       !phone ||
-      !email ||
-      !address ||
-      !city ||
-      !state ||
-      !pincode ||
-      !country
+      !pincode
     ) {
       return res.status(400).json({
         success: false,
-        message: "All warehouse fields are required",
+        message:
+          "address_title, sender_name, full_address, phone and pincode are required",
       });
     }
 
-    const response = await parcelx.post("/create_warehouse", {
-      warehouse_name,
-      contact_person,
-      phone,
-      email,
-      address,
-      city,
-      state,
-      pincode,
-      country,
-    });
+    /* ============== PARCELX PAYLOAD ============== */
+    const parcelxPayload = {
+      address_title: address_title,   // required
+      sender_name: sender_name,       // required
+      full_address: full_address,     // required
+      phone: phone,                   // required
+      pincode: pincode,               // required
+    };
 
-    res.status(200).json({
+    // Debug (optional – remove later)
+    console.log("ParcelX Create Warehouse Payload:", parcelxPayload);
+
+    /* ============== API CALL ===================== */
+    const response = await parcelx.post(
+      "/create_warehouse",
+      parcelxPayload
+    );
+
+    /* ============== SUCCESS RESPONSE ============= */
+    return res.status(200).json({
       success: true,
       data: response.data,
     });
   } catch (error) {
-    res.status(500).json({
+    /* ============== ERROR HANDLING =============== */
+    return res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
     });
   }
 };
+
 
 /* =====================================================
    2️⃣ CREATE ORDER (DYNAMIC)
