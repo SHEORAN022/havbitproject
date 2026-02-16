@@ -237,9 +237,13 @@ exports.getCourierRates = async (req, res) => {
       payment_mode: "Prepaid",
     };
 
-    console.log("ParcelX Courier Rate Payload:", payload);
+    console.log("ParcelX Serviceability Payload:", payload);
 
-    const response = await parcelx.post("/courier/rates", payload);
+    // ✅ CORRECT PARCELX ENDPOINT
+    const response = await parcelx.post(
+      "/courier/serviceability",
+      payload
+    );
 
     return res.status(200).json({
       success: true,
