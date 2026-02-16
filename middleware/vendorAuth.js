@@ -93,7 +93,6 @@
 //   }
 // };
 
-
 const jwt = require("jsonwebtoken");
 const Vendor = require("../models/VendorModel");
 
@@ -132,7 +131,6 @@ module.exports = async (req, res, next) => {
 
     /* ================= FETCH VENDOR ================= */
     const vendor = await Vendor.findById(decoded.id).select("-password");
-
     if (!vendor) {
       return res.status(401).json({
         success: false,
@@ -141,11 +139,13 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    /* ================= STATUS CHECK (IMPORTANT) ================= */
-    if (vendor.status !== "APPROVED") {
+    /* ================= 🔥 FIXED STATUS CHECK ================= */
+    const status = (vendor.status || "PENDING").toUpperCase().trim();
+    
+    if (status !== "APPROVED") {
       return res.status(403).json({
         success: false,
-        message: `Account ${vendor.status.toLowerCase()}. Please contact admin.`,
+        message: `Account ${status.toLowerCase()}. Please contact admin.`,
       });
     }
 
