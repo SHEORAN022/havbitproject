@@ -4,7 +4,7 @@ const parcelx = axios.create({
   baseURL: "https://app.parcelx.in/api/v3",
   headers: {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${process.env.PARCELX_ACCESS_KEY}`,
+    "access-token": process.env.PARCELX_ACCESS_TOKEN,
   },
   timeout: 15000,
 });
