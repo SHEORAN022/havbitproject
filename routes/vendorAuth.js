@@ -823,13 +823,8 @@ const vendorAuth = require("../middleware/vendorAuth");
 const router = express.Router();
 
 /* =========================================================
-   ⚠️ IMPORTANT (SERVER SIDE)
-   Make sure app.js / server.js has:
-   app.use(express.json());
-   app.use(express.urlencoded({ extended: true }));
+   MULTER (Memory Storage)
 ========================================================= */
-
-/* ================= MULTER (Memory Storage) ================= */
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -865,6 +860,7 @@ router.post("/signup", fileFields, async (req, res) => {
     const body = req.body || {};
     let { email, password, contactName, phone, brandName } = body;
 
+    /* ===== VALIDATION ===== */
     if (typeof email !== "string" || typeof password !== "string") {
       return res.status(400).json({
         success: false,
@@ -874,6 +870,7 @@ router.post("/signup", fileFields, async (req, res) => {
 
     email = email.trim().toLowerCase();
 
+    /* ===== CHECK EXISTING ===== */
     const exists = await Vendor.findOne({ email });
     if (exists) {
       return res.status(400).json({
@@ -882,6 +879,7 @@ router.post("/signup", fileFields, async (req, res) => {
       });
     }
 
+    /* ===== UPLOAD FILES ===== */
     const uploaded = {};
     if (req.files) {
       for (const key of Object.keys(req.files)) {
@@ -893,8 +891,10 @@ router.post("/signup", fileFields, async (req, res) => {
       }
     }
 
+    /* ===== HASH PASSWORD ===== */
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    /* ===== CREATE VENDOR ===== */
     await Vendor.create({
       contactName,
       phone,
@@ -927,13 +927,14 @@ router.post("/signup", fileFields, async (req, res) => {
 });
 
 /* =========================================================
-   VENDOR LOGIN (🔥 FULLY CRASH-PROOF)
+   VENDOR LOGIN  ✅ FULLY SAFE
 ========================================================= */
 router.post("/login", async (req, res) => {
   try {
     const body = req.body || {};
     let { email, password } = body;
 
+    /* ===== VALIDATION ===== */
     if (typeof email !== "string" || typeof password !== "string") {
       return res.status(400).json({
         success: false,
@@ -943,7 +944,9 @@ router.post("/login", async (req, res) => {
 
     email = email.trim().toLowerCase();
 
+    /* ===== FIND VENDOR ===== */
     const vendor = await Vendor.findOne({ email }).select("+password");
+
     if (!vendor) {
       return res.status(400).json({
         success: false,
@@ -951,13 +954,17 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (vendor.status !== "APPROVED") {
+    /* ===== STATUS SAFE CHECK (🔥 MAIN FIX) ===== */
+    const status = vendor.status || "PENDING";
+
+    if (status !== "APPROVED") {
       return res.status(403).json({
         success: false,
-        message: `Account ${vendor.status.toLowerCase()}. Please contact admin.`,
+        message: `Account ${status.toLowerCase()}. Please contact admin.`,
       });
     }
 
+    /* ===== PASSWORD CHECK ===== */
     const isMatch = await bcrypt.compare(password, vendor.password);
     if (!isMatch) {
       return res.status(400).json({
@@ -966,6 +973,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    /* ===== TOKEN ===== */
     const token = jwt.sign(
       { id: vendor._id, role: "vendor" },
       process.env.JWT_SECRET,
