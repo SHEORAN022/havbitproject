@@ -456,6 +456,7 @@ exports.createCustomerOrder = async (req, res) => {
       paymentMethod = "cod",
     } = req.body;
 
+    // ❗ Validation
     if (
       !customer ||
       !orderItems ||
@@ -469,6 +470,7 @@ exports.createCustomerOrder = async (req, res) => {
       });
     }
 
+    // ❗ Warehouse check
     const warehouse = await Warehouse.findById(warehouseId);
     if (!warehouse) {
       return res.status(400).json({
@@ -511,36 +513,45 @@ exports.createCustomerOrder = async (req, res) => {
 
       products: orderItems.map((item) => ({
         product_name: item.productName,
-        product_quantity: item.qty,
-        product_value: item.price,
+        product_quantity: Number(item.qty),
+        product_value: Number(item.price),
       })),
 
       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
       order_amount: amount,
 
-      shipment_weight: "1",
-      shipment_length: "10",
-      shipment_width: "10",
-      shipment_height: "10",
+      // ParcelX expects numeric values, not arrays
+      shipment_weight: 1,
+      shipment_length: 10,
+      shipment_width: 10,
+      shipment_height: 10,
     };
 
     if (paymentMethod === "cod") {
       pxPayload.cod_amount = amount;
     }
 
-    /* ✅ CORRECT PARCELX API */
-    const pxRes = await parcelx.post("/order/create", pxPayload);
+    /* ===== PARCELX ORDER CREATE CALL ===== */
+    const pxRes = await parcelx.post("/order/add", pxPayload);
 
+    // ParcelX might respond differently depending on account config
     if (!pxRes?.data?.data?.awb_number) {
-      throw new Error("ParcelX order creation failed");
+      return res.status(400).json({
+        success: false,
+        message: "ParcelX order creation failed",
+        parcelx: pxRes.data,
+      });
     }
 
+    /* ===== SAVE AWB + COURIER INFO ===== */
     order.parcelx = {
       awb: pxRes.data.data.awb_number,
       courier: pxRes.data.data.courier_name || "",
     };
 
     order.orderStatus = "Confirmed";
+    order.paymentStatus = paymentMethod === "cod" ? "Pending" : "Paid";
+
     await order.save();
 
     return res.status(201).json({
@@ -549,12 +560,14 @@ exports.createCustomerOrder = async (req, res) => {
       parcelx: pxRes.data,
     });
   } catch (error) {
+    console.error("ParcelX Order Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
     });
   }
 };
+
 
 /* =====================================================
    4️⃣ TRACK ORDER
