@@ -10,7 +10,6 @@
 // });
 
 // module.exports = parcelx;
-
 const axios = require("axios");
 
 if (!process.env.PARCELX_ACCESS_TOKEN) {
@@ -18,14 +17,14 @@ if (!process.env.PARCELX_ACCESS_TOKEN) {
 }
 
 const parcelx = axios.create({
-  baseURL: "https://app.parcelx.in/api/v3",
+  baseURL: "https://app.parcelx.in/api",   // 🔥 IMPORTANT CHANGE
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-/* 🔥 REQUEST INTERCEPTOR */
+/* REQUEST INTERCEPTOR */
 parcelx.interceptors.request.use(
   (config) => {
     config.headers["access-token"] = process.env.PARCELX_ACCESS_TOKEN;
@@ -34,7 +33,7 @@ parcelx.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* 🔥 RESPONSE INTERCEPTOR (DEBUG) */
+/* RESPONSE INTERCEPTOR */
 parcelx.interceptors.response.use(
   (response) => response,
   (error) => {
