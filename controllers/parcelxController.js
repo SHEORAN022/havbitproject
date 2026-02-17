@@ -275,7 +275,6 @@ exports.createWarehouse = async (req, res) => {
       pincode,
     } = req.body;
 
-    /* ===== VALIDATION ===== */
     if (!vendorId || !address_title || !sender_name || !full_address || !phone || !pincode) {
       return res.status(400).json({
         success: false,
@@ -283,8 +282,8 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    /* ===== PARCELX (CORRECT ENDPOINT) ===== */
-    const pxRes = await parcelx.post("/warehouse/create", {
+    // ✅ REAL PARCELX PICKUP ADDRESS API (NO UNKNOWN METHOD)
+    const pxRes = await parcelx.post("/pickup-address/add", {
       address_title,
       sender_name,
       full_address,
@@ -297,12 +296,11 @@ exports.createWarehouse = async (req, res) => {
     if (!pick_address_id) {
       return res.status(400).json({
         success: false,
-        message: "ParcelX warehouse creation failed",
+        message: "ParcelX pickup address creation failed",
         parcelx: pxRes?.data,
       });
     }
 
-    /* ===== SAVE IN DB ===== */
     const warehouse = await Warehouse.create({
       vendorId,
       address_title,
@@ -319,7 +317,7 @@ exports.createWarehouse = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ParcelX Warehouse Error:", error.response?.data || error.message);
+    console.error("ParcelX Pickup Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
