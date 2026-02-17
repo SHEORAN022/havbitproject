@@ -337,6 +337,115 @@ exports.getVendorWarehouses = async (req, res) => {
 /* =====================================================
    3️⃣ CREATE CUSTOMER ORDER (PARCELX ORDER CREATE)
 ===================================================== */
+// exports.createCustomerOrder = async (req, res) => {
+//   try {
+//     const {
+//       customer,
+//       orderItems,
+//       warehouseId,
+//       shippingAddress,
+//       paymentMethod = "cod",
+//     } = req.body;
+
+//     if (
+//       !customer ||
+//       !orderItems ||
+//       orderItems.length === 0 ||
+//       !warehouseId ||
+//       !shippingAddress
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required order fields",
+//       });
+//     }
+
+//     const warehouse = await Warehouse.findById(warehouseId);
+//     if (!warehouse) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid warehouse selected",
+//       });
+//     }
+
+//     /* ===== CALCULATE AMOUNT ===== */
+//     let amount = 0;
+//     orderItems.forEach((item) => {
+//       amount += Number(item.price) * Number(item.qty);
+//     });
+
+//     /* ===== CREATE ORDER IN DB ===== */
+//     const order = await CustomerOrder.create({
+//       customer,
+//       orderItems,
+//       warehouse: warehouse._id,
+//       pick_address_id: warehouse.pick_address_id,
+//       amount,
+//       totalPayable: amount,
+//       paymentMethod,
+//       paymentStatus: "Pending",
+//       orderStatus: "Pending",
+//       shippingAddress,
+//     });
+
+//     /* ===== PARCELX ORDER PAYLOAD ===== */
+//     const pxPayload = {
+//       client_order_id: order._id.toString(),
+
+//       consignee_name: shippingAddress.name,
+//       consignee_mobile: String(shippingAddress.phone),
+//       consignee_address1: shippingAddress.address,
+//       consignee_pincode: String(shippingAddress.pincode),
+
+//       pick_address_id: warehouse.pick_address_id,
+//       express_type: "surface",
+
+//       products: orderItems.map((item) => ({
+//         product_name: item.productName,
+//         product_quantity: item.qty,
+//         product_value: item.price,
+//       })),
+
+//       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
+//       order_amount: amount,
+
+//       shipment_weight: ["1"],
+//       shipment_length: ["10"],
+//       shipment_width: ["10"],
+//       shipment_height: ["10"],
+//     };
+
+//     if (paymentMethod === "cod") {
+//       pxPayload.cod_amount = amount;
+//     }
+
+//     /* ===== CREATE PARCELX ORDER ===== */
+//     const pxRes = await parcelx.post("/order/create_order", pxPayload);
+
+//     if (!pxRes?.data?.data?.awb_number) {
+//       throw new Error("ParcelX order creation failed");
+//     }
+
+//     /* ===== SAVE AWB DETAILS ===== */
+//     order.parcelx = {
+//       awb: pxRes.data.data.awb_number,
+//       courier: pxRes.data.data.courier_name || "",
+//     };
+//     order.orderStatus = "Confirmed";
+//     await order.save();
+
+//     return res.status(201).json({
+//       success: true,
+//       order,
+//       parcelx: pxRes.data,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       error: error.response?.data || error.message,
+//     });
+//   }
+// };
 exports.createCustomerOrder = async (req, res) => {
   try {
     const {
@@ -388,7 +497,7 @@ exports.createCustomerOrder = async (req, res) => {
       shippingAddress,
     });
 
-    /* ===== PARCELX ORDER PAYLOAD ===== */
+    /* ===== PARCELX PAYLOAD ===== */
     const pxPayload = {
       client_order_id: order._id.toString(),
 
@@ -409,28 +518,28 @@ exports.createCustomerOrder = async (req, res) => {
       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
       order_amount: amount,
 
-      shipment_weight: ["1"],
-      shipment_length: ["10"],
-      shipment_width: ["10"],
-      shipment_height: ["10"],
+      shipment_weight: "1",
+      shipment_length: "10",
+      shipment_width: "10",
+      shipment_height: "10",
     };
 
     if (paymentMethod === "cod") {
       pxPayload.cod_amount = amount;
     }
 
-    /* ===== CREATE PARCELX ORDER ===== */
-    const pxRes = await parcelx.post("/order/create_order", pxPayload);
+    /* ✅ CORRECT PARCELX API */
+    const pxRes = await parcelx.post("/order/create", pxPayload);
 
     if (!pxRes?.data?.data?.awb_number) {
       throw new Error("ParcelX order creation failed");
     }
 
-    /* ===== SAVE AWB DETAILS ===== */
     order.parcelx = {
       awb: pxRes.data.data.awb_number,
       courier: pxRes.data.data.courier_name || "",
     };
+
     order.orderStatus = "Confirmed";
     await order.save();
 
