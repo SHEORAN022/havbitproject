@@ -507,3 +507,31 @@ exports.getCourierRates = async (req, res) => {
     });
   }
 };
+/* =====================================================
+   SHIPMENT DETAILS
+===================================================== */
+exports.shipmentDetails = async (req, res) => {
+  try {
+    const { awb } = req.query;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB is required",
+      });
+    }
+
+    const response = await parcelx.get(`/shipments-details?awb=${awb}`);
+
+    return res.json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
