@@ -275,6 +275,7 @@ exports.createWarehouse = async (req, res) => {
       pincode,
     } = req.body;
 
+    /* ===== VALIDATION ===== */
     if (!vendorId || !address_title || !sender_name || !full_address || !phone || !pincode) {
       return res.status(400).json({
         success: false,
@@ -282,13 +283,13 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // 🔹 ParcelX API
-    const pxRes = await parcelx.post("/create_warehouse", {
+    /* ===== PARCELX (CORRECT ENDPOINT) ===== */
+    const pxRes = await parcelx.post("/warehouse/create", {
       address_title,
       sender_name,
       full_address,
-      phone,
-      pincode,
+      phone: String(phone),
+      pincode: String(pincode),
     });
 
     const pick_address_id = pxRes?.data?.data?.pick_address_id;
@@ -297,17 +298,18 @@ exports.createWarehouse = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "ParcelX warehouse creation failed",
+        parcelx: pxRes?.data,
       });
     }
 
-    // 🔹 Save in DB
+    /* ===== SAVE IN DB ===== */
     const warehouse = await Warehouse.create({
       vendorId,
       address_title,
       sender_name,
       full_address,
-      phone,
-      pincode,
+      phone: String(phone),
+      pincode: String(pincode),
       pick_address_id,
     });
 
@@ -315,16 +317,18 @@ exports.createWarehouse = async (req, res) => {
       success: true,
       warehouse,
     });
+
   } catch (error) {
+    console.error("ParcelX Warehouse Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.response?.data || error.message,
     });
   }
 };
 
 /* =====================================================
-   2️⃣ GET VENDOR WAREHOUSES (Order page dropdown)
+   2️⃣ GET VENDOR WAREHOUSES
 ===================================================== */
 exports.getVendorWarehouses = async (req, res) => {
   try {
@@ -332,15 +336,9 @@ exports.getVendorWarehouses = async (req, res) => {
       vendorId: req.params.vendorId,
     });
 
-    return res.json({
-      success: true,
-      warehouses,
-    });
+    return res.json({ success: true, warehouses });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -364,7 +362,6 @@ exports.createCustomerOrder = async (req, res) => {
       });
     }
 
-    // 🔹 Get warehouse
     const warehouse = await Warehouse.findById(warehouseId);
     if (!warehouse) {
       return res.status(400).json({
@@ -373,13 +370,13 @@ exports.createCustomerOrder = async (req, res) => {
       });
     }
 
-    // 🔹 Calculate amount
+    /* ===== AMOUNT ===== */
     let amount = 0;
     orderItems.forEach(item => {
-      amount += item.price * item.qty;
+      amount += Number(item.price) * Number(item.qty);
     });
 
-    // 🔹 Create DB order
+    /* ===== DB ORDER ===== */
     const order = await CustomerOrder.create({
       customer,
       orderItems,
@@ -393,34 +390,47 @@ exports.createCustomerOrder = async (req, res) => {
       paymentStatus: "Pending",
     });
 
-    // 🔹 ParcelX Order Payload
+    /* ===== PARCELX ORDER ===== */
     const pxPayload = {
       client_order_id: order._id.toString(),
+
       consignee_name: shippingAddress.name,
-      consignee_mobile: shippingAddress.phone,
+      consignee_mobile: String(shippingAddress.phone),
       consignee_address1: shippingAddress.address,
-      consignee_pincode: shippingAddress.pincode,
+      consignee_pincode: String(shippingAddress.pincode),
+
       pick_address_id: warehouse.pick_address_id,
+      express_type: "surface",
+
       products: orderItems.map(item => ({
         product_name: item.productName,
         product_quantity: item.qty,
         product_value: item.price,
       })),
+
       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
       order_amount: amount,
+
       shipment_weight: ["1"],
-      shipment_length: ["1"],
-      shipment_width: ["1"],
-      shipment_height: ["1"],
+      shipment_length: ["10"],
+      shipment_width: ["10"],
+      shipment_height: ["10"],
     };
 
-    // 🔹 Create ParcelX Order
+    if (paymentMethod === "cod") {
+      pxPayload.cod_amount = amount;
+    }
+
     const pxRes = await parcelx.post("/order/create_order", pxPayload);
 
-    // 🔹 Save AWB
+    if (!pxRes?.data?.data?.awb_number) {
+      throw new Error("ParcelX order creation failed");
+    }
+
+    /* ===== SAVE AWB ===== */
     order.parcelx = {
-      awb: pxRes?.data?.data?.awb_number || "",
-      courier: pxRes?.data?.data?.courier_name || "",
+      awb: pxRes.data.data.awb_number,
+      courier: pxRes.data.data.courier_name || "",
     };
     order.orderStatus = "Confirmed";
     await order.save();
@@ -430,10 +440,12 @@ exports.createCustomerOrder = async (req, res) => {
       order,
       parcelx: pxRes.data,
     });
+
   } catch (error) {
+    console.error("ParcelX Order Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.response?.data || error.message,
     });
   }
 };
@@ -444,25 +456,15 @@ exports.createCustomerOrder = async (req, res) => {
 exports.trackOrder = async (req, res) => {
   try {
     const { awb } = req.query;
-
     if (!awb) {
-      return res.status(400).json({
-        success: false,
-        message: "AWB is required",
-      });
+      return res.status(400).json({ success: false, message: "AWB is required" });
     }
 
     const response = await parcelx.get(`/track_order?awb=${awb}`);
+    return res.json({ success: true, data: response.data });
 
-    return res.json({
-      success: true,
-      data: response.data,
-    });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -472,25 +474,15 @@ exports.trackOrder = async (req, res) => {
 exports.shipmentDetails = async (req, res) => {
   try {
     const { awb } = req.query;
-
     if (!awb) {
-      return res.status(400).json({
-        success: false,
-        message: "AWB is required",
-      });
+      return res.status(400).json({ success: false, message: "AWB is required" });
     }
 
     const response = await parcelx.get(`/shipments-details?awb=${awb}`);
+    return res.json({ success: true, data: response.data });
 
-    return res.json({
-      success: true,
-      data: response.data,
-    });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -508,23 +500,16 @@ exports.getCourierRates = async (req, res) => {
       });
     }
 
-    const payload = {
+    const response = await parcelx.post("/courier/serviceability", {
       pick_address_id: Number(pick_address_id),
-      delivery_pincode,
+      delivery_pincode: String(delivery_pincode),
       weight,
       payment_mode: "Prepaid",
-    };
-
-    const response = await parcelx.post("/courier/serviceability", payload);
-
-    return res.json({
-      success: true,
-      data: response.data,
     });
+
+    return res.json({ success: true, data: response.data });
+
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
