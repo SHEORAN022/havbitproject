@@ -256,13 +256,13 @@
 //     });
 //   }
 // };
-
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
 
 /* =====================================================
-   1️⃣ CREATE WAREHOUSE (ParcelX + DB)
+   1️⃣ CREATE WAREHOUSE (MONGODB ONLY – SAFE & STABLE)
+   👉 pick_address_id dashboard se aata hai
 ===================================================== */
 exports.createWarehouse = async (req, res) => {
   try {
@@ -273,31 +273,21 @@ exports.createWarehouse = async (req, res) => {
       full_address,
       phone,
       pincode,
+      pick_address_id,
     } = req.body;
 
-    if (!vendorId || !address_title || !sender_name || !full_address || !phone || !pincode) {
+    if (
+      !vendorId ||
+      !address_title ||
+      !sender_name ||
+      !full_address ||
+      !phone ||
+      !pincode ||
+      !pick_address_id
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All warehouse fields are required",
-      });
-    }
-
-    // ✅ REAL PARCELX PICKUP ADDRESS API (NO UNKNOWN METHOD)
-    const pxRes = await parcelx.post("/pickup-address/add", {
-      address_title,
-      sender_name,
-      full_address,
-      phone: String(phone),
-      pincode: String(pincode),
-    });
-
-    const pick_address_id = pxRes?.data?.data?.pick_address_id;
-
-    if (!pick_address_id) {
-      return res.status(400).json({
-        success: false,
-        message: "ParcelX pickup address creation failed",
-        parcelx: pxRes?.data,
+        message: "All fields including pick_address_id are required",
       });
     }
 
@@ -308,19 +298,17 @@ exports.createWarehouse = async (req, res) => {
       full_address,
       phone: String(phone),
       pincode: String(pincode),
-      pick_address_id,
+      pick_address_id: Number(pick_address_id),
     });
 
     return res.status(201).json({
       success: true,
       warehouse,
     });
-
   } catch (error) {
-    console.error("ParcelX Pickup Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
-      error: error.response?.data || error.message,
+      error: error.message,
     });
   }
 };
@@ -332,16 +320,22 @@ exports.getVendorWarehouses = async (req, res) => {
   try {
     const warehouses = await Warehouse.find({
       vendorId: req.params.vendorId,
-    });
+    }).sort({ createdAt: -1 });
 
-    return res.json({ success: true, warehouses });
+    return res.json({
+      success: true,
+      warehouses,
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
 
 /* =====================================================
-   3️⃣ CREATE CUSTOMER ORDER + PARCELX ORDER
+   3️⃣ CREATE CUSTOMER ORDER (PARCELX ORDER CREATE)
 ===================================================== */
 exports.createCustomerOrder = async (req, res) => {
   try {
@@ -353,7 +347,13 @@ exports.createCustomerOrder = async (req, res) => {
       paymentMethod = "cod",
     } = req.body;
 
-    if (!customer || !orderItems?.length || !warehouseId || !shippingAddress) {
+    if (
+      !customer ||
+      !orderItems ||
+      orderItems.length === 0 ||
+      !warehouseId ||
+      !shippingAddress
+    ) {
       return res.status(400).json({
         success: false,
         message: "Missing required order fields",
@@ -368,13 +368,13 @@ exports.createCustomerOrder = async (req, res) => {
       });
     }
 
-    /* ===== AMOUNT ===== */
+    /* ===== CALCULATE AMOUNT ===== */
     let amount = 0;
-    orderItems.forEach(item => {
+    orderItems.forEach((item) => {
       amount += Number(item.price) * Number(item.qty);
     });
 
-    /* ===== DB ORDER ===== */
+    /* ===== CREATE ORDER IN DB ===== */
     const order = await CustomerOrder.create({
       customer,
       orderItems,
@@ -383,12 +383,12 @@ exports.createCustomerOrder = async (req, res) => {
       amount,
       totalPayable: amount,
       paymentMethod,
-      shippingAddress,
-      orderStatus: "Pending",
       paymentStatus: "Pending",
+      orderStatus: "Pending",
+      shippingAddress,
     });
 
-    /* ===== PARCELX ORDER ===== */
+    /* ===== PARCELX ORDER PAYLOAD ===== */
     const pxPayload = {
       client_order_id: order._id.toString(),
 
@@ -400,7 +400,7 @@ exports.createCustomerOrder = async (req, res) => {
       pick_address_id: warehouse.pick_address_id,
       express_type: "surface",
 
-      products: orderItems.map(item => ({
+      products: orderItems.map((item) => ({
         product_name: item.productName,
         product_quantity: item.qty,
         product_value: item.price,
@@ -419,13 +419,14 @@ exports.createCustomerOrder = async (req, res) => {
       pxPayload.cod_amount = amount;
     }
 
+    /* ===== CREATE PARCELX ORDER ===== */
     const pxRes = await parcelx.post("/order/create_order", pxPayload);
 
     if (!pxRes?.data?.data?.awb_number) {
       throw new Error("ParcelX order creation failed");
     }
 
-    /* ===== SAVE AWB ===== */
+    /* ===== SAVE AWB DETAILS ===== */
     order.parcelx = {
       awb: pxRes.data.data.awb_number,
       courier: pxRes.data.data.courier_name || "",
@@ -438,9 +439,7 @@ exports.createCustomerOrder = async (req, res) => {
       order,
       parcelx: pxRes.data,
     });
-
   } catch (error) {
-    console.error("ParcelX Order Error:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       error: error.response?.data || error.message,
@@ -454,38 +453,30 @@ exports.createCustomerOrder = async (req, res) => {
 exports.trackOrder = async (req, res) => {
   try {
     const { awb } = req.query;
+
     if (!awb) {
-      return res.status(400).json({ success: false, message: "AWB is required" });
+      return res.status(400).json({
+        success: false,
+        message: "AWB is required",
+      });
     }
 
     const response = await parcelx.get(`/track_order?awb=${awb}`);
-    return res.json({ success: true, data: response.data });
 
+    return res.json({
+      success: true,
+      data: response.data,
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
 
 /* =====================================================
-   5️⃣ SHIPMENT DETAILS
-===================================================== */
-exports.shipmentDetails = async (req, res) => {
-  try {
-    const { awb } = req.query;
-    if (!awb) {
-      return res.status(400).json({ success: false, message: "AWB is required" });
-    }
-
-    const response = await parcelx.get(`/shipments-details?awb=${awb}`);
-    return res.json({ success: true, data: response.data });
-
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/* =====================================================
-   6️⃣ COURIER SERVICEABILITY / RATES
+   5️⃣ COURIER SERVICEABILITY / RATES
 ===================================================== */
 exports.getCourierRates = async (req, res) => {
   try {
@@ -505,9 +496,14 @@ exports.getCourierRates = async (req, res) => {
       payment_mode: "Prepaid",
     });
 
-    return res.json({ success: true, data: response.data });
-
+    return res.json({
+      success: true,
+      data: response.data,
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
