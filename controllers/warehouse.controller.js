@@ -4,7 +4,6 @@ const { shiprocketLogin } = require("../services/shiprocket.service");
 
 exports.createWarehouse = async (req, res) => {
   try {
-    /* ================= AUTH SAFETY CHECK ================= */
     if (!req.vendor || !req.vendor._id) {
       return res.status(401).json({
         success: false,
@@ -12,11 +11,9 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    const vendorId = req.vendor._id.toString(); // 🔥 FIXED
+    const vendorId = req.vendor._id.toString();
 
-    /* ================= SHIPROCKET LOGIN ================= */
     const token = await shiprocketLogin();
-
     if (!token) {
       return res.status(500).json({
         success: false,
@@ -24,10 +21,8 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    /* ================= UNIQUE PICKUP LOCATION ================= */
     const pickupLocation = `HAVBIT_VENDOR_${vendorId}_${Date.now()}`;
 
-    /* ================= PAYLOAD ================= */
     const payload = {
       pickup_location: pickupLocation,
       name: req.body.name,
@@ -41,9 +36,8 @@ exports.createWarehouse = async (req, res) => {
       pin_code: req.body.pincode,
     };
 
-    /* ================= SHIPROCKET API CALL ================= */
     const response = await axios.post(
-      `${process.env.SHIPROCKET_BASE_URL}/settings/company/addpickup`,
+      `${process.env.SHIPROCKET_BASE_URL}/v1/external/settings/company/addpickup`,
       payload,
       {
         headers: {
@@ -53,7 +47,6 @@ exports.createWarehouse = async (req, res) => {
       }
     );
 
-    /* ================= VALIDATE RESPONSE ================= */
     if (!response.data || !response.data.pickup_id) {
       return res.status(500).json({
         success: false,
@@ -62,7 +55,6 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    /* ================= SAVE IN DB ================= */
     const warehouse = await Warehouse.create({
       vendorId,
       shiprocketWarehouseId: response.data.pickup_id,
@@ -75,7 +67,6 @@ exports.createWarehouse = async (req, res) => {
       address: payload.address,
     });
 
-    /* ================= SUCCESS RESPONSE ================= */
     return res.status(201).json({
       success: true,
       message: "Warehouse created & linked with vendor",
@@ -83,7 +74,6 @@ exports.createWarehouse = async (req, res) => {
     });
   } catch (error) {
     console.error("WAREHOUSE CREATE ERROR:", error.response?.data || error.message);
-
     return res.status(500).json({
       success: false,
       message: "Warehouse creation failed",
