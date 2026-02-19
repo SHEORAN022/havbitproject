@@ -1,6 +1,5 @@
-const axios = require("axios");
+const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
-const { shiprocketLogin } = require("../services/shiprocket.service");
 
 exports.createWarehouse = async (req, res) => {
   try {
@@ -11,72 +10,82 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    const vendorId = req.vendor._id.toString();
+    const vendorId = req.vendor._id;
 
-    const token = await shiprocketLogin();
-    if (!token) {
-      return res.status(500).json({
+    const {
+      address_title,
+      sender_name,
+      full_address,
+      phone,
+      city,
+      state,
+      pincode,
+      country,
+    } = req.body;
+
+    // Validation
+    if (
+      !address_title || !sender_name || !full_address ||
+      !phone || !city || !state || !pincode
+    ) {
+      return res.status(400).json({
         success: false,
-        message: "Shiprocket token generation failed",
+        message: "All warehouse fields are required",
       });
     }
 
-    const pickupLocation = `HAVBIT_VENDOR_${vendorId}_${Date.now()}`;
-
-    const payload = {
-      pickup_location: pickupLocation,
-      name: req.body.name,
-      email: req.body.email,
-      phone: req.body.phone,
-      address: req.body.address,
-      address_2: req.body.address2 || "",
-      city: req.body.city,
-      state: req.body.state,
-      country: "India",
-      pin_code: req.body.pincode,
-    };
-
-    const response = await axios.post(
-      `${process.env.SHIPROCKET_BASE_URL}/v1/external/settings/company/addpickup`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.data || !response.data.pickup_id) {
-      return res.status(500).json({
+    // Duplicate check (vendor + pincode)
+    const exists = await Warehouse.findOne({ vendorId, pincode: String(pincode) });
+    if (exists) {
+      return res.status(400).json({
         success: false,
-        message: "Invalid response from Shiprocket",
-        data: response.data,
+        message: "Warehouse already exists for this pincode",
       });
     }
 
+    // ParcelX API
+    const pxRes = await parcelx.post("/warehouse/create", {
+      address_title,
+      sender_name,
+      full_address,
+      phone: String(phone),
+      city,
+      state,
+      pincode: String(pincode),
+      country: country || "India",
+    });
+
+    const pick_address_id = pxRes?.data?.data?.pick_address_id;
+    if (!pick_address_id) {
+      return res.status(400).json({
+        success: false,
+        message: "ParcelX warehouse creation failed",
+        parcelx: pxRes?.data,
+      });
+    }
+
+    // Save in DB
     const warehouse = await Warehouse.create({
       vendorId,
-      shiprocketWarehouseId: response.data.pickup_id,
-      warehouseName: pickupLocation,
-      email: payload.email,
-      phone: payload.phone,
-      city: payload.city,
-      state: payload.state,
-      pincode: payload.pin_code,
-      address: payload.address,
+      address_title,
+      sender_name,
+      full_address,
+      phone: String(phone),
+      city,
+      state,
+      pincode: String(pincode),
+      country: country || "India",
+      pick_address_id: String(pick_address_id),
     });
 
     return res.status(201).json({
       success: true,
-      message: "Warehouse created & linked with vendor",
+      message: "ParcelX warehouse created",
       data: warehouse,
     });
   } catch (error) {
-    console.error("WAREHOUSE CREATE ERROR:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
-      message: "Warehouse creation failed",
       error: error.response?.data || error.message,
     });
   }
