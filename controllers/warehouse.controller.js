@@ -4,12 +4,32 @@ const { shiprocketLogin } = require("../services/shiprocket.service");
 
 exports.createWarehouse = async (req, res) => {
   try {
-    const vendorId = req.user.id; // JWT se vendor id
+    /* ================= AUTH SAFETY CHECK ================= */
+    if (!req.vendor || !req.vendor._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Vendor authentication failed",
+      });
+    }
 
+    const vendorId = req.vendor._id.toString(); // 🔥 FIXED
+
+    /* ================= SHIPROCKET LOGIN ================= */
     const token = await shiprocketLogin();
 
+    if (!token) {
+      return res.status(500).json({
+        success: false,
+        message: "Shiprocket token generation failed",
+      });
+    }
+
+    /* ================= UNIQUE PICKUP LOCATION ================= */
+    const pickupLocation = `HAVBIT_VENDOR_${vendorId}_${Date.now()}`;
+
+    /* ================= PAYLOAD ================= */
     const payload = {
-      pickup_location: "HAVBIT_VENDOR_" + vendorId,
+      pickup_location: pickupLocation,
       name: req.body.name,
       email: req.body.email,
       phone: req.body.phone,
@@ -21,20 +41,32 @@ exports.createWarehouse = async (req, res) => {
       pin_code: req.body.pincode,
     };
 
+    /* ================= SHIPROCKET API CALL ================= */
     const response = await axios.post(
       `${process.env.SHIPROCKET_BASE_URL}/settings/company/addpickup`,
       payload,
       {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       }
     );
 
+    /* ================= VALIDATE RESPONSE ================= */
+    if (!response.data || !response.data.pickup_id) {
+      return res.status(500).json({
+        success: false,
+        message: "Invalid response from Shiprocket",
+        data: response.data,
+      });
+    }
+
+    /* ================= SAVE IN DB ================= */
     const warehouse = await Warehouse.create({
       vendorId,
       shiprocketWarehouseId: response.data.pickup_id,
-      warehouseName: payload.pickup_location,
+      warehouseName: pickupLocation,
       email: payload.email,
       phone: payload.phone,
       city: payload.city,
@@ -43,13 +75,16 @@ exports.createWarehouse = async (req, res) => {
       address: payload.address,
     });
 
-    res.status(201).json({
+    /* ================= SUCCESS RESPONSE ================= */
+    return res.status(201).json({
       success: true,
       message: "Warehouse created & linked with vendor",
       data: warehouse,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("WAREHOUSE CREATE ERROR:", error.response?.data || error.message);
+
+    return res.status(500).json({
       success: false,
       message: "Warehouse creation failed",
       error: error.response?.data || error.message,
