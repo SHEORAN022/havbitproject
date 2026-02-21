@@ -92,276 +92,295 @@
 // /* ================= SAFE EXPORT ================= */
 // module.exports =
 //   mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
+const mongoose = require("mongoose");
 
-const express = require("express");
-const router = express.Router();
-const Vendor = require("../models/VendorModel");
-const adminAuth = require("../middleware/adminAuth"); // Add admin auth
+const vendorSchema = new mongoose.Schema(
+  {
+    /* ================= STEP 1 : BASIC ================= */
+    contactName: { 
+      type: String, 
+      trim: true 
+    },
+    name: {                    // ✅ Alias for contactName (for compatibility)
+      type: String, 
+      trim: true 
+    },
+    
+    phone: { 
+      type: String, 
+      trim: true,
+      unique: true,
+      sparse: true
+    },
 
-/* =====================================================
-   GET ALL VENDORS (ADMIN PANEL)
-===================================================== */
-router.get("/vendors", adminAuth, async (req, res) => {
-  try {
-    const { status, page = 1, limit = 20 } = req.query;
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true
+    },
 
-    const filter = {};
-    if (status) {
-      filter.status = status.toUpperCase();
-    }
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      select: false
+    },
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    vendorType: {
+      type: String,
+      enum: ["Distributor", "Direct Vendor", "Indirect Vendor"],
+      default: "Direct Vendor"
+    },
 
-    const vendors = await Vendor.find(filter)
-      .select("-password -passwordResetToken -passwordResetExpires")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    businessName: {             // ✅ Alias for brandName
+      type: String, 
+      trim: true 
+    },
+    
+    brandName: { 
+      type: String, 
+      trim: true 
+    },
 
-    const total = await Vendor.countDocuments(filter);
+    /* ================= STEP 2 : BUSINESS ================= */
+    annualTurnover: { 
+      type: String 
+    },
+    onlineTurnover: { 
+      type: String 
+    },
+    minSellingPrice: { 
+      type: String 
+    },
+    maxSellingPrice: { 
+      type: String 
+    },
 
-    // Stats for dashboard
-    const stats = {
-      total: await Vendor.countDocuments(),
-      pending: await Vendor.countDocuments({ status: "PENDING" }),
-      approved: await Vendor.countDocuments({ status: "APPROVED" }),
-      rejected: await Vendor.countDocuments({ status: "REJECTED" }),
-      suspended: await Vendor.countDocuments({ status: "SUSPENDED" })
-    };
+    website: { 
+      type: String, 
+      trim: true 
+    },
+    presence: { 
+      type: [String], 
+      default: [] 
+    },
+    demographic: { 
+      type: String, 
+      default: "Pan India" 
+    },
 
-    return res.json({
-      success: true,
-      stats,
-      vendors,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
-    });
-  } catch (error) {
-    console.error("Get Vendors Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+    /* ================= BANK DETAILS ================= */
+    accountNumber: { 
+      type: String, 
+      trim: true 
+    },
+    ifsc: { 
+      type: String, 
+      trim: true, 
+      uppercase: true 
+    },
+    beneficiary: { 
+      type: String, 
+      trim: true 
+    },
+    
+    // Bank details object (for compatibility)
+    bankDetails: {
+      accountHolder: String,
+      accountNumber: String,
+      ifscCode: String,
+      bankName: String
+    },
 
-/* =====================================================
-   GET SINGLE VENDOR
-===================================================== */
-router.get("/vendor/:vendorId", adminAuth, async (req, res) => {
-  try {
-    const vendor = await Vendor.findById(req.params.vendorId)
-      .select("-password -passwordResetToken -passwordResetExpires");
+    /* ================= ADDRESS ================= */
+    address: { 
+      type: String, 
+      trim: true 
+    },
+    city: { 
+      type: String, 
+      trim: true 
+    },
+    state: { 
+      type: String, 
+      trim: true 
+    },
+    pincode: { 
+      type: String, 
+      trim: true 
+    },
+    
+    // Business address object (for compatibility)
+    businessAddress: {
+      street: String,
+      city: String,
+      state: String,
+      pincode: String,
+      country: { type: String, default: "India" }
+    },
 
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: "Vendor not found"
-      });
-    }
+    /* ================= STEP 3 : DOCUMENTS ================= */
+    gstNumber: { 
+      type: String, 
+      trim: true, 
+      uppercase: true 
+    },
+    gstFile: { 
+      type: String 
+    },
 
-    return res.json({
-      success: true,
-      vendor
-    });
-  } catch (error) {
-    console.error("Get Vendor Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+    panNumber: { 
+      type: String, 
+      trim: true, 
+      uppercase: true 
+    },
+    panFile: { 
+      type: String 
+    },
 
-/* =====================================================
-   APPROVE VENDOR
-===================================================== */
-router.put("/vendor/approve/:vendorId", adminAuth, async (req, res) => {
-  try {
-    const vendor = await Vendor.findByIdAndUpdate(
-      req.params.vendorId,
-      {
-        $set: {
-          status: "APPROVED",
-          approvedAt: new Date(),
-          approvedBy: req.admin?.id || req.admin?._id
-        },
-        $unset: { rejectionReason: 1 }
+    aadharNumber: { 
+      type: String, 
+      trim: true 
+    },
+    aadharFile: { 
+      type: String 
+    },
+
+    fssaiFile: { 
+      type: String 
+    },
+    msmeFile: { 
+      type: String 
+    },
+
+    ownerPhoto: { 
+      type: String 
+    },
+    supportingDoc: { 
+      type: String 
+    },
+
+    /* ================= DOCUMENTS ARRAY (for compatibility) ================= */
+    documents: [{
+      type: { type: String },
+      url: String,
+      verified: { type: Boolean, default: false }
+    }],
+
+    /* ================= ADMIN CONTROL ================= */
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED", "SUSPENDED"],
+      default: "PENDING",
+      index: true
+    },
+
+    approvedAt: { 
+      type: Date 
+    },
+    rejectedAt: { 
+      type: Date 
+    },
+    rejectionReason: {
+      type: String
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin"
+    },
+
+    /* ================= ADDITIONAL FIELDS ================= */
+    role: {
+      type: String,
+      default: "vendor"
+    },
+    
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    
+    isPhoneVerified: {
+      type: Boolean,
+      default: false
+    },
+    
+    profileImage: String,
+    
+    lastLoginAt: Date,
+    
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+
+    /* ================= STATS ================= */
+    totalProducts: {
+      type: Number,
+      default: 0
+    },
+    totalOrders: {
+      type: Number,
+      default: 0
+    },
+    totalRevenue: {
+      type: Number,
+      default: 0
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+
+    /* ================= SETTINGS ================= */
+    settings: {
+      notifications: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: true }
       },
-      { new: true }
-    ).select("-password");
-
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: "Vendor not found"
-      });
+      autoAcceptOrders: { type: Boolean, default: false },
+      holidayMode: { type: Boolean, default: false }
     }
-
-    return res.json({
-      success: true,
-      message: "Vendor approved successfully",
-      vendor: {
-        id: vendor._id,
-        email: vendor.email,
-        name: vendor.name || vendor.contactName,
-        businessName: vendor.businessName || vendor.brandName,
-        status: vendor.status,
-        approvedAt: vendor.approvedAt
-      }
-    });
-  } catch (error) {
-    console.error("Approve Vendor Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
+  },
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
+);
+
+/* ================= VIRTUAL FIELDS ================= */
+vendorSchema.virtual('fullBusinessName').get(function() {
+  return this.businessName || this.brandName || this.contactName || this.name;
 });
 
-/* =====================================================
-   REJECT VENDOR
-===================================================== */
-router.put("/vendor/reject/:vendorId", adminAuth, async (req, res) => {
-  try {
-    const { reason } = req.body;
+/* ================= INDEXES ================= */
+vendorSchema.index({ status: 1, createdAt: -1 });
+vendorSchema.index({ email: 1 });
+vendorSchema.index({ phone: 1 });
 
-    const vendor = await Vendor.findByIdAndUpdate(
-      req.params.vendorId,
-      {
-        $set: {
-          status: "REJECTED",
-          rejectedAt: new Date(),
-          rejectionReason: reason || "Not specified",
-          approvedBy: req.admin?.id || req.admin?._id
-        }
-      },
-      { new: true }
-    ).select("-password");
-
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: "Vendor not found"
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: "Vendor rejected",
-      vendor: {
-        id: vendor._id,
-        email: vendor.email,
-        name: vendor.name || vendor.contactName,
-        status: vendor.status,
-        rejectionReason: vendor.rejectionReason
-      }
-    });
-  } catch (error) {
-    console.error("Reject Vendor Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
+/* ================= PRE-SAVE HOOK ================= */
+vendorSchema.pre('save', function(next) {
+  // Sync alias fields
+  if (this.contactName && !this.name) {
+    this.name = this.contactName;
   }
+  if (this.name && !this.contactName) {
+    this.contactName = this.name;
+  }
+  
+  if (this.brandName && !this.businessName) {
+    this.businessName = this.brandName;
+  }
+  if (this.businessName && !this.brandName) {
+    this.brandName = this.businessName;
+  }
+  
+  next();
 });
 
-/* =====================================================
-   UPDATE VENDOR STATUS (GENERIC)
-===================================================== */
-router.put("/vendor/status/:vendorId", adminAuth, async (req, res) => {
-  try {
-    const { status, reason } = req.body;
-
-    if (!["PENDING", "APPROVED", "REJECTED", "SUSPENDED"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status. Must be PENDING, APPROVED, REJECTED, or SUSPENDED"
-      });
-    }
-
-    const updateData = { 
-      status,
-      approvedBy: req.admin?.id || req.admin?._id
-    };
-
-    if (status === "APPROVED") {
-      updateData.approvedAt = new Date();
-      updateData.rejectedAt = null;
-      updateData.rejectionReason = null;
-    } else if (status === "REJECTED") {
-      updateData.rejectedAt = new Date();
-      updateData.approvedAt = null;
-      updateData.rejectionReason = reason || "Rejected by admin";
-    } else if (status === "SUSPENDED") {
-      updateData.rejectionReason = reason || "Suspended by admin";
-    }
-
-    const vendor = await Vendor.findByIdAndUpdate(
-      req.params.vendorId,
-      { $set: updateData },
-      { new: true }
-    ).select("-password");
-
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: "Vendor not found"
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: `Vendor ${status.toLowerCase()} successfully`,
-      vendor: {
-        id: vendor._id,
-        email: vendor.email,
-        name: vendor.name || vendor.contactName,
-        businessName: vendor.businessName || vendor.brandName,
-        status: vendor.status,
-        approvedAt: vendor.approvedAt,
-        rejectedAt: vendor.rejectedAt,
-        rejectionReason: vendor.rejectionReason
-      }
-    });
-  } catch (error) {
-    console.error("Update Status Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-/* =====================================================
-   DELETE VENDOR
-===================================================== */
-router.delete("/vendor/:vendorId", adminAuth, async (req, res) => {
-  try {
-    const vendor = await Vendor.findByIdAndDelete(req.params.vendorId);
-
-    if (!vendor) {
-      return res.status(404).json({
-        success: false,
-        message: "Vendor not found"
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: "Vendor deleted successfully"
-    });
-  } catch (error) {
-    console.error("Delete Vendor Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-module.exports = router;
+/* ================= SAFE EXPORT ================= */
+module.exports = mongoose.models.Vendor || mongoose.model("Vendor", vendorSchema);
