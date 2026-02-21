@@ -1,5 +1,4 @@
 
-
 // const jwt = require("jsonwebtoken");
 
 // module.exports = (req, res, next) => {
@@ -36,20 +35,6 @@
 //   }
 // };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {
@@ -85,4 +70,3 @@ module.exports = (req, res, next) => {
     });
   }
 };
-
