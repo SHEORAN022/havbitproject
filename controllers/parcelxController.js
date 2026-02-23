@@ -60,7 +60,7 @@ exports.createWarehouse = async (req, res) => {
 
     // ===== PARCELX API CALL - CORRECT ENDPOINT =====
     // ✅ FIXED: /pickup-location/create (NOT /warehouse/create)
-    const pxRes = await parcelx.post("/pickup-locations", {
+    const pxRes = await parcelx.post("/pickup-location/create", {
       address_title,
       sender_name,
       full_address,
