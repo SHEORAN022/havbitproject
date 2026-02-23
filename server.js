@@ -351,6 +351,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 const couponRoutes = require("./routes/couponRoutes");
 const vendorOrderRoutes = require("./routes/vendorOrderRoutes");
+const warehouseRoute = require("./routes/warehouse.route");
 // const parcelxRoutes = require("./routes/parcelx.routes");
 require("dotenv").config();
 
