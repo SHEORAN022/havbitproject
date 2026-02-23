@@ -431,7 +431,7 @@ app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/subcategories", require("./routes/subCategoryRoutes"));
 app.use("/api/public", require("./routes/publicProducts"));
 // app.use("/api/parcelx", parcelxRoutes);
-
+app.use("/api/parcelx/warehouse", warehouseRoute);
 /* CUSTOMER ORDERS */
 app.use("/api/customer", require("./routes/customerOrder.routes"));
 app.use("/api/razorpay", require("./routes/razorpay.routes"));
