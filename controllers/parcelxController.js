@@ -575,3 +575,24 @@ exports.createWarehouse = async (req, res) => {
     });
   }
 };
+exports.getVendorWarehouses = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const warehouses = await Warehouse.find({ vendorId }).sort({
+      createdAt: -1,
+    });
+
+    return res.json({
+      success: true,
+      count: warehouses.length,
+      warehouses,
+    });
+  } catch (error) {
+    console.error("GET WAREHOUSE ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
