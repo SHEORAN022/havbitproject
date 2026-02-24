@@ -96,6 +96,16 @@ const warehouseSchema = new mongoose.Schema(
       required: true,
     },
 
+    city: {
+      type: String,
+      required: true,
+    },
+
+    state: {
+      type: String,
+      required: true,
+    },
+
     pincode: {
       type: String,
       required: true,
@@ -108,16 +118,6 @@ const warehouseSchema = new mongoose.Schema(
 
     contactPerson: {
       type: String,
-    },
-
-    city: {
-      type: String,
-      default: "NA",
-    },
-
-    state: {
-      type: String,
-      default: "NA",
     },
 
     isActive: {
