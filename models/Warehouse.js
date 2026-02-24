@@ -70,7 +70,6 @@
 
 // module.exports = mongoose.model("Warehouse", WarehouseSchema);
 
-
 const mongoose = require("mongoose");
 
 const warehouseSchema = new mongoose.Schema(
@@ -87,17 +86,44 @@ const warehouseSchema = new mongoose.Schema(
       unique: true,
     },
 
-    name: { type: String, required: true },
+    name: {
+      type: String,
+      required: true,
+    },
 
-    address: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    pincode: { type: String, required: true },
+    address: {
+      type: String,
+      required: true,
+    },
 
-    contactPerson: String,
-    phone: { type: String, required: true },
+    pincode: {
+      type: String,
+      required: true,
+    },
 
-    isActive: { type: Boolean, default: true },
+    phone: {
+      type: String,
+      required: true,
+    },
+
+    contactPerson: {
+      type: String,
+    },
+
+    city: {
+      type: String,
+      default: "NA",
+    },
+
+    state: {
+      type: String,
+      default: "NA",
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
