@@ -99,5 +99,5 @@ const ctrl = require("../controllers/parcelxController");
 // Warehouse APIs
 router.post("/warehouse", ctrl.createWarehouse);
 router.get("/warehouse/:vendorId", ctrl.getVendorWarehouses);
-
+router.post("/order", ctrl.createParcelxOrder);
 module.exports = router;
