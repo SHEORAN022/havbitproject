@@ -495,29 +495,39 @@
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 
-/* =====================================================
-   🏬 CREATE WAREHOUSE (ParcelX + DB)
-===================================================== */
+/* ===============================
+   CREATE WAREHOUSE
+================================ */
 exports.createWarehouse = async (req, res) => {
   try {
     const {
       vendorId,
       name,
       address,
+      city,
+      state,
       pincode,
       phone,
       contactPerson,
     } = req.body;
 
-    // 🔒 Validation
-    if (!vendorId || !name || !address || !pincode || !phone) {
+    // Validation
+    if (
+      !vendorId ||
+      !name ||
+      !address ||
+      !city ||
+      !state ||
+      !pincode ||
+      !phone
+    ) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
       });
     }
 
-    // 🔁 Duplicate check
+    // Duplicate check
     const exists = await Warehouse.findOne({ vendorId, name });
     if (exists) {
       return res.status(409).json({
@@ -526,18 +536,17 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // ✅ ParcelX payload (EXACT as curl / docs)
+    // ParcelX payload (EXACT)
     const parcelxPayload = {
       address_title: name,
       sender_name: contactPerson || name,
       full_address: address,
+      city: city,
+      state: state,
       phone: phone,
       pincode: pincode,
     };
 
-    console.log("PARCELX TOKEN =>", process.env.PARCELX_ACCESS_TOKEN);
-
-    // 📦 ParcelX API call
     const pxRes = await parcelx.post(
       "/create_warehouse",
       parcelxPayload
@@ -561,12 +570,14 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // 💾 Save in DB
+    // Save in DB
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
       name,
       address,
+      city,
+      state,
       pincode,
       phone,
       contactPerson,
@@ -578,11 +589,7 @@ exports.createWarehouse = async (req, res) => {
       warehouse,
     });
   } catch (error) {
-    console.error(
-      "WAREHOUSE ERROR:",
-      error.response?.data || error.message
-    );
-
+    console.error("WAREHOUSE ERROR:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       message: "Warehouse creation failed",
@@ -591,9 +598,9 @@ exports.createWarehouse = async (req, res) => {
   }
 };
 
-/* =====================================================
-   📦 GET ALL WAREHOUSES BY VENDOR
-===================================================== */
+/* ===============================
+   GET WAREHOUSES BY VENDOR
+================================ */
 exports.getVendorWarehouses = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -608,7 +615,6 @@ exports.getVendorWarehouses = async (req, res) => {
       warehouses,
     });
   } catch (error) {
-    console.error("GET WAREHOUSE ERROR:", error.message);
     return res.status(500).json({
       success: false,
       message: error.message,
