@@ -511,6 +511,7 @@ exports.createWarehouse = async (req, res) => {
       contactPerson,
     } = req.body;
 
+    // 🔒 Validation
     if (!vendorId || !name || !address || !city || !state || !pincode || !phone) {
       return res.status(400).json({
         success: false,
@@ -518,6 +519,7 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
+    // 🔁 Duplicate check
     const exists = await Warehouse.findOne({ vendorId, name });
     if (exists) {
       return res.status(409).json({
@@ -526,6 +528,7 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
+    // 🧾 ParcelX payload (exact format)
     const parcelxPayload = {
       name,
       address,
@@ -536,9 +539,10 @@ exports.createWarehouse = async (req, res) => {
       contact_person: contactPerson || name,
     };
 
-    // 🔍 FINAL CHECK
+    // 🔍 Debug (remove later)
     console.log("PARCELX AUTH =>", parcelx.defaults.headers.Authorization);
 
+    // 📦 ParcelX API call
     const pxRes = await parcelx.post(
       "/create_warehouse",
       parcelxPayload
@@ -555,6 +559,14 @@ exports.createWarehouse = async (req, res) => {
     const parcelxWarehouseId =
       pxRes.data?.data?.warehouse_id || pxRes.data?.data?.id;
 
+    if (!parcelxWarehouseId) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX warehouse ID not received",
+      });
+    }
+
+    // 💾 Save in DB
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
@@ -583,14 +595,26 @@ exports.createWarehouse = async (req, res) => {
 };
 
 /* =====================================================
-   📦 GET WAREHOUSES
+   📦 GET ALL WAREHOUSES BY VENDOR
 ===================================================== */
 exports.getVendorWarehouses = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const warehouses = await Warehouse.find({ vendorId });
-    res.json({ success: true, warehouses });
-  } catch (e) {
-    res.status(500).json({ success: false, message: e.message });
+
+    const warehouses = await Warehouse.find({ vendorId }).sort({
+      createdAt: -1,
+    });
+
+    return res.json({
+      success: true,
+      count: warehouses.length,
+      warehouses,
+    });
+  } catch (error) {
+    console.error("GET WAREHOUSE ERROR:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
