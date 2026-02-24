@@ -496,7 +496,7 @@ const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 
 /* =====================================================
-   🏬 CREATE WAREHOUSE (ParcelX + DB)
+   🏬 CREATE WAREHOUSE
 ===================================================== */
 exports.createWarehouse = async (req, res) => {
   try {
@@ -511,7 +511,6 @@ exports.createWarehouse = async (req, res) => {
       contactPerson,
     } = req.body;
 
-    // 🔒 Validation
     if (!vendorId || !name || !address || !city || !state || !pincode || !phone) {
       return res.status(400).json({
         success: false,
@@ -519,16 +518,14 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // 🔁 Duplicate check
     const exists = await Warehouse.findOne({ vendorId, name });
     if (exists) {
       return res.status(409).json({
         success: false,
-        message: "Warehouse already exists for this vendor",
+        message: "Warehouse already exists",
       });
     }
 
-    // 🧾 ParcelX payload (EXACT format)
     const parcelxPayload = {
       name,
       address,
@@ -539,19 +536,14 @@ exports.createWarehouse = async (req, res) => {
       contact_person: contactPerson || name,
     };
 
-    // 🔍 DEBUG (TEMPORARY – must show Basic xxx)
-    console.log(
-      "PARCELX AUTH =>",
-      parcelx.defaults.headers.Authorization
-    );
+    // 🔍 FINAL CHECK
+    console.log("PARCELX AUTH =>", parcelx.defaults.headers.Authorization);
 
-    // 📦 ParcelX API call (YOUR ACCOUNT ENDPOINT)
     const pxRes = await parcelx.post(
       "/create_warehouse",
       parcelxPayload
     );
 
-    // 🛑 ParcelX failure
     if (!pxRes?.data?.status) {
       return res.status(500).json({
         success: false,
@@ -560,18 +552,9 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // 🆔 Warehouse ID
     const parcelxWarehouseId =
       pxRes.data?.data?.warehouse_id || pxRes.data?.data?.id;
 
-    if (!parcelxWarehouseId) {
-      return res.status(500).json({
-        success: false,
-        message: "ParcelX warehouse ID not received",
-      });
-    }
-
-    // 💾 Save in DB
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
@@ -590,11 +573,7 @@ exports.createWarehouse = async (req, res) => {
       warehouse,
     });
   } catch (error) {
-    console.error(
-      "WAREHOUSE CREATE ERROR:",
-      error.response?.data || error.message
-    );
-
+    console.error("WAREHOUSE ERROR:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       message: "Warehouse creation failed",
@@ -602,27 +581,16 @@ exports.createWarehouse = async (req, res) => {
     });
   }
 };
+
 /* =====================================================
-   📦 GET ALL WAREHOUSES BY VENDOR
+   📦 GET WAREHOUSES
 ===================================================== */
 exports.getVendorWarehouses = async (req, res) => {
   try {
     const { vendorId } = req.params;
-
-    const warehouses = await Warehouse.find({ vendorId }).sort({
-      createdAt: -1,
-    });
-
-    return res.json({
-      success: true,
-      count: warehouses.length,
-      warehouses,
-    });
-  } catch (error) {
-    console.error("GET WAREHOUSE ERROR:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    const warehouses = await Warehouse.find({ vendorId });
+    res.json({ success: true, warehouses });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };
