@@ -62,6 +62,7 @@
 // );
 
 // module.exports = parcelx;
+
 const axios = require("axios");
 
 const parcelx = axios.create({
