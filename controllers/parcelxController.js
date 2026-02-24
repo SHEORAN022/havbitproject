@@ -908,6 +908,8 @@ exports.getVendorWarehouses = async (req, res) => {
 //   }
 // };
 exports.createParcelxOrder = async (req, res) => {
+  let order = null;
+
   try {
     const {
       customer,
@@ -953,16 +955,16 @@ exports.createParcelxOrder = async (req, res) => {
     }
 
     /* ===================== 3. FIX ORDER ITEMS ===================== */
-    const fixedOrderItems = orderItems.map((item) => ({
+    const fixedOrderItems = orderItems.map(item => ({
       productId: item.productId,
       productName: item.productName,
       qty: item.qty,
       price: item.price,
-      vendorId: vendorId,
+      vendorId: vendorId, // schema requirement
     }));
 
-    /* ===================== 4. CREATE ORDER IN DB ===================== */
-    const order = await CustomerOrder.create({
+    /* ===================== 4. CREATE ORDER (DB FIRST) ===================== */
+    order = await CustomerOrder.create({
       customer,
       vendorId,
       orderItems: fixedOrderItems,
@@ -993,18 +995,18 @@ exports.createParcelxOrder = async (req, res) => {
 
       pick_address_id: warehouse.parcelxWarehouseId,
 
-      payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
+      // 🔥 FIXED PAYMENT MODE
+      payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
       order_amount: amount.toString(),
       tax_amount: "0",
       extra_charges: "0",
 
-      /* 🔥 REQUIRED FIELDS */
       courier_type: 1,
-      courier_code: "PXDEL01",        // ✅ REQUIRED (CHANGE IF NEEDED)
+      courier_code: "PXDEL01",
       express_type: "surface",
 
-      products: fixedOrderItems.map((item) => ({
+      products: fixedOrderItems.map(item => ({
         product_sku: item.productId.toString(),
         product_name: item.productName,
         product_value: item.price.toString(),
@@ -1028,6 +1030,9 @@ exports.createParcelxOrder = async (req, res) => {
     );
 
     if (!pxRes?.data?.status) {
+      // ❌ rollback DB order
+      await CustomerOrder.findByIdAndDelete(order._id);
+
       return res.status(500).json({
         success: false,
         message: "ParcelX order creation failed",
@@ -1048,7 +1053,7 @@ exports.createParcelxOrder = async (req, res) => {
     order.orderStatus = "Processing";
     await order.save();
 
-    /* ===================== 8. FINAL RESPONSE ===================== */
+    /* ===================== 8. SUCCESS RESPONSE ===================== */
     return res.status(201).json({
       success: true,
       message: "Order created & ParcelX shipment generated successfully",
@@ -1056,10 +1061,12 @@ exports.createParcelxOrder = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(
-      "PARCELX ORDER ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
+
+    // rollback safety
+    if (order?._id) {
+      await CustomerOrder.findByIdAndDelete(order._id);
+    }
 
     return res.status(500).json({
       success: false,
