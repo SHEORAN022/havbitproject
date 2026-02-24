@@ -62,18 +62,13 @@
 // );
 
 // module.exports = parcelx;
-
 const axios = require("axios");
-
-const auth = Buffer.from(
-  `${process.env.PARCELX_ACCESS_KEY}:${process.env.PARCELX_SECRET_KEY}`
-).toString("base64");
 
 const parcelx = axios.create({
   baseURL: "https://app.parcelx.in/api/v3",
   timeout: 20000,
   headers: {
-    Authorization: `Basic ${auth}`,
+    Authorization: `Basic ${process.env.PARCELX_ACCESS_TOKEN}`,
     "Content-Type": "application/json",
   },
 });
