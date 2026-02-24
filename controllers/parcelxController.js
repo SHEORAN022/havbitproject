@@ -493,12 +493,11 @@
 //   }
 // };
 
-
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 
 /* =====================================================
-   🏬 CREATE WAREHOUSE (Vendor wise)
+   🏬 CREATE WAREHOUSE (ParcelX + DB)
 ===================================================== */
 exports.createWarehouse = async (req, res) => {
   try {
@@ -513,24 +512,35 @@ exports.createWarehouse = async (req, res) => {
       contactPerson,
     } = req.body;
 
-    // 🔒 Basic validation
-    if (!vendorId || !name || !address || !city || !state || !pincode || !phone) {
+    /* ---------- VALIDATION ---------- */
+    if (!vendorId) {
       return res.status(400).json({
         success: false,
-        message: "Required fields missing",
+        message: "vendorId is required",
       });
     }
 
-    // 🔁 Duplicate warehouse check (vendor + name)
-    const existing = await Warehouse.findOne({ vendorId, name });
-    if (existing) {
+    if (!name || !address || !city || !state || !pincode || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "name, address, city, state, pincode, phone are required",
+      });
+    }
+
+    /* ---------- DUPLICATE CHECK (vendor + name) ---------- */
+    const alreadyExists = await Warehouse.findOne({
+      vendorId,
+      name,
+    });
+
+    if (alreadyExists) {
       return res.status(409).json({
         success: false,
         message: "Warehouse already exists for this vendor",
       });
     }
 
-    // 1️⃣ ParcelX payload (V3)
+    /* ---------- PARCELX PAYLOAD (V3) ---------- */
     const parcelxPayload = {
       name,
       address,
@@ -541,10 +551,24 @@ exports.createWarehouse = async (req, res) => {
       contact_person: contactPerson || name,
     };
 
-    // 2️⃣ Call ParcelX API
-    const pxRes = await parcelx.post("/warehouses", parcelxPayload);
+    /* ---------- CALL PARCELX API ---------- */
+    const pxResponse = await parcelx.post(
+      "/warehouse/create",   // ✅ CORRECT ENDPOINT
+      parcelxPayload
+    );
 
-    const parcelxWarehouseId = pxRes?.data?.data?.id;
+    // DEBUG (optional)
+    // console.log("PARCELX RESPONSE:", pxResponse.data);
+
+    if (!pxResponse?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX warehouse creation failed",
+        parcelx: pxResponse.data,
+      });
+    }
+
+    const parcelxWarehouseId = pxResponse.data?.data?.id;
 
     if (!parcelxWarehouseId) {
       return res.status(500).json({
@@ -553,7 +577,7 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // 3️⃣ Save in DB
+    /* ---------- SAVE IN DATABASE ---------- */
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
@@ -566,40 +590,53 @@ exports.createWarehouse = async (req, res) => {
       contactPerson,
     });
 
-    res.json({
+    /* ---------- RESPONSE ---------- */
+    return res.status(201).json({
       success: true,
       message: "Warehouse created successfully",
       warehouse,
     });
   } catch (error) {
     console.error(
-      "WAREHOUSE ERROR:",
+      "WAREHOUSE CREATE ERROR:",
       error.response?.data || error.message
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.response?.data || error.message,
+      message: "Warehouse creation failed",
+      error: error.response?.data || error.message,
     });
   }
 };
 
 /* =====================================================
-   📦 GET VENDOR WAREHOUSES
+   📦 GET ALL WAREHOUSES BY VENDOR
 ===================================================== */
 exports.getVendorWarehouses = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    const warehouses = await Warehouse.find({ vendorId });
+    if (!vendorId) {
+      return res.status(400).json({
+        success: false,
+        message: "vendorId is required",
+      });
+    }
 
-    res.json({
+    const warehouses = await Warehouse.find({ vendorId }).sort({
+      createdAt: -1,
+    });
+
+    return res.json({
       success: true,
       count: warehouses.length,
       warehouses,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("GET WAREHOUSE ERROR:", error.message);
+
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
