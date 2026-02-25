@@ -1150,3 +1150,60 @@ exports.trackParcelxOrder = async (req, res) => {
     });
   }
 };
+/* ===============================
+   GET PARCELX SHIPMENT DETAILS
+================================ */
+exports.getParcelxShipmentDetails = async (req, res) => {
+  try {
+    const { awb } = req.params;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB number is required",
+      });
+    }
+
+    /* ===================== CALL PARCELX API ===================== */
+    const pxRes = await parcelx.get(
+      `/shipments-details?awb=${awb}`
+    );
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX shipment details failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    /* ===================== OPTIONAL: DB SYNC ===================== */
+    const order = await CustomerOrder.findOne({
+      "parcelx.awb": awb,
+    });
+
+    if (order && pxRes.data.data?.status) {
+      order.parcelx.status = pxRes.data.data.status;
+      order.parcelx.last_updated = new Date();
+      await order.save();
+    }
+
+    /* ===================== RESPONSE ===================== */
+    return res.json({
+      success: true,
+      shipment_details: pxRes.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "PARCELX SHIPMENT DETAILS ERROR:",
+      error.response?.data || error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "ParcelX shipment details error",
+      error: error.response?.data || error.message,
+    });
+  }
+};
