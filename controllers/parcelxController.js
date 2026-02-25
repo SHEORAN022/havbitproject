@@ -1075,3 +1075,78 @@ exports.createParcelxOrder = async (req, res) => {
     });
   }
 };
+/* ===============================
+   TRACK PARCELX ORDER
+================================ */
+exports.trackParcelxOrder = async (req, res) => {
+  try {
+    const { awb } = req.params;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB number is required",
+      });
+    }
+
+    /* ===================== 1. CALL PARCELX TRACK API ===================== */
+    const pxRes = await parcelx.get(
+      `/track_order?awb=${awb}`
+    );
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX tracking failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    const currentStatus = pxRes.data.current_status;
+
+    /* ===================== 2. UPDATE ORDER IN DB ===================== */
+    const order = await CustomerOrder.findOne({
+      "parcelx.awb": awb,
+    });
+
+    if (order) {
+      order.parcelx.status = currentStatus.status_title;
+      order.parcelx.last_updated = new Date(
+        currentStatus.event_date
+      );
+
+      // Auto order status mapping
+      if (currentStatus.status_title === "delivered") {
+        order.orderStatus = "Delivered";
+        order.deliveredAt = new Date();
+        order.paymentStatus =
+          order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
+      }
+
+      if (currentStatus.status_title === "cancelled") {
+        order.orderStatus = "Cancelled";
+        order.cancelledAt = new Date();
+      }
+
+      await order.save();
+    }
+
+    /* ===================== 3. RESPONSE ===================== */
+    return res.json({
+      success: true,
+      parcelx_tracking: pxRes.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "PARCELX TRACK ERROR:",
+      error.response?.data || error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "ParcelX tracking error",
+      error: error.response?.data || error.message,
+    });
+  }
+};
