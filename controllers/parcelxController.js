@@ -1118,25 +1118,115 @@ const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
 
+/* ================================================================
+   🔧 DEBUG ROUTE — ParcelX connection test karo
+   GET /api/parcelx/debug-test
+   
+   Isko browser mein kholo:
+   https://havbitproject.onrender.com/api/parcelx/debug-test
+   
+   Yeh batayega:
+   - Token set hai ya nahi
+   - ParcelX API reachable hai ya nahi
+   - Exact error kya hai
+================================================================ */
+exports.debugTest = async (req, res) => {
+  const token = process.env.PARCELX_ACCESS_TOKEN;
+
+  // Step 1: Token check
+  if (!token) {
+    return res.status(500).json({
+      step: "1_ENV_CHECK",
+      success: false,
+      problem: "PARCELX_ACCESS_TOKEN .env mein set nahi hai!",
+      fix: "Render.com → Environment → PARCELX_ACCESS_TOKEN add karo",
+    });
+  }
+
+  // Step 2: Token format check
+  if (token.length < 10) {
+    return res.status(500).json({
+      step: "2_TOKEN_FORMAT",
+      success: false,
+      problem: "Token bahut chhota hai — shayad galat value set ki hai",
+      token_preview: token.substring(0, 5) + "***",
+    });
+  }
+
+  // Step 3: Actual ParcelX API call
+  try {
+    // Warehouse list fetch — lightest possible endpoint
+    const pxRes = await parcelx.get("/get_warehouse");
+
+    return res.json({
+      step: "3_API_CALL",
+      success: true,
+      message: "✅ ParcelX connected successfully!",
+      status: pxRes.data?.status,
+      token_preview: token.substring(0, 6) + "***",
+      parcelx_response: pxRes.data,
+    });
+
+  } catch (err) {
+    const status  = err.response?.status;
+    const data    = err.response?.data;
+    const message = err.message;
+
+    // Token galat hai (401/403)
+    if (status === 401 || status === 403) {
+      return res.status(401).json({
+        step: "3_API_CALL",
+        success: false,
+        problem: "❌ Token invalid/expired — ParcelX ne reject kiya",
+        http_status: status,
+        parcelx_response: data,
+        fix: "ParcelX dashboard se naya access-token lo aur .env update karo",
+        token_preview: token.substring(0, 6) + "***",
+      });
+    }
+
+    // Network/DNS error — URL galat ya server down
+    if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND" || err.code === "ECONNABORTED") {
+      return res.status(502).json({
+        step: "3_API_CALL",
+        success: false,
+        problem: "❌ ParcelX server unreachable — DNS ya network issue",
+        error_code: err.code,
+        baseURL: "https://app.parcelx.in/api/v3",
+        fix: "Check karo: 1) URL sahi hai? 2) Render ka outbound internet chal raha hai?",
+      });
+    }
+
+    // Timeout
+    if (err.code === "ECONNRESET" || message.includes("timeout")) {
+      return res.status(504).json({
+        step: "3_API_CALL",
+        success: false,
+        problem: "❌ Request timeout — ParcelX ne respond nahi kiya 20s mein",
+        fix: "ParcelX ka status check karo ya timeout badhao",
+      });
+    }
+
+    // Other error
+    return res.status(500).json({
+      step: "3_API_CALL",
+      success: false,
+      problem: "❌ Unknown error",
+      error_message: message,
+      error_code: err.code,
+      http_status: status,
+      parcelx_response: data,
+    });
+  }
+};
+
 /* ===============================
    CREATE WAREHOUSE
-   FIX: ParcelX response ke sabhi
-   possible keys check karo
 ================================ */
 exports.createWarehouse = async (req, res) => {
   try {
-    const {
-      vendorId,
-      name,
-      address,
-      city,
-      state,
-      pincode,
-      phone,
-      contactPerson,
-    } = req.body;
+    const { vendorId, name, address, city, state, pincode, phone, contactPerson } = req.body;
 
-    // ── 1. VALIDATION ──
     if (!vendorId || !name || !address || !city || !state || !pincode || !phone) {
       return res.status(400).json({
         success: false,
@@ -1145,7 +1235,6 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // ── 2. DUPLICATE CHECK ──
     const exists = await Warehouse.findOne({ vendorId, name });
     if (exists) {
       return res.status(409).json({
@@ -1154,82 +1243,73 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // ── 3. PARCELX PAYLOAD ──
     const parcelxPayload = {
       address_title: name,
       sender_name:   contactPerson || name,
       full_address:  address,
-      city:          city,
-      state:         state,
-      phone:         phone,
-      pincode:       pincode,
+      city, state, phone, pincode,
     };
 
     console.log("📦 ParcelX create_warehouse payload:", JSON.stringify(parcelxPayload, null, 2));
 
-    // ── 4. CALL PARCELX ──
     let pxRes;
     try {
       pxRes = await parcelx.post("/create_warehouse", parcelxPayload);
     } catch (pxErr) {
-      // ParcelX network/timeout error
+      const pxStatus = pxErr.response?.status;
       console.error("❌ ParcelX API call failed:", pxErr.response?.data || pxErr.message);
+
+      // Token problem
+      if (pxStatus === 401 || pxStatus === 403) {
+        return res.status(401).json({
+          success: false,
+          message: "ParcelX authentication failed — token invalid/expired",
+          fix: "PARCELX_ACCESS_TOKEN Render.com environment variables mein update karo",
+          parcelx_error: pxErr.response?.data,
+        });
+      }
+
       return res.status(502).json({
         success: false,
         message: "ParcelX API unreachable",
+        error_code: pxErr.code,
         parcelx_error: pxErr.response?.data || pxErr.message,
+        fix: "GET /api/parcelx/debug-test pe jaake exact issue dekho",
       });
     }
 
-    // ── 5. LOG FULL PARCELX RESPONSE (DEBUG) ──
     console.log("✅ ParcelX raw response:", JSON.stringify(pxRes.data, null, 2));
 
-    // ── 6. CHECK STATUS ──
     if (!pxRes?.data?.status) {
       return res.status(500).json({
         success: false,
         message: "ParcelX warehouse creation failed",
-        parcelx_message: pxRes.data?.message || pxRes.data?.msg || "Unknown error from ParcelX",
-        parcelx_raw: pxRes.data,  // ← full response debug ke liye
+        parcelx_message: pxRes.data?.message || pxRes.data?.msg,
+        parcelx_raw: pxRes.data,
       });
     }
 
-    // ── 7. EXTRACT pick_address_id ──
-    // ParcelX ke alag-alag response structures handle karo
     const d = pxRes.data?.data;
     const parcelxWarehouseId =
-      d?.pick_address_id ||   // most common
-      d?.pickup_address_id || // alternate key
-      d?.id ||                // some versions
-      d?.warehouse_id ||      // fallback
-      pxRes.data?.pick_address_id; // top-level fallback
-
-    console.log("🏭 Extracted pick_address_id:", parcelxWarehouseId);
-    console.log("🔍 Full data object:", JSON.stringify(d, null, 2));
+      d?.pick_address_id   ||
+      d?.pickup_address_id ||
+      d?.id                ||
+      d?.warehouse_id      ||
+      pxRes.data?.pick_address_id;
 
     if (!parcelxWarehouseId) {
       return res.status(500).json({
         success: false,
         message: "ParcelX did not return a warehouse ID",
-        hint: "Check parcelx_raw to find the correct key for pick_address_id",
-        parcelx_raw: pxRes.data, // ← developer ko dikhao full response
+        hint: "parcelx_raw mein sahi key dhundo",
+        parcelx_raw: pxRes.data,
       });
     }
 
-    // ── 8. SAVE TO DB ──
     const warehouse = await Warehouse.create({
-      vendorId,
-      parcelxWarehouseId,
-      name,
-      address,
-      city,
-      state,
-      pincode,
-      phone,
-      contactPerson,
+      vendorId, parcelxWarehouseId,
+      name, address, city, state, pincode, phone, contactPerson,
     });
-
-    console.log("✅ Warehouse saved:", warehouse._id, "| ParcelX ID:", parcelxWarehouseId);
 
     return res.status(201).json({
       success: true,
@@ -1279,10 +1359,7 @@ exports.createParcelxOrder = async (req, res) => {
       !shippingAddress?.name || !shippingAddress?.phone ||
       !shippingAddress?.address || !shippingAddress?.pincode || !amount
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Required fields missing (customer, orderItems, shipment, shippingAddress, amount)",
-      });
+      return res.status(400).json({ success: false, message: "Required fields missing" });
     }
 
     if (vendorId && !warehouseId) {
@@ -1309,19 +1386,13 @@ exports.createParcelxOrder = async (req, res) => {
         }
       }
       if (!pickAddressId) {
-        return res.status(500).json({
-          success: false,
-          message: "Platform warehouse not configured. Set PLATFORM_PARCELX_WAREHOUSE_ID in .env OR mark a Warehouse as isDefault: true",
-        });
+        return res.status(500).json({ success: false, message: "Platform warehouse not configured" });
       }
     }
 
     const fixedOrderItems = orderItems.map(item => ({
-      productId: item.productId,
-      productName: item.productName,
-      qty: item.qty,
-      price: item.price,
-      vendorId: vendorId || null,
+      productId: item.productId, productName: item.productName,
+      qty: item.qty, price: item.price, vendorId: vendorId || null,
     }));
 
     order = await CustomerOrder.create({
@@ -1332,18 +1403,15 @@ exports.createParcelxOrder = async (req, res) => {
       pick_address_id: pickAddressId,
       shipment, shippingAddress, amount,
       subtotal: subtotal || amount,
-      deliveryFee: deliveryFee || 0,
-      platformFee: platformFee || 0,
-      gst: gst || 0,
-      couponCode: couponCode || null,
-      couponDiscount: couponDiscount || 0,
-      totalPayable: amount,
+      deliveryFee: deliveryFee || 0, platformFee: platformFee || 0,
+      gst: gst || 0, couponCode: couponCode || null,
+      couponDiscount: couponDiscount || 0, totalPayable: amount,
       paymentMethod,
       paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
       orderStatus: "Pending",
     });
 
-    const parcelxPayload = {
+    const pxRes = await parcelx.post("/order/create_order", {
       client_order_id: order._id.toString(),
       consignee_name: shippingAddress.name,
       consignee_mobile: shippingAddress.phone,
@@ -1357,36 +1425,23 @@ exports.createParcelxOrder = async (req, res) => {
       payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
       order_amount: amount.toString(),
-      tax_amount: "0",
-      extra_charges: "0",
-      courier_type: 1,
-      courier_code: "PXDEL01",
-      express_type: "surface",
+      tax_amount: "0", extra_charges: "0",
+      courier_type: 1, courier_code: "PXDEL01", express_type: "surface",
       products: fixedOrderItems.map(item => ({
-        product_sku: item.productId.toString(),
-        product_name: item.productName,
-        product_value: item.price.toString(),
-        product_quantity: item.qty.toString(),
-        product_taxper: 0,
-        product_hsnsac: "",
-        product_category: "general",
+        product_sku: item.productId.toString(), product_name: item.productName,
+        product_value: item.price.toString(), product_quantity: item.qty.toString(),
+        product_taxper: 0, product_hsnsac: "", product_category: "general",
         product_description: item.productName,
       })),
       shipment_weight: [shipment.weight.toString()],
       shipment_length: [shipment.length.toString()],
-      shipment_width: [shipment.width.toString()],
+      shipment_width:  [shipment.width.toString()],
       shipment_height: [shipment.height.toString()],
-    };
-
-    const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
+    });
 
     if (!pxRes?.data?.status) {
       await CustomerOrder.findByIdAndDelete(order._id);
-      return res.status(500).json({
-        success: false,
-        message: "ParcelX order creation failed",
-        parcelx: pxRes.data,
-      });
+      return res.status(500).json({ success: false, message: "ParcelX order creation failed", parcelx: pxRes.data });
     }
 
     order.parcelx = {
@@ -1400,84 +1455,51 @@ exports.createParcelxOrder = async (req, res) => {
     order.orderStatus = "Processing";
     await order.save();
 
-    return res.status(201).json({
-      success: true,
-      message: "Order created & ParcelX shipment generated successfully",
-      order,
-    });
+    return res.status(201).json({ success: true, message: "Order created successfully", order });
 
   } catch (error) {
-    console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
     if (order?._id) await CustomerOrder.findByIdAndDelete(order._id);
-    return res.status(500).json({
-      success: false,
-      message: "ParcelX order creation failed",
-      error: error.response?.data || error.message,
-    });
+    return res.status(500).json({ success: false, message: "Order creation failed", error: error.response?.data || error.message });
   }
 };
 
 /* ===============================
-   TRACK PARCELX ORDER
+   TRACK ORDER
 ================================ */
 exports.trackParcelxOrder = async (req, res) => {
   try {
     const { awb } = req.params;
-    if (!awb) return res.status(400).json({ success: false, message: "AWB number is required" });
-
+    if (!awb) return res.status(400).json({ success: false, message: "AWB required" });
     const pxRes = await parcelx.get(`/track_order?awb=${awb}`);
-    if (!pxRes?.data?.status) {
-      return res.status(500).json({ success: false, message: "ParcelX tracking failed", parcelx: pxRes.data });
-    }
-
+    if (!pxRes?.data?.status) return res.status(500).json({ success: false, parcelx: pxRes.data });
     const currentStatus = pxRes.data.current_status;
     const order = await CustomerOrder.findOne({ "parcelx.awb": awb });
-
     if (order) {
       order.parcelx.status = currentStatus.status_title;
       order.parcelx.last_updated = new Date(currentStatus.event_date);
-      if (currentStatus.status_title === "delivered") {
-        order.orderStatus = "Delivered";
-        order.deliveredAt = new Date();
-        order.paymentStatus = order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
-      }
-      if (currentStatus.status_title === "cancelled") {
-        order.orderStatus = "Cancelled";
-        order.cancelledAt = new Date();
-      }
+      if (currentStatus.status_title === "delivered") { order.orderStatus = "Delivered"; order.deliveredAt = new Date(); }
+      if (currentStatus.status_title === "cancelled")  { order.orderStatus = "Cancelled"; order.cancelledAt = new Date(); }
       await order.save();
     }
-
     return res.json({ success: true, parcelx_tracking: pxRes.data });
   } catch (error) {
-    console.error("PARCELX TRACK ERROR:", error.response?.data || error.message);
-    return res.status(500).json({ success: false, message: "ParcelX tracking error", error: error.response?.data || error.message });
+    return res.status(500).json({ success: false, message: "Tracking error", error: error.response?.data || error.message });
   }
 };
 
 /* ===============================
-   GET PARCELX SHIPMENT DETAILS
+   SHIPMENT DETAILS
 ================================ */
 exports.getParcelxShipmentDetails = async (req, res) => {
   try {
     const { awb } = req.params;
-    if (!awb) return res.status(400).json({ success: false, message: "AWB number is required" });
-
+    if (!awb) return res.status(400).json({ success: false, message: "AWB required" });
     const pxRes = await parcelx.get(`/shipments-details?awb=${awb}`);
-    if (!pxRes?.data?.status) {
-      return res.status(500).json({ success: false, message: "ParcelX shipment details failed", parcelx: pxRes.data });
-    }
-
+    if (!pxRes?.data?.status) return res.status(500).json({ success: false, parcelx: pxRes.data });
     const order = await CustomerOrder.findOne({ "parcelx.awb": awb });
-    if (order && pxRes.data.data?.status) {
-      order.parcelx.status = pxRes.data.data.status;
-      order.parcelx.last_updated = new Date();
-      await order.save();
-    }
-
+    if (order && pxRes.data.data?.status) { order.parcelx.status = pxRes.data.data.status; order.parcelx.last_updated = new Date(); await order.save(); }
     return res.json({ success: true, shipment_details: pxRes.data });
   } catch (error) {
-    console.error("PARCELX SHIPMENT DETAILS ERROR:", error.response?.data || error.message);
-    return res.status(500).json({ success: false, message: "ParcelX shipment details error", error: error.response?.data || error.message });
+    return res.status(500).json({ success: false, message: "Shipment details error", error: error.response?.data || error.message });
   }
 };
