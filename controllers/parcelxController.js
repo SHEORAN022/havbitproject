@@ -593,10 +593,116 @@ const CustomerOrder = require("../models/CustomerOrder");
 /* ===============================
    CREATE WAREHOUSE
 ================================ */
+// exports.createWarehouse = async (req, res) => {
+//   try {
+//     const {
+//       vendorId,
+//       name,
+//       address,
+//       city,
+//       state,
+//       pincode,
+//       phone,
+//       contactPerson,
+//     } = req.body;
+
+//     // Validation
+//     if (
+//       !vendorId ||
+//       !name ||
+//       !address ||
+//       !city ||
+//       !state ||
+//       !pincode ||
+//       !phone
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Required fields missing",
+//       });
+//     }
+
+//     // Duplicate check (vendor + warehouse name)
+//     const exists = await Warehouse.findOne({ vendorId, name });
+//     if (exists) {
+//       return res.status(409).json({
+//         success: false,
+//         message: "Warehouse already exists",
+//       });
+//     }
+
+//     // ParcelX payload (EXACT as working curl)
+//     const parcelxPayload = {
+//       address_title: name,
+//       sender_name: contactPerson || name,
+//       full_address: address,
+//       city: city,
+//       state: state,
+//       phone: phone,
+//       pincode: pincode,
+//     };
+
+//     // Call ParcelX
+//     const pxRes = await parcelx.post(
+//       "/create_warehouse",
+//       parcelxPayload
+//     );
+
+//     if (!pxRes?.data?.status) {
+//       return res.status(500).json({
+//         success: false,
+//         message: "ParcelX warehouse creation failed",
+//         parcelx: pxRes.data,
+//       });
+//     }
+
+//     // ✅ CORRECT KEY FROM PARCELX
+//     const parcelxWarehouseId = pxRes.data?.data?.pick_address_id;
+
+//     if (!parcelxWarehouseId) {
+//       return res.status(500).json({
+//         success: false,
+//         message: "ParcelX warehouse ID not received",
+//       });
+//     }
+
+//     // Save in DB
+//     const warehouse = await Warehouse.create({
+//       vendorId,
+//       parcelxWarehouseId,
+//       name,
+//       address,
+//       city,
+//       state,
+//       pincode,
+//       phone,
+//       contactPerson,
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Warehouse created successfully",
+//       warehouse,
+//     });
+//   } catch (error) {
+//     console.error(
+//       "WAREHOUSE ERROR:",
+//       error.response?.data || error.message
+//     );
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Warehouse creation failed",
+//       error: error.response?.data || error.message,
+//     });
+//   }
+// };
 exports.createWarehouse = async (req, res) => {
   try {
+    // 🔑 vendorId TOKEN se lo
+    const vendorId = req.vendor._id;
+
     const {
-      vendorId,
       name,
       address,
       city,
@@ -606,23 +712,14 @@ exports.createWarehouse = async (req, res) => {
       contactPerson,
     } = req.body;
 
-    // Validation
-    if (
-      !vendorId ||
-      !name ||
-      !address ||
-      !city ||
-      !state ||
-      !pincode ||
-      !phone
-    ) {
+    // ✅ vendorId validation hata do
+    if (!name || !address || !city || !state || !pincode || !phone) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
       });
     }
 
-    // Duplicate check (vendor + warehouse name)
     const exists = await Warehouse.findOne({ vendorId, name });
     if (exists) {
       return res.status(409).json({
@@ -631,22 +728,17 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // ParcelX payload (EXACT as working curl)
     const parcelxPayload = {
       address_title: name,
       sender_name: contactPerson || name,
       full_address: address,
-      city: city,
-      state: state,
-      phone: phone,
-      pincode: pincode,
+      city,
+      state,
+      phone,
+      pincode,
     };
 
-    // Call ParcelX
-    const pxRes = await parcelx.post(
-      "/create_warehouse",
-      parcelxPayload
-    );
+    const pxRes = await parcelx.post("/create_warehouse", parcelxPayload);
 
     if (!pxRes?.data?.status) {
       return res.status(500).json({
@@ -656,17 +748,8 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    // ✅ CORRECT KEY FROM PARCELX
-    const parcelxWarehouseId = pxRes.data?.data?.pick_address_id;
+    const parcelxWarehouseId = pxRes.data.data.pick_address_id;
 
-    if (!parcelxWarehouseId) {
-      return res.status(500).json({
-        success: false,
-        message: "ParcelX warehouse ID not received",
-      });
-    }
-
-    // Save in DB
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
@@ -681,29 +764,42 @@ exports.createWarehouse = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Warehouse created successfully",
       warehouse,
     });
   } catch (error) {
-    console.error(
-      "WAREHOUSE ERROR:",
-      error.response?.data || error.message
-    );
-
     return res.status(500).json({
       success: false,
-      message: "Warehouse creation failed",
-      error: error.response?.data || error.message,
+      message: error.message,
     });
   }
 };
-
 /* ===============================
    GET WAREHOUSES BY VENDOR
 ================================ */
+// exports.getVendorWarehouses = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+
+//     const warehouses = await Warehouse.find({ vendorId }).sort({
+//       createdAt: -1,
+//     });
+
+//     return res.json({
+//       success: true,
+//       count: warehouses.length,
+//       warehouses,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
 exports.getVendorWarehouses = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = req.vendor._id; // 🔑 TOKEN
 
     const warehouses = await Warehouse.find({ vendorId }).sort({
       createdAt: -1,
@@ -721,21 +817,6 @@ exports.getVendorWarehouses = async (req, res) => {
     });
   }
 };
-
-/* ================================================================
-   CREATE PARCELX ORDER
-
-   ✅ Ab do types ke orders handle hote hain:
-
-   1️⃣  VENDOR ORDER  → vendorId + warehouseId bhejo frontend se
-                      → Vendor ke apne ParcelX warehouse se ship hoga
-
-   2️⃣  PUBLIC ORDER  → vendorId = null, isPublicOrder = true bhejo
-                      → Platform ka default warehouse use hoga
-                      → Do tarike se configure karo (koi ek karo):
-                        Option A: .env mein PLATFORM_PARCELX_WAREHOUSE_ID set karo
-                        Option B: DB mein kisi Warehouse ka isDefault: true karo
-================================================================ */
 exports.createParcelxOrder = async (req, res) => {
   let order = null;
 
