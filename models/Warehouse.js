@@ -1,123 +1,130 @@
-// // const mongoose = require("mongoose");
-
-// // const warehouseSchema = new mongoose.Schema({
-// //   vendorId: {
-// //     type: mongoose.Schema.Types.ObjectId,
-// //     ref: "Vendor",
-// //     required: true
-// //   },
-
-// //   address_title: { type: String, required: true },
-// //   sender_name: { type: String, required: true },
-// //   full_address: { type: String, required: true },
-// //   phone: { type: String, required: true },
-
-// //   city: { type: String, required: true },
-// //   state: { type: String, required: true },
-// //   pincode: { type: String, required: true },
-// //   country: { type: String, default: "India" },
-
-// //   pick_address_id: { type: String, required: true }
-// // }, { timestamps: true });
-
-// // warehouseSchema.index({ vendorId: 1 });
-
-// // module.exports = mongoose.model("Warehouse", warehouseSchema);
 // const mongoose = require("mongoose");
 
-// const WarehouseSchema = new mongoose.Schema(
+// const warehouseSchema = new mongoose.Schema(
 //   {
 //     vendorId: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Vendor",
+//       type: String,
 //       required: true,
-//       index: true
+//       index: true,
 //     },
-//     address_title: {
+
+//     parcelxWarehouseId: {
 //       type: String,
-//       required: true
+//       required: true,
+//       unique: true,
 //     },
-//     sender_name: {
+
+//     name: {
 //       type: String,
-//       required: true
+//       required: true,
 //     },
-//     full_address: {
+
+//     address: {
 //       type: String,
-//       required: true
+//       required: true,
 //     },
-//     phone: {
+
+//     city: {
 //       type: String,
-//       required: true
+//       required: true,
 //     },
+
+//     state: {
+//       type: String,
+//       required: true,
+//     },
+
 //     pincode: {
 //       type: String,
-//       required: true
-//     },
-//     pick_address_id: {
-//       type: Number,
 //       required: true,
-//       unique: true
 //     },
-//     is_active: {
+
+//     phone: {
+//       type: String,
+//       required: true,
+//     },
+
+//     contactPerson: {
+//       type: String,
+//     },
+
+//     isActive: {
 //       type: Boolean,
-//       default: true
-//     }
+//       default: true,
+//     },
 //   },
-//   {
-//     timestamps: true
-//   }
+//   { timestamps: true }
 // );
 
-// module.exports = mongoose.model("Warehouse", WarehouseSchema);
-
+// module.exports = mongoose.model("Warehouse", warehouseSchema);
 const mongoose = require("mongoose");
 
 const warehouseSchema = new mongoose.Schema(
   {
+    // ✅ vendorId — controller mein req.vendor._id se aata hai (ObjectId)
     vendorId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vendor",
       required: true,
       index: true,
     },
 
+    // ✅ required: true HATA diya — ParcelX call ke baad milta hai
+    // ✅ sparse: true — E11000 duplicate null error ka permanent FIX
     parcelxWarehouseId: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
+      default: null,
     },
 
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     address: {
       type: String,
       required: true,
+      trim: true,
     },
 
     city: {
       type: String,
       required: true,
+      trim: true,
     },
 
     state: {
       type: String,
       required: true,
+      trim: true,
     },
 
     pincode: {
       type: String,
       required: true,
+      trim: true,
     },
 
     phone: {
       type: String,
       required: true,
+      trim: true,
     },
 
     contactPerson: {
       type: String,
+      trim: true,
+      default: "",
+    },
+
+    // ✅ createParcelxOrder controller mein use hota hai:
+    // Warehouse.findOne({ isDefault: true }) — platform warehouse ke liye
+    isDefault: {
+      type: Boolean,
+      default: false,
     },
 
     isActive: {
@@ -127,5 +134,9 @@ const warehouseSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ✅ Controller check se match: Warehouse.findOne({ vendorId, name })
+// Ek vendor ka same naam ka warehouse dobara nahi ban sakta
+warehouseSchema.index({ vendorId: 1, name: 1 }, { unique: true });
 
 module.exports = mongoose.model("Warehouse", warehouseSchema);
