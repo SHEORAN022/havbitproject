@@ -12,7 +12,7 @@
 // module.exports = router;
 const router = require("express").Router();
 const ctrl = require("../controllers/parcelxController");
-const vendorAuth = require("../middlewares/vendorAuth");
+const vendorAuth = require("../middleware/vendorAuth");
 
 /* ===============================
    WAREHOUSE ROUTES (VENDOR ONLY)
