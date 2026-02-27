@@ -1,7 +1,7 @@
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
-const userAuth = require("../middleware/userAuth");
+
 /* ===============================
    CREATE WAREHOUSE
 ================================ */
@@ -856,7 +856,40 @@ exports.getParcelxShipmentDetails = async (req, res) => {
   }
 };
 
+/* ===============================
+   GET WAREHOUSE FOR CUSTOMER
+================================ */
+exports.getWarehouseForCustomer = async (req, res) => {
+  try {
+    const warehouse = await Warehouse.findOne({
+      parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" }
+    }).sort({ createdAt: 1 }).lean();
 
+    console.log("🏭 Customer warehouse lookup:", 
+      warehouse ? `found _id=${warehouse._id} pickId=${warehouse.parcelxWarehouseId}` : "NOT FOUND"
+    );
+
+    if (!warehouse) {
+      return res.status(404).json({
+        success: false,
+        message: "No warehouse configured. Please contact support.",
+        warehouses: []
+      });
+    }
+
+    return res.json({
+      success: true,
+      warehouses: [warehouse]
+    });
+
+  } catch (error) {
+    console.error("getWarehouseForCustomer error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
 // // const parcelx = require("../config/parcelx");
 // // const Warehouse = require("../models/Warehouse");
