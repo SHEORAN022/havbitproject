@@ -8,16 +8,16 @@ const warehouseSchema = new mongoose.Schema(
       index: true,
     },
 
-    // parcelxWarehouseId: {
-    //   type: String,
-    //   required: true,
-    //   unique: true,
-    // },
     parcelxWarehouseId: {
-  type: String,
-  required: true,
-  index: true,   
-},
+      type: String,
+      required: true,
+      unique: true,
+    },
+//     parcelxWarehouseId: {
+//   type: String,
+//   required: true,
+//   index: true,   
+// },
 
     name: {
       type: String,
