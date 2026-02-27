@@ -132,22 +132,28 @@ exports.createWarehouse = async (req, res) => {
 //     });
 //   }
 // };
-/* ===============================
-   GET WAREHOUSES BY VENDOR
-================================ */
+
 exports.getVendorWarehouses = async (req, res) => {
   try {
-    // ✅ params ki jagah middleware se lo
-    const vendorId = req.vendor?._id?.toString() || req.vendor?.id?.toString();
+    // ✅ req.params, req.query, req.body — sab jagah se try karo
+    const vendorId =
+      req.vendor?._id?.toString() ||
+      req.vendor?.id?.toString() ||
+      req.user?._id?.toString() ||
+      req.user?.id?.toString() ||
+      req.query.vendorId ||
+      req.body.vendorId;
 
     if (!vendorId) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized",
+        message: "Unauthorized - vendorId not found",
       });
     }
 
-    const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
+    const warehouses = await Warehouse.find({ vendorId }).sort({
+      createdAt: -1,
+    });
 
     return res.json({
       success: true,
@@ -161,7 +167,6 @@ exports.getVendorWarehouses = async (req, res) => {
     });
   }
 };
-
 // exports.createParcelxOrder = async (req, res) => {
 //   try {
 //     const {
