@@ -525,7 +525,7 @@ exports.createParcelxOrder = async (req, res) => {
     let pickAddressId = null;
 
     if (!isPublicOrder) {
-      // Vendor order → fetch vendor's warehouse
+      // ── Vendor order: vendor ki warehouse use karo ──
       warehouse = await Warehouse.findById(warehouseId);
       if (!warehouse || !warehouse.parcelxWarehouseId) {
         return res.status(404).json({
@@ -534,15 +534,21 @@ exports.createParcelxOrder = async (req, res) => {
         });
       }
       pickAddressId = warehouse.parcelxWarehouseId;
+
     } else {
-      // Public/platform order → use default platform warehouse
-      pickAddressId = process.env.DEFAULT_PARCELX_WAREHOUSE_ID;
-      if (!pickAddressId) {
+      // ── Public/platform order: MongoDB se pehli warehouse auto-fetch karo ──
+      const platformWarehouse = await Warehouse.findOne().sort({ createdAt: 1 });
+
+      if (!platformWarehouse || !platformWarehouse.parcelxWarehouseId) {
         return res.status(500).json({
           success: false,
-          message: "Platform warehouse not configured. Please contact support.",
+          message: "No warehouse found. Please create one from Seller Panel first.",
         });
       }
+
+      pickAddressId = platformWarehouse.parcelxWarehouseId;
+      warehouse = platformWarehouse;
+      console.log("✅ Platform warehouse auto-resolved:", pickAddressId);
     }
 
     /* ===================== 3. FIX ORDER ITEMS ===================== */
@@ -623,7 +629,7 @@ exports.createParcelxOrder = async (req, res) => {
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
 
     if (!pxRes?.data?.status) {
-      // Rollback DB order if ParcelX fails
+      // ParcelX fail → DB order rollback karo
       await CustomerOrder.findByIdAndDelete(order._id);
       return res.status(500).json({
         success: false,
