@@ -680,7 +680,7 @@ exports.createParcelxOrder = async (req, res) => {
   order_amount: amount.toString(),
   tax_amount: "0",
   extra_charges: "0",
-
+  express_type: "surface",
   // ❌ courier_code HATAO — ParcelX khud best courier select karega
 
   products: fixedOrderItems.map((item) => ({
