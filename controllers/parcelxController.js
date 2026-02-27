@@ -1,6 +1,7 @@
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
+const userAuth = require("../middleware/userAuth");
 /* ===============================
    CREATE WAREHOUSE
 ================================ */
@@ -855,7 +856,52 @@ exports.getParcelxShipmentDetails = async (req, res) => {
   }
 };
 
+router.post("/warehouse", vendorAuth, ctrl.createWarehouse);
 
+// Vendor: get their own warehouses (vendor panel)
+router.get("/warehouse/vendor", vendorAuth, ctrl.getVendorWarehouses);
+
+// Customer: get any valid warehouse for order creation
+router.get("/warehouse", userAuth, ctrl.getWarehouseForCustomer);
+
+/* ===============================
+   ORDER ROUTES
+================================ */
+router.post("/order", userAuth, ctrl.createParcelxOrder);
+router.get("/track/:awb", ctrl.trackParcelxOrder);
+router.get("/shipment/:awb", ctrl.getParcelxShipmentDetails);
+
+module.exports = router;
+parcelxController.js — add this one new function at the bottom:
+javascriptexports.getWarehouseForCustomer = async (req, res) => {
+  try {
+    const warehouse = await Warehouse.findOne({
+      parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" }
+    }).sort({ createdAt: 1 }).lean();
+
+    console.log("🏭 Warehouse lookup:", warehouse?._id, "| pickId:", warehouse?.parcelxWarehouseId);
+
+    if (!warehouse) {
+      return res.status(404).json({
+        success: false,
+        message: "No warehouse configured. Please contact support.",
+        warehouses: []
+      });
+    }
+
+    return res.json({
+      success: true,
+      warehouses: [warehouse]
+    });
+
+  } catch (error) {
+    console.error("getWarehouseForCustomer error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 // // const parcelx = require("../config/parcelx");
 // // const Warehouse = require("../models/Warehouse");
 // // const CustomerOrder = require("../models/CustomerOrder");
