@@ -1480,7 +1480,6 @@
 // //     });
 // //   }
 // // };
-
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
@@ -1493,6 +1492,7 @@ exports.getAvailableCouriers = async (req, res) => {
     const { pincode } = req.query;
     const url = pincode ? `/get_couriers?pincode=${pincode}` : `/get_couriers`;
     const pxRes = await parcelx.get(url);
+    console.log("🚚 Couriers:", JSON.stringify(pxRes.data));
     return res.json({ success: true, data: pxRes.data });
   } catch (error) {
     return res.status(500).json({
@@ -1518,17 +1518,12 @@ exports.createWarehouse = async (req, res) => {
       return res.status(409).json({ success: false, message: "Warehouse already exists" });
     }
 
-    const parcelxPayload = {
+    const pxRes = await parcelx.post("/create_warehouse", {
       address_title: name,
       sender_name: contactPerson || name,
       full_address: address,
-      city,
-      state,
-      phone,
-      pincode,
-    };
-
-    const pxRes = await parcelx.post("/create_warehouse", parcelxPayload);
+      city, state, phone, pincode,
+    });
 
     if (!pxRes?.data?.status) {
       return res.status(500).json({
@@ -1559,7 +1554,7 @@ exports.createWarehouse = async (req, res) => {
 };
 
 /* ===============================
-   GET VENDOR WAREHOUSES
+   GET VENDOR WAREHOUSES (logged in vendor)
 ================================ */
 exports.getVendorWarehouses = async (req, res) => {
   try {
@@ -1575,6 +1570,22 @@ exports.getVendorWarehouses = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized - vendorId not found" });
     }
 
+    const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
+    return res.json({ success: true, count: warehouses.length, warehouses });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/* ===============================
+   GET WAREHOUSES BY VENDOR ID (checkout ke liye)
+================================ */
+exports.getWarehousesByVendorId = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID required" });
+    }
     const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
     return res.json({ success: true, count: warehouses.length, warehouses });
   } catch (error) {
@@ -1679,15 +1690,14 @@ exports.createParcelxOrder = async (req, res) => {
       orderStatus: "Pending",
     });
 
-    /* ===== 5. AUTO-FETCH COURIER CODE FROM PARCELX ===== */
+    /* ===== 5. AUTO-FETCH COURIER CODE ===== */
     let courierCode = null;
     try {
       const courierRes = await parcelx.get(
         `/get_couriers?pincode=${shippingAddress.pincode}`
       );
-      console.log("🚚 ParcelX Couriers Response:", JSON.stringify(courierRes.data));
+      console.log("🚚 ParcelX Couriers:", JSON.stringify(courierRes.data));
 
-      // Different response structures handle karo
       const couriers =
         courierRes.data?.data ||
         courierRes.data?.couriers ||
@@ -1695,18 +1705,17 @@ exports.createParcelxOrder = async (req, res) => {
         [];
 
       if (Array.isArray(couriers) && couriers.length > 0) {
-        // Pehla available courier lo
         courierCode =
           couriers[0]?.courier_code ||
           couriers[0]?.code ||
           couriers[0]?.courierCode ||
           null;
-        console.log("✅ Auto-selected courier code:", courierCode);
+        console.log("✅ Auto-selected courier:", courierCode);
       } else {
-        console.log("⚠️ No couriers found in response, proceeding without courier_code");
+        console.log("⚠️ No couriers found, proceeding without courier_code");
       }
-    } catch (courierErr) {
-      console.log("⚠️ Courier fetch failed:", courierErr.message, "— proceeding without courier_code");
+    } catch (e) {
+      console.log("⚠️ Courier fetch failed:", e.message);
     }
 
     /* ===== 6. PARCELX PAYLOAD ===== */
@@ -1732,8 +1741,6 @@ exports.createParcelxOrder = async (req, res) => {
 
       courier_type: 1,
       express_type: "surface",
-
-      // ✅ courier_code sirf tab add karo jab mile
       ...(courierCode ? { courier_code: courierCode } : {}),
 
       products: fixedOrderItems.map((item) => ({
@@ -1781,7 +1788,6 @@ exports.createParcelxOrder = async (req, res) => {
     order.orderStatus = "Processing";
     await order.save();
 
-    /* ===== 9. SUCCESS ===== */
     return res.status(201).json({
       success: true,
       message: "Order created & ParcelX shipment booked successfully",
