@@ -112,13 +112,42 @@ exports.createWarehouse = async (req, res) => {
 /* ===============================
    GET WAREHOUSES BY VENDOR
 ================================ */
+// exports.getVendorWarehouses = async (req, res) => {
+//   try {
+//     const { vendorId } = req.params;
+
+//     const warehouses = await Warehouse.find({ vendorId }).sort({
+//       createdAt: -1,
+//     });
+
+//     return res.json({
+//       success: true,
+//       count: warehouses.length,
+//       warehouses,
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+/* ===============================
+   GET WAREHOUSES BY VENDOR
+================================ */
 exports.getVendorWarehouses = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    // ✅ params ki jagah middleware se lo
+    const vendorId = req.vendor?._id?.toString() || req.vendor?.id?.toString();
 
-    const warehouses = await Warehouse.find({ vendorId }).sort({
-      createdAt: -1,
-    });
+    if (!vendorId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
 
     return res.json({
       success: true,
