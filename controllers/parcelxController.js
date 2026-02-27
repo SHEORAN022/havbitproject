@@ -1,31 +1,172 @@
-// const parcelx = require("../config/parcelx");
-// const Warehouse = require("../models/Warehouse");
-// const CustomerOrder = require("../models/CustomerOrder");
-// /* ===============================
-//    CREATE WAREHOUSE
-// ================================ */
-// exports.createWarehouse = async (req, res) => {
+const parcelx = require("../config/parcelx");
+const Warehouse = require("../models/Warehouse");
+const CustomerOrder = require("../models/CustomerOrder");
+/* ===============================
+   CREATE WAREHOUSE
+================================ */
+exports.createWarehouse = async (req, res) => {
+  try {
+    const {
+      vendorId,
+      name,
+      address,
+      city,
+      state,
+      pincode,
+      phone,
+      contactPerson,
+    } = req.body;
+
+    // Validation
+    if (
+      !vendorId ||
+      !name ||
+      !address ||
+      !city ||
+      !state ||
+      !pincode ||
+      !phone
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing",
+      });
+    }
+
+    // Duplicate check (vendor + warehouse name)
+    const exists = await Warehouse.findOne({ vendorId, name });
+    if (exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Warehouse already exists",
+      });
+    }
+
+    // ParcelX payload (EXACT as working curl)
+    const parcelxPayload = {
+      address_title: name,
+      sender_name: contactPerson || name,
+      full_address: address,
+      city: city,
+      state: state,
+      phone: phone,
+      pincode: pincode,
+    };
+
+    // Call ParcelX
+    const pxRes = await parcelx.post(
+      "/create_warehouse",
+      parcelxPayload
+    );
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX warehouse creation failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    // ✅ CORRECT KEY FROM PARCELX
+    const parcelxWarehouseId = pxRes.data?.data?.pick_address_id;
+
+    if (!parcelxWarehouseId) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX warehouse ID not received",
+      });
+    }
+
+    // Save in DB
+    const warehouse = await Warehouse.create({
+      vendorId,
+      parcelxWarehouseId,
+      name,
+      address,
+      city,
+      state,
+      pincode,
+      phone,
+      contactPerson,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Warehouse created successfully",
+      warehouse,
+    });
+  } catch (error) {
+    console.error(
+      "WAREHOUSE ERROR:",
+      error.response?.data || error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Warehouse creation failed",
+      error: error.response?.data || error.message,
+    });
+  }
+};
+
+
+exports.getVendorWarehouses = async (req, res) => {
+  try {
+    // ✅ req.params, req.query, req.body — sab jagah se try karo
+    const vendorId =
+      req.vendor?._id?.toString() ||
+      req.vendor?.id?.toString() ||
+      req.user?._id?.toString() ||
+      req.user?.id?.toString() ||
+      req.query.vendorId ||
+      req.body.vendorId;
+
+    if (!vendorId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized - vendorId not found",
+      });
+    }
+
+    const warehouses = await Warehouse.find({ vendorId }).sort({
+      createdAt: -1,
+    });
+
+    return res.json({
+      success: true,
+      count: warehouses.length,
+      warehouses,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+// exports.createParcelxOrder = async (req, res) => {
 //   try {
 //     const {
+//       customer,
 //       vendorId,
-//       name,
-//       address,
-//       city,
-//       state,
-//       pincode,
-//       phone,
-//       contactPerson,
+//       warehouseId,
+//       orderItems,
+//       shipment,
+//       shippingAddress,
+//       amount,
+//       paymentMethod = "cod",
 //     } = req.body;
 
-//     // Validation
+//     /* ===================== 1. VALIDATION ===================== */
 //     if (
+//       !customer ||
 //       !vendorId ||
-//       !name ||
-//       !address ||
-//       !city ||
-//       !state ||
-//       !pincode ||
-//       !phone
+//       !warehouseId ||
+//       !Array.isArray(orderItems) ||
+//       orderItems.length === 0 ||
+//       !shipment ||
+//       !shippingAddress ||
+//       !amount
 //     ) {
 //       return res.status(400).json({
 //         success: false,
@@ -33,436 +174,127 @@
 //       });
 //     }
 
-//     // Duplicate check (vendor + warehouse name)
-//     const exists = await Warehouse.findOne({ vendorId, name });
-//     if (exists) {
-//       return res.status(409).json({
+//     /* ===================== 2. FETCH WAREHOUSE ===================== */
+//     const warehouse = await Warehouse.findById(warehouseId);
+//     if (!warehouse) {
+//       return res.status(404).json({
 //         success: false,
-//         message: "Warehouse already exists",
+//         message: "Warehouse not found",
 //       });
 //     }
 
-//     // ParcelX payload (EXACT as working curl)
+//     /* ===================== 3. FIX ORDER ITEMS (SCHEMA SAFE) ===================== */
+//     const fixedOrderItems = orderItems.map((item) => ({
+//       productId: item.productId,
+//       productName: item.productName,
+//       qty: item.qty,
+//       price: item.price,
+//       vendorId: vendorId, // 🔥 REQUIRED BY ORDER ITEM SCHEMA
+//     }));
+
+//     /* ===================== 4. CREATE ORDER IN DB ===================== */
+//     const order = await CustomerOrder.create({
+//       customer,
+//       vendorId,
+//       orderItems: fixedOrderItems,
+//       warehouse: warehouse._id,
+//       pick_address_id: warehouse.parcelxWarehouseId, // 🔥 VERY IMPORTANT
+//       shipment,
+//       shippingAddress,
+//       amount,
+//       totalPayable: amount,
+//       paymentMethod,
+//       paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
+//       orderStatus: "Pending",
+//     });
+
+//     /* ===================== 5. PARCELX PAYLOAD (EXACT AS DOCS) ===================== */
 //     const parcelxPayload = {
-//       address_title: name,
-//       sender_name: contactPerson || name,
-//       full_address: address,
-//       city: city,
-//       state: state,
-//       phone: phone,
-//       pincode: pincode,
+//       client_order_id: order._id.toString(),
+
+//       consignee_name: shippingAddress.name,
+//       consignee_mobile: shippingAddress.phone,
+//       consignee_phone: shippingAddress.phone,
+//       consignee_pincode: shippingAddress.pincode,
+
+//       consignee_address1: shippingAddress.address,
+//       consignee_address2: "",
+//       consignee_emailid: "",
+
+//       pick_address_id: warehouse.parcelxWarehouseId,
+
+//       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
+//       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+//       order_amount: amount.toString(),
+
+//       courier_type: 1,
+//       express_type: "surface",
+
+//       products: fixedOrderItems.map((item) => ({
+//         product_sku: item.productId.toString(),
+//         product_name: item.productName,
+//         product_value: item.price.toString(),
+//         product_quantity: item.qty.toString(),
+//         product_taxper: 0,
+//         product_hsnsac: "",
+//         product_category: "general",
+//         product_description: item.productName,
+//       })),
+
+//       shipment_weight: [shipment.weight.toString()],
+//       shipment_length: [shipment.length.toString()],
+//       shipment_width: [shipment.width.toString()],
+//       shipment_height: [shipment.height.toString()],
 //     };
 
-//     // Call ParcelX
+//     /* ===================== 6. CREATE PARCELX ORDER ===================== */
 //     const pxRes = await parcelx.post(
-//       "/create_warehouse",
+//       "/order/create_order", // 🔥 CORRECT ENDPOINT
 //       parcelxPayload
 //     );
 
 //     if (!pxRes?.data?.status) {
 //       return res.status(500).json({
 //         success: false,
-//         message: "ParcelX warehouse creation failed",
+//         message: "ParcelX order creation failed",
 //         parcelx: pxRes.data,
 //       });
 //     }
 
-//     // ✅ CORRECT KEY FROM PARCELX
-//     const parcelxWarehouseId = pxRes.data?.data?.pick_address_id;
+//     /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
+//     order.parcelx = {
+//       awb: pxRes.data.data.awb_number,
+//       courier: pxRes.data.data.courier_name,
+//       status: pxRes.data.data.current_status,
+//       tracking_url: pxRes.data.data.tracking_url,
+//       last_updated: new Date(),
+//     };
 
-//     if (!parcelxWarehouseId) {
-//       return res.status(500).json({
-//         success: false,
-//         message: "ParcelX warehouse ID not received",
-//       });
-//     }
+//     order.parcelxOrderCreated = true;
+//     order.orderStatus = "Processing";
 
-//     // Save in DB
-//     const warehouse = await Warehouse.create({
-//       vendorId,
-//       parcelxWarehouseId,
-//       name,
-//       address,
-//       city,
-//       state,
-//       pincode,
-//       phone,
-//       contactPerson,
-//     });
+//     await order.save();
 
+//     /* ===================== 8. FINAL RESPONSE ===================== */
 //     return res.status(201).json({
 //       success: true,
-//       message: "Warehouse created successfully",
-//       warehouse,
+//       message: "Order created & ParcelX shipment generated successfully",
+//       order,
 //     });
+
 //   } catch (error) {
 //     console.error(
-//       "WAREHOUSE ERROR:",
+//       "PARCELX ORDER ERROR:",
 //       error.response?.data || error.message
 //     );
 
 //     return res.status(500).json({
 //       success: false,
-//       message: "Warehouse creation failed",
+//       message: "ParcelX order creation failed",
 //       error: error.response?.data || error.message,
 //     });
 //   }
 // };
-
-
-// exports.getVendorWarehouses = async (req, res) => {
-//   try {
-//     // ✅ req.params, req.query, req.body — sab jagah se try karo
-//     const vendorId =
-//       req.vendor?._id?.toString() ||
-//       req.vendor?.id?.toString() ||
-//       req.user?._id?.toString() ||
-//       req.user?.id?.toString() ||
-//       req.query.vendorId ||
-//       req.body.vendorId;
-
-//     if (!vendorId) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Unauthorized - vendorId not found",
-//       });
-//     }
-
-//     const warehouses = await Warehouse.find({ vendorId }).sort({
-//       createdAt: -1,
-//     });
-
-//     return res.json({
-//       success: true,
-//       count: warehouses.length,
-//       warehouses,
-//     });
-//   } catch (error) {
-//     return res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// };
-// // exports.createParcelxOrder = async (req, res) => {
-// //   try {
-// //     const {
-// //       customer,
-// //       vendorId,
-// //       warehouseId,
-// //       orderItems,
-// //       shipment,
-// //       shippingAddress,
-// //       amount,
-// //       paymentMethod = "cod",
-// //     } = req.body;
-
-// //     /* ===================== 1. VALIDATION ===================== */
-// //     if (
-// //       !customer ||
-// //       !vendorId ||
-// //       !warehouseId ||
-// //       !Array.isArray(orderItems) ||
-// //       orderItems.length === 0 ||
-// //       !shipment ||
-// //       !shippingAddress ||
-// //       !amount
-// //     ) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: "Required fields missing",
-// //       });
-// //     }
-
-// //     /* ===================== 2. FETCH WAREHOUSE ===================== */
-// //     const warehouse = await Warehouse.findById(warehouseId);
-// //     if (!warehouse) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: "Warehouse not found",
-// //       });
-// //     }
-
-// //     /* ===================== 3. FIX ORDER ITEMS (SCHEMA SAFE) ===================== */
-// //     const fixedOrderItems = orderItems.map((item) => ({
-// //       productId: item.productId,
-// //       productName: item.productName,
-// //       qty: item.qty,
-// //       price: item.price,
-// //       vendorId: vendorId, // 🔥 REQUIRED BY ORDER ITEM SCHEMA
-// //     }));
-
-// //     /* ===================== 4. CREATE ORDER IN DB ===================== */
-// //     const order = await CustomerOrder.create({
-// //       customer,
-// //       vendorId,
-// //       orderItems: fixedOrderItems,
-// //       warehouse: warehouse._id,
-// //       pick_address_id: warehouse.parcelxWarehouseId, // 🔥 VERY IMPORTANT
-// //       shipment,
-// //       shippingAddress,
-// //       amount,
-// //       totalPayable: amount,
-// //       paymentMethod,
-// //       paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
-// //       orderStatus: "Pending",
-// //     });
-
-// //     /* ===================== 5. PARCELX PAYLOAD (EXACT AS DOCS) ===================== */
-// //     const parcelxPayload = {
-// //       client_order_id: order._id.toString(),
-
-// //       consignee_name: shippingAddress.name,
-// //       consignee_mobile: shippingAddress.phone,
-// //       consignee_phone: shippingAddress.phone,
-// //       consignee_pincode: shippingAddress.pincode,
-
-// //       consignee_address1: shippingAddress.address,
-// //       consignee_address2: "",
-// //       consignee_emailid: "",
-
-// //       pick_address_id: warehouse.parcelxWarehouseId,
-
-// //       payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
-// //       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-// //       order_amount: amount.toString(),
-
-// //       courier_type: 1,
-// //       express_type: "surface",
-
-// //       products: fixedOrderItems.map((item) => ({
-// //         product_sku: item.productId.toString(),
-// //         product_name: item.productName,
-// //         product_value: item.price.toString(),
-// //         product_quantity: item.qty.toString(),
-// //         product_taxper: 0,
-// //         product_hsnsac: "",
-// //         product_category: "general",
-// //         product_description: item.productName,
-// //       })),
-
-// //       shipment_weight: [shipment.weight.toString()],
-// //       shipment_length: [shipment.length.toString()],
-// //       shipment_width: [shipment.width.toString()],
-// //       shipment_height: [shipment.height.toString()],
-// //     };
-
-// //     /* ===================== 6. CREATE PARCELX ORDER ===================== */
-// //     const pxRes = await parcelx.post(
-// //       "/order/create_order", // 🔥 CORRECT ENDPOINT
-// //       parcelxPayload
-// //     );
-
-// //     if (!pxRes?.data?.status) {
-// //       return res.status(500).json({
-// //         success: false,
-// //         message: "ParcelX order creation failed",
-// //         parcelx: pxRes.data,
-// //       });
-// //     }
-
-// //     /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
-// //     order.parcelx = {
-// //       awb: pxRes.data.data.awb_number,
-// //       courier: pxRes.data.data.courier_name,
-// //       status: pxRes.data.data.current_status,
-// //       tracking_url: pxRes.data.data.tracking_url,
-// //       last_updated: new Date(),
-// //     };
-
-// //     order.parcelxOrderCreated = true;
-// //     order.orderStatus = "Processing";
-
-// //     await order.save();
-
-// //     /* ===================== 8. FINAL RESPONSE ===================== */
-// //     return res.status(201).json({
-// //       success: true,
-// //       message: "Order created & ParcelX shipment generated successfully",
-// //       order,
-// //     });
-
-// //   } catch (error) {
-// //     console.error(
-// //       "PARCELX ORDER ERROR:",
-// //       error.response?.data || error.message
-// //     );
-
-// //     return res.status(500).json({
-// //       success: false,
-// //       message: "ParcelX order creation failed",
-// //       error: error.response?.data || error.message,
-// //     });
-// //   }
-// // };
-// // exports.createParcelxOrder = async (req, res) => {
-// //   let order = null;
-
-// //   try {
-// //     const {
-// //       customer,
-// //       vendorId,
-// //       warehouseId,
-// //       orderItems,
-// //       shipment,
-// //       shippingAddress,
-// //       amount,
-// //       paymentMethod = "cod",
-// //     } = req.body;
-
-// //     /* ===================== 1. VALIDATION ===================== */
-// //     if (
-// //       !customer ||
-// //       !vendorId ||
-// //       !warehouseId ||
-// //       !Array.isArray(orderItems) ||
-// //       orderItems.length === 0 ||
-// //       !shipment?.weight ||
-// //       !shipment?.length ||
-// //       !shipment?.width ||
-// //       !shipment?.height ||
-// //       !shippingAddress?.name ||
-// //       !shippingAddress?.phone ||
-// //       !shippingAddress?.address ||
-// //       !shippingAddress?.pincode ||
-// //       !amount
-// //     ) {
-// //       return res.status(400).json({
-// //         success: false,
-// //         message: "Required fields missing",
-// //       });
-// //     }
-
-// //     /* ===================== 2. FETCH WAREHOUSE ===================== */
-// //     const warehouse = await Warehouse.findById(warehouseId);
-// //     if (!warehouse || !warehouse.parcelxWarehouseId) {
-// //       return res.status(404).json({
-// //         success: false,
-// //         message: "Warehouse or ParcelX pickup address not found",
-// //       });
-// //     }
-
-// //     /* ===================== 3. FIX ORDER ITEMS ===================== */
-// //     const fixedOrderItems = orderItems.map(item => ({
-// //       productId: item.productId,
-// //       productName: item.productName,
-// //       qty: item.qty,
-// //       price: item.price,
-// //       vendorId: vendorId, // schema requirement
-// //     }));
-
-// //     /* ===================== 4. CREATE ORDER (DB FIRST) ===================== */
-// //     order = await CustomerOrder.create({
-// //       customer,
-// //       vendorId,
-// //       orderItems: fixedOrderItems,
-// //       warehouse: warehouse._id,
-// //       pick_address_id: warehouse.parcelxWarehouseId,
-// //       shipment,
-// //       shippingAddress,
-// //       amount,
-// //       totalPayable: amount,
-// //       paymentMethod,
-// //       paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
-// //       orderStatus: "Pending",
-// //     });
-
-// //     /* ===================== 5. PARCELX PAYLOAD (DOCS MATCH) ===================== */
-// //     const parcelxPayload = {
-// //       client_order_id: order._id.toString(),
-
-// //       consignee_name: shippingAddress.name,
-// //       consignee_mobile: shippingAddress.phone,
-// //       consignee_phone: shippingAddress.phone,
-// //       consignee_emailid: shippingAddress.email || "",
-// //       consignee_pincode: shippingAddress.pincode,
-
-// //       consignee_address1: shippingAddress.address,
-// //       consignee_address2: "",
-// //       address_type: "Home",
-
-// //       pick_address_id: warehouse.parcelxWarehouseId,
-
-// //       // 🔥 FIXED PAYMENT MODE
-// //       payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-// //       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-// //       order_amount: amount.toString(),
-// //       tax_amount: "0",
-// //       extra_charges: "0",
-
-// //       courier_type: 1,
-// //       courier_code: "PXDEL01",
-// //       express_type: "surface",
-
-// //       products: fixedOrderItems.map(item => ({
-// //         product_sku: item.productId.toString(),
-// //         product_name: item.productName,
-// //         product_value: item.price.toString(),
-// //         product_quantity: item.qty.toString(),
-// //         product_taxper: 0,
-// //         product_hsnsac: "",
-// //         product_category: "general",
-// //         product_description: item.productName,
-// //       })),
-
-// //       shipment_weight: [shipment.weight.toString()],
-// //       shipment_length: [shipment.length.toString()],
-// //       shipment_width: [shipment.width.toString()],
-// //       shipment_height: [shipment.height.toString()],
-// //     };
-
-// //     /* ===================== 6. CREATE PARCELX ORDER ===================== */
-// //     const pxRes = await parcelx.post(
-// //       "/order/create_order",
-// //       parcelxPayload
-// //     );
-
-// //     if (!pxRes?.data?.status) {
-// //       // ❌ rollback DB order
-// //       await CustomerOrder.findByIdAndDelete(order._id);
-
-// //       return res.status(500).json({
-// //         success: false,
-// //         message: "ParcelX order creation failed",
-// //         parcelx: pxRes.data,
-// //       });
-// //     }
-
-// //     /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
-// //     order.parcelx = {
-// //       awb: pxRes.data.data?.awb_number,
-// //       courier: pxRes.data.data?.courier_name,
-// //       status: pxRes.data.data?.current_status,
-// //       tracking_url: pxRes.data.data?.tracking_url,
-// //       last_updated: new Date(),
-// //     };
-
-// //     order.parcelxOrderCreated = true;
-// //     order.orderStatus = "Processing";
-// //     await order.save();
-
-// //     /* ===================== 8. SUCCESS RESPONSE ===================== */
-// //     return res.status(201).json({
-// //       success: true,
-// //       message: "Order created & ParcelX shipment generated successfully",
-// //       order,
-// //     });
-
-// //   } catch (error) {
-// //     console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
-
-// //     // rollback safety
-// //     if (order?._id) {
-// //       await CustomerOrder.findByIdAndDelete(order._id);
-// //     }
-
-// //     return res.status(500).json({
-// //       success: false,
-// //       message: "ParcelX order creation failed",
-// //       error: error.response?.data || error.message,
-// //     });
-// //   }
-// // };
 // exports.createParcelxOrder = async (req, res) => {
 //   let order = null;
 
@@ -471,218 +303,130 @@
 //       customer,
 //       vendorId,
 //       warehouseId,
-//       isPublicOrder,
 //       orderItems,
 //       shipment,
 //       shippingAddress,
 //       amount,
 //       paymentMethod = "cod",
-//       couponCode,
-//       couponDiscount,
-//       subtotal,
-//       deliveryFee,
-//       platformFee,
-//       gst,
 //     } = req.body;
 
 //     /* ===================== 1. VALIDATION ===================== */
-//     if (!customer) {
-//       return res.status(400).json({ success: false, message: "Customer ID is required" });
-//     }
-//     if (!isPublicOrder && !vendorId) {
-//       return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
-//     }
-//     if (!isPublicOrder && !warehouseId) {
-//       return res.status(400).json({ success: false, message: "Warehouse ID is required for vendor orders" });
-//     }
-//     if (!Array.isArray(orderItems) || orderItems.length === 0) {
-//       return res.status(400).json({ success: false, message: "Order items are required" });
-//     }
-//     if (!shipment?.weight || !shipment?.length || !shipment?.width || !shipment?.height) {
-//       return res.status(400).json({ success: false, message: "Shipment dimensions are required" });
-//     }
-//     if (!shippingAddress?.name || !shippingAddress?.phone || !shippingAddress?.address || !shippingAddress?.pincode) {
-//       return res.status(400).json({ success: false, message: "Complete shipping address is required" });
-//     }
-//     if (!amount) {
-//       return res.status(400).json({ success: false, message: "Order amount is required" });
+//     if (
+//       !customer ||
+//       !vendorId ||
+//       !warehouseId ||
+//       !Array.isArray(orderItems) ||
+//       orderItems.length === 0 ||
+//       !shipment?.weight ||
+//       !shipment?.length ||
+//       !shipment?.width ||
+//       !shipment?.height ||
+//       !shippingAddress?.name ||
+//       !shippingAddress?.phone ||
+//       !shippingAddress?.address ||
+//       !shippingAddress?.pincode ||
+//       !amount
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Required fields missing",
+//       });
 //     }
 
-//     /* ===================== 2. RESOLVE WAREHOUSE ===================== */
-//     let warehouse = null;
-//     let pickAddressId = null;
-
-//     if (!isPublicOrder) {
-//       // ── Vendor order ──
-//       warehouse = await Warehouse.findById(warehouseId);
-//       if (!warehouse || !warehouse.parcelxWarehouseId) {
-//         return res.status(404).json({
-//           success: false,
-//           message: "Warehouse not found or ParcelX pickup address not configured",
-//         });
-//       }
-//       pickAddressId = warehouse.parcelxWarehouseId;
-
-//     } else {
-//       // ── Public/platform order: DB se koi bhi valid warehouse lo ──
-//       const totalCount = await Warehouse.countDocuments();
-//       console.log("🔍 Total warehouses in DB:", totalCount);
-
-//       const platformWarehouse = await Warehouse.findOne({
-//         parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" }
-//       }).sort({ createdAt: 1 }).lean();
-
-//       console.log("🔍 Found platform warehouse:", JSON.stringify(platformWarehouse));
-
-//       if (!platformWarehouse || !platformWarehouse.parcelxWarehouseId) {
-//         return res.status(500).json({
-//           success: false,
-//           message: `No warehouse found in DB (total: ${totalCount}). Please create one from Seller Panel.`,
-//         });
-//       }
-
-//       pickAddressId = platformWarehouse.parcelxWarehouseId;
-//       warehouse = platformWarehouse;
-//       console.log("✅ Platform warehouse resolved:", pickAddressId);
+//     /* ===================== 2. FETCH WAREHOUSE ===================== */
+//     const warehouse = await Warehouse.findById(warehouseId);
+//     if (!warehouse || !warehouse.parcelxWarehouseId) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Warehouse or ParcelX pickup address not found",
+//       });
 //     }
 
 //     /* ===================== 3. FIX ORDER ITEMS ===================== */
-//     const fixedOrderItems = orderItems.map((item) => ({
+//     const fixedOrderItems = orderItems.map(item => ({
 //       productId: item.productId,
 //       productName: item.productName,
 //       qty: item.qty,
 //       price: item.price,
-//       vendorId: vendorId || null,
+//       vendorId: vendorId, // schema requirement
 //     }));
 
-//     /* ===================== 4. CREATE ORDER IN DB ===================== */
+//     /* ===================== 4. CREATE ORDER (DB FIRST) ===================== */
 //     order = await CustomerOrder.create({
 //       customer,
-//       vendorId: vendorId || null,
-//       isPublicOrder: !!isPublicOrder,
+//       vendorId,
 //       orderItems: fixedOrderItems,
-//       warehouse: warehouse?._id || null,
-//       pick_address_id: pickAddressId,
+//       warehouse: warehouse._id,
+//       pick_address_id: warehouse.parcelxWarehouseId,
 //       shipment,
 //       shippingAddress,
 //       amount,
 //       totalPayable: amount,
-//       subtotal: subtotal || amount,
-//       deliveryFee: deliveryFee || 0,
-//       platformFee: platformFee || 0,
-//       gst: gst || 0,
-//       couponCode: couponCode || null,
-//       couponDiscount: couponDiscount || 0,
 //       paymentMethod,
-//       paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+//       paymentStatus: paymentMethod === "cod" ? "Pending" : "Success",
 //       orderStatus: "Pending",
 //     });
 
-//     /* ===================== 5. PARCELX PAYLOAD ===================== */
-//     // const parcelxPayload = {
-//     //   client_order_id: order._id.toString(),
+//     /* ===================== 5. PARCELX PAYLOAD (DOCS MATCH) ===================== */
+//     const parcelxPayload = {
+//       client_order_id: order._id.toString(),
 
-//     //   consignee_name: shippingAddress.name,
-//     //   consignee_mobile: shippingAddress.phone,
-//     //   consignee_phone: shippingAddress.phone,
-//     //   consignee_emailid: shippingAddress.email || "",
-//     //   consignee_pincode: shippingAddress.pincode,
-//     //   consignee_address1: shippingAddress.address,
-//     //   consignee_address2: "",
-//     //   address_type: "Home",
+//       consignee_name: shippingAddress.name,
+//       consignee_mobile: shippingAddress.phone,
+//       consignee_phone: shippingAddress.phone,
+//       consignee_emailid: shippingAddress.email || "",
+//       consignee_pincode: shippingAddress.pincode,
 
-//     //   pick_address_id: pickAddressId,
+//       consignee_address1: shippingAddress.address,
+//       consignee_address2: "",
+//       address_type: "Home",
 
-//     //   payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-//     //   cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-//     //   order_amount: amount.toString(),
-//     //   tax_amount: "0",
-//     //   extra_charges: "0",
+//       pick_address_id: warehouse.parcelxWarehouseId,
 
-//     //   courier_type: 1,
-//     //   courier_code: "PXDEL01",
-//     //   express_type: "surface",
+//       // 🔥 FIXED PAYMENT MODE
+//       payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+//       cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+//       order_amount: amount.toString(),
+//       tax_amount: "0",
+//       extra_charges: "0",
 
-//     //   products: fixedOrderItems.map((item) => ({
-//     //     product_sku: item.productId.toString(),
-//     //     product_name: item.productName,
-//     //     product_value: item.price.toString(),
-//     //     product_quantity: item.qty.toString(),
-//     //     product_taxper: 0,
-//     //     product_hsnsac: "",
-//     //     product_category: "general",
-//     //     product_description: item.productName,
-//     //   })),
+//       courier_type: 1,
+//       courier_code: "PXDEL01",
+//       express_type: "surface",
 
-//     //   shipment_weight: [shipment.weight.toString()],
-//     //   shipment_length: [shipment.length.toString()],
-//     //   shipment_width: [shipment.width.toString()],
-//     //   shipment_height: [shipment.height.toString()],
-//     // };
-// /* ===================== 5. PARCELX PAYLOAD ===================== */
-// const parcelxPayload = {
-//   client_order_id: order._id.toString(),
+//       products: fixedOrderItems.map(item => ({
+//         product_sku: item.productId.toString(),
+//         product_name: item.productName,
+//         product_value: item.price.toString(),
+//         product_quantity: item.qty.toString(),
+//         product_taxper: 0,
+//         product_hsnsac: "",
+//         product_category: "general",
+//         product_description: item.productName,
+//       })),
 
-//   consignee_name: shippingAddress.name,
-//   consignee_mobile: shippingAddress.phone.toString(),
-//   consignee_phone: shippingAddress.phone.toString(),
-//   consignee_emailid: shippingAddress.email || "",
-//   consignee_pincode: shippingAddress.pincode.toString(),
-//   consignee_address1: shippingAddress.address,
-//   consignee_address2: "",
-//   address_type: "Home",
+//       shipment_weight: [shipment.weight.toString()],
+//       shipment_length: [shipment.length.toString()],
+//       shipment_width: [shipment.width.toString()],
+//       shipment_height: [shipment.height.toString()],
+//     };
 
-//   pick_address_id: parseInt(pickAddressId),  // ✅ string → number
+//     /* ===================== 6. CREATE PARCELX ORDER ===================== */
+//     const pxRes = await parcelx.post(
+//       "/order/create_order",
+//       parcelxPayload
+//     );
 
-//   payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-//   cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-//   order_amount: amount.toString(),
-//   tax_amount: "0",
-//   extra_charges: "0",
+//     if (!pxRes?.data?.status) {
+//       // ❌ rollback DB order
+//       await CustomerOrder.findByIdAndDelete(order._id);
 
-//   courier_type: 1,
-//   // courier_code: "PXDEL01",  // ✅ HATAO - invalid tha
-//   express_type: "surface",
-
-//   products: fixedOrderItems.map((item) => ({
-//     product_sku: item.productId.toString(),
-//     product_name: item.productName,
-//     product_value: item.price.toString(),
-//     product_quantity: item.qty.toString(),
-//     product_taxper: 0,
-//     product_hsnsac: "",
-//     product_category: "general",
-//     product_description: item.productName,
-//   })),
-
-//   shipment_weight: [shipment.weight.toString()],
-//   shipment_length: [shipment.length.toString()],
-//   shipment_width: [shipment.width.toString()],
-//   shipment_height: [shipment.height.toString()],
-// };
-//     /* ===================== 6. CALL PARCELX API ===================== */
-//     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
-
-//     console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
-
-//     // if (!pxRes?.data?.status) {
-//     //   await CustomerOrder.findByIdAndDelete(order._id);
-//     //   return res.status(500).json({
-//     //     success: false,
-//     //     message: "ParcelX shipment creation failed",
-//     //     parcelx: pxRes.data,
-//     //   });
-//     // }
-
-//      if (!pxRes?.data?.status) {
-//   await CustomerOrder.findByIdAndDelete(order._id);
-//   return res.status(500).json({
-//     success: false,
-//     message: pxRes.data?.message || "ParcelX shipment creation failed",
-//     parcelx: pxRes.data,
-//     parcelxError: pxRes.data?.message || JSON.stringify(pxRes.data),
-//   });
-// }
+//       return res.status(500).json({
+//         success: false,
+//         message: "ParcelX order creation failed",
+//         parcelx: pxRes.data,
+//       });
+//     }
 
 //     /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
 //     order.parcelx = {
@@ -697,163 +441,419 @@
 //     order.orderStatus = "Processing";
 //     await order.save();
 
-//     /* ===================== 8. SUCCESS ===================== */
+//     /* ===================== 8. SUCCESS RESPONSE ===================== */
 //     return res.status(201).json({
 //       success: true,
-//       message: "Order created & ParcelX shipment booked successfully",
+//       message: "Order created & ParcelX shipment generated successfully",
 //       order,
 //     });
 
 //   } catch (error) {
 //     console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
 
+//     // rollback safety
 //     if (order?._id) {
-//       try {
-//         await CustomerOrder.findByIdAndDelete(order._id);
-//       } catch (rollbackErr) {
-//         console.error("Rollback failed:", rollbackErr.message);
-//       }
+//       await CustomerOrder.findByIdAndDelete(order._id);
 //     }
 
 //     return res.status(500).json({
 //       success: false,
-//       message: "Order creation failed. Please try again.",
+//       message: "ParcelX order creation failed",
 //       error: error.response?.data || error.message,
 //     });
 //   }
 // };
-// /* ===============================
-//    TRACK PARCELX ORDER
-// ================================ */
-// exports.trackParcelxOrder = async (req, res) => {
-//   try {
-//     const { awb } = req.params;
+exports.createParcelxOrder = async (req, res) => {
+  let order = null;
 
-//     if (!awb) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "AWB number is required",
-//       });
-//     }
+  try {
+    const {
+      customer,
+      vendorId,
+      warehouseId,
+      isPublicOrder,
+      orderItems,
+      shipment,
+      shippingAddress,
+      amount,
+      paymentMethod = "cod",
+      couponCode,
+      couponDiscount,
+      subtotal,
+      deliveryFee,
+      platformFee,
+      gst,
+    } = req.body;
 
-//     /* ===================== 1. CALL PARCELX TRACK API ===================== */
-//     const pxRes = await parcelx.get(
-//       `/track_order?awb=${awb}`
-//     );
+    /* ===================== 1. VALIDATION ===================== */
+    if (!customer) {
+      return res.status(400).json({ success: false, message: "Customer ID is required" });
+    }
+    if (!isPublicOrder && !vendorId) {
+      return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
+    }
+    if (!isPublicOrder && !warehouseId) {
+      return res.status(400).json({ success: false, message: "Warehouse ID is required for vendor orders" });
+    }
+    if (!Array.isArray(orderItems) || orderItems.length === 0) {
+      return res.status(400).json({ success: false, message: "Order items are required" });
+    }
+    if (!shipment?.weight || !shipment?.length || !shipment?.width || !shipment?.height) {
+      return res.status(400).json({ success: false, message: "Shipment dimensions are required" });
+    }
+    if (!shippingAddress?.name || !shippingAddress?.phone || !shippingAddress?.address || !shippingAddress?.pincode) {
+      return res.status(400).json({ success: false, message: "Complete shipping address is required" });
+    }
+    if (!amount) {
+      return res.status(400).json({ success: false, message: "Order amount is required" });
+    }
 
-//     if (!pxRes?.data?.status) {
-//       return res.status(500).json({
-//         success: false,
-//         message: "ParcelX tracking failed",
-//         parcelx: pxRes.data,
-//       });
-//     }
+    /* ===================== 2. RESOLVE WAREHOUSE ===================== */
+    let warehouse = null;
+    let pickAddressId = null;
 
-//     const currentStatus = pxRes.data.current_status;
+    if (!isPublicOrder) {
+      // ── Vendor order ──
+      warehouse = await Warehouse.findById(warehouseId);
+      if (!warehouse || !warehouse.parcelxWarehouseId) {
+        return res.status(404).json({
+          success: false,
+          message: "Warehouse not found or ParcelX pickup address not configured",
+        });
+      }
+      pickAddressId = warehouse.parcelxWarehouseId;
 
-//     /* ===================== 2. UPDATE ORDER IN DB ===================== */
-//     const order = await CustomerOrder.findOne({
-//       "parcelx.awb": awb,
-//     });
+    } else {
+      // ── Public/platform order: DB se koi bhi valid warehouse lo ──
+      const totalCount = await Warehouse.countDocuments();
+      console.log("🔍 Total warehouses in DB:", totalCount);
 
-//     if (order) {
-//       order.parcelx.status = currentStatus.status_title;
-//       order.parcelx.last_updated = new Date(
-//         currentStatus.event_date
-//       );
+      const platformWarehouse = await Warehouse.findOne({
+        parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" }
+      }).sort({ createdAt: 1 }).lean();
 
-//       // Auto order status mapping
-//       if (currentStatus.status_title === "delivered") {
-//         order.orderStatus = "Delivered";
-//         order.deliveredAt = new Date();
-//         order.paymentStatus =
-//           order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
-//       }
+      console.log("🔍 Found platform warehouse:", JSON.stringify(platformWarehouse));
 
-//       if (currentStatus.status_title === "cancelled") {
-//         order.orderStatus = "Cancelled";
-//         order.cancelledAt = new Date();
-//       }
+      if (!platformWarehouse || !platformWarehouse.parcelxWarehouseId) {
+        return res.status(500).json({
+          success: false,
+          message: `No warehouse found in DB (total: ${totalCount}). Please create one from Seller Panel.`,
+        });
+      }
 
-//       await order.save();
-//     }
+      pickAddressId = platformWarehouse.parcelxWarehouseId;
+      warehouse = platformWarehouse;
+      console.log("✅ Platform warehouse resolved:", pickAddressId);
+    }
 
-//     /* ===================== 3. RESPONSE ===================== */
-//     return res.json({
-//       success: true,
-//       parcelx_tracking: pxRes.data,
-//     });
+    /* ===================== 3. FIX ORDER ITEMS ===================== */
+    const fixedOrderItems = orderItems.map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      qty: item.qty,
+      price: item.price,
+      vendorId: vendorId || null,
+    }));
 
-//   } catch (error) {
-//     console.error(
-//       "PARCELX TRACK ERROR:",
-//       error.response?.data || error.message
-//     );
+    /* ===================== 4. CREATE ORDER IN DB ===================== */
+    order = await CustomerOrder.create({
+      customer,
+      vendorId: vendorId || null,
+      isPublicOrder: !!isPublicOrder,
+      orderItems: fixedOrderItems,
+      warehouse: warehouse?._id || null,
+      pick_address_id: pickAddressId,
+      shipment,
+      shippingAddress,
+      amount,
+      totalPayable: amount,
+      subtotal: subtotal || amount,
+      deliveryFee: deliveryFee || 0,
+      platformFee: platformFee || 0,
+      gst: gst || 0,
+      couponCode: couponCode || null,
+      couponDiscount: couponDiscount || 0,
+      paymentMethod,
+      paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+      orderStatus: "Pending",
+    });
 
-//     return res.status(500).json({
-//       success: false,
-//       message: "ParcelX tracking error",
-//       error: error.response?.data || error.message,
-//     });
-//   }
-// };
-// /* ===============================
-//    GET PARCELX SHIPMENT DETAILS
-// ================================ */
-// exports.getParcelxShipmentDetails = async (req, res) => {
-//   try {
-//     const { awb } = req.params;
+    /* ===================== 5. PARCELX PAYLOAD ===================== */
+    // const parcelxPayload = {
+    //   client_order_id: order._id.toString(),
 
-//     if (!awb) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "AWB number is required",
-//       });
-//     }
+    //   consignee_name: shippingAddress.name,
+    //   consignee_mobile: shippingAddress.phone,
+    //   consignee_phone: shippingAddress.phone,
+    //   consignee_emailid: shippingAddress.email || "",
+    //   consignee_pincode: shippingAddress.pincode,
+    //   consignee_address1: shippingAddress.address,
+    //   consignee_address2: "",
+    //   address_type: "Home",
 
-//     /* ===================== CALL PARCELX API ===================== */
-//     const pxRes = await parcelx.get(
-//       `/shipments-details?awb=${awb}`
-//     );
+    //   pick_address_id: pickAddressId,
 
-//     if (!pxRes?.data?.status) {
-//       return res.status(500).json({
-//         success: false,
-//         message: "ParcelX shipment details failed",
-//         parcelx: pxRes.data,
-//       });
-//     }
+    //   payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+    //   cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+    //   order_amount: amount.toString(),
+    //   tax_amount: "0",
+    //   extra_charges: "0",
 
-//     /* ===================== OPTIONAL: DB SYNC ===================== */
-//     const order = await CustomerOrder.findOne({
-//       "parcelx.awb": awb,
-//     });
+    //   courier_type: 1,
+    //   courier_code: "PXDEL01",
+    //   express_type: "surface",
 
-//     if (order && pxRes.data.data?.status) {
-//       order.parcelx.status = pxRes.data.data.status;
-//       order.parcelx.last_updated = new Date();
-//       await order.save();
-//     }
+    //   products: fixedOrderItems.map((item) => ({
+    //     product_sku: item.productId.toString(),
+    //     product_name: item.productName,
+    //     product_value: item.price.toString(),
+    //     product_quantity: item.qty.toString(),
+    //     product_taxper: 0,
+    //     product_hsnsac: "",
+    //     product_category: "general",
+    //     product_description: item.productName,
+    //   })),
 
-//     /* ===================== RESPONSE ===================== */
-//     return res.json({
-//       success: true,
-//       shipment_details: pxRes.data,
-//     });
+    //   shipment_weight: [shipment.weight.toString()],
+    //   shipment_length: [shipment.length.toString()],
+    //   shipment_width: [shipment.width.toString()],
+    //   shipment_height: [shipment.height.toString()],
+    // };
+/* ===================== 5. PARCELX PAYLOAD ===================== */
+const parcelxPayload = {
+  client_order_id: order._id.toString(),
 
-//   } catch (error) {
-//     console.error(
-//       "PARCELX SHIPMENT DETAILS ERROR:",
-//       error.response?.data || error.message
-//     );
+  consignee_name: shippingAddress.name,
+  consignee_mobile: shippingAddress.phone.toString(),
+  consignee_phone: shippingAddress.phone.toString(),
+  consignee_emailid: shippingAddress.email || "",
+  consignee_pincode: shippingAddress.pincode.toString(),
+  consignee_address1: shippingAddress.address,
+  consignee_address2: "",
+  address_type: "Home",
 
-//     return res.status(500).json({
-//       success: false,
-//       message: "ParcelX shipment details error",
-//       error: error.response?.data || error.message,
-//     });
-//   }
-// };
+  pick_address_id: parseInt(pickAddressId),  // ✅ string → number
+
+  payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+  cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+  order_amount: amount.toString(),
+  tax_amount: "0",
+  extra_charges: "0",
+
+  courier_type: 1,
+  // courier_code: "PXDEL01",  // ✅ HATAO - invalid tha
+  express_type: "surface",
+
+  products: fixedOrderItems.map((item) => ({
+    product_sku: item.productId.toString(),
+    product_name: item.productName,
+    product_value: item.price.toString(),
+    product_quantity: item.qty.toString(),
+    product_taxper: 0,
+    product_hsnsac: "",
+    product_category: "general",
+    product_description: item.productName,
+  })),
+
+  shipment_weight: [shipment.weight.toString()],
+  shipment_length: [shipment.length.toString()],
+  shipment_width: [shipment.width.toString()],
+  shipment_height: [shipment.height.toString()],
+};
+    /* ===================== 6. CALL PARCELX API ===================== */
+    const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
+
+    console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
+
+    // if (!pxRes?.data?.status) {
+    //   await CustomerOrder.findByIdAndDelete(order._id);
+    //   return res.status(500).json({
+    //     success: false,
+    //     message: "ParcelX shipment creation failed",
+    //     parcelx: pxRes.data,
+    //   });
+    // }
+
+     if (!pxRes?.data?.status) {
+  await CustomerOrder.findByIdAndDelete(order._id);
+  return res.status(500).json({
+    success: false,
+    message: pxRes.data?.message || "ParcelX shipment creation failed",
+    parcelx: pxRes.data,
+    parcelxError: pxRes.data?.message || JSON.stringify(pxRes.data),
+  });
+}
+
+    /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
+    order.parcelx = {
+      awb: pxRes.data.data?.awb_number,
+      courier: pxRes.data.data?.courier_name,
+      status: pxRes.data.data?.current_status,
+      tracking_url: pxRes.data.data?.tracking_url,
+      last_updated: new Date(),
+    };
+
+    order.parcelxOrderCreated = true;
+    order.orderStatus = "Processing";
+    await order.save();
+
+    /* ===================== 8. SUCCESS ===================== */
+    return res.status(201).json({
+      success: true,
+      message: "Order created & ParcelX shipment booked successfully",
+      order,
+    });
+
+  } catch (error) {
+    console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
+
+    if (order?._id) {
+      try {
+        await CustomerOrder.findByIdAndDelete(order._id);
+      } catch (rollbackErr) {
+        console.error("Rollback failed:", rollbackErr.message);
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Order creation failed. Please try again.",
+      error: error.response?.data || error.message,
+    });
+  }
+};
+/* ===============================
+   TRACK PARCELX ORDER
+================================ */
+exports.trackParcelxOrder = async (req, res) => {
+  try {
+    const { awb } = req.params;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB number is required",
+      });
+    }
+
+    /* ===================== 1. CALL PARCELX TRACK API ===================== */
+    const pxRes = await parcelx.get(
+      `/track_order?awb=${awb}`
+    );
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX tracking failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    const currentStatus = pxRes.data.current_status;
+
+    /* ===================== 2. UPDATE ORDER IN DB ===================== */
+    const order = await CustomerOrder.findOne({
+      "parcelx.awb": awb,
+    });
+
+    if (order) {
+      order.parcelx.status = currentStatus.status_title;
+      order.parcelx.last_updated = new Date(
+        currentStatus.event_date
+      );
+
+      // Auto order status mapping
+      if (currentStatus.status_title === "delivered") {
+        order.orderStatus = "Delivered";
+        order.deliveredAt = new Date();
+        order.paymentStatus =
+          order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
+      }
+
+      if (currentStatus.status_title === "cancelled") {
+        order.orderStatus = "Cancelled";
+        order.cancelledAt = new Date();
+      }
+
+      await order.save();
+    }
+
+    /* ===================== 3. RESPONSE ===================== */
+    return res.json({
+      success: true,
+      parcelx_tracking: pxRes.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "PARCELX TRACK ERROR:",
+      error.response?.data || error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "ParcelX tracking error",
+      error: error.response?.data || error.message,
+    });
+  }
+};
+/* ===============================
+   GET PARCELX SHIPMENT DETAILS
+================================ */
+exports.getParcelxShipmentDetails = async (req, res) => {
+  try {
+    const { awb } = req.params;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB number is required",
+      });
+    }
+
+    /* ===================== CALL PARCELX API ===================== */
+    const pxRes = await parcelx.get(
+      `/shipments-details?awb=${awb}`
+    );
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: "ParcelX shipment details failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    /* ===================== OPTIONAL: DB SYNC ===================== */
+    const order = await CustomerOrder.findOne({
+      "parcelx.awb": awb,
+    });
+
+    if (order && pxRes.data.data?.status) {
+      order.parcelx.status = pxRes.data.data.status;
+      order.parcelx.last_updated = new Date();
+      await order.save();
+    }
+
+    /* ===================== RESPONSE ===================== */
+    return res.json({
+      success: true,
+      shipment_details: pxRes.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "PARCELX SHIPMENT DETAILS ERROR:",
+      error.response?.data || error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "ParcelX shipment details error",
+      error: error.response?.data || error.message,
+    });
+  }
+};
 
 
 // // const parcelx = require("../config/parcelx");
@@ -1480,382 +1480,3 @@
 // //     });
 // //   }
 // // };
-const parcelx = require("../config/parcelx");
-const Warehouse = require("../models/Warehouse");
-const CustomerOrder = require("../models/CustomerOrder");
-
-/* ===============================
-   GET AVAILABLE COURIERS
-================================ */
-exports.getAvailableCouriers = async (req, res) => {
-  try {
-    const { pincode } = req.query;
-    const url = pincode ? `/get_couriers?pincode=${pincode}` : `/get_couriers`;
-    const pxRes = await parcelx.get(url);
-    return res.json({ success: true, data: pxRes.data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.response?.data || error.message });
-  }
-};
-
-/* ===============================
-   CREATE WAREHOUSE
-================================ */
-exports.createWarehouse = async (req, res) => {
-  try {
-    const { vendorId, name, address, city, state, pincode, phone, contactPerson } = req.body;
-
-    if (!vendorId || !name || !address || !city || !state || !pincode || !phone)
-      return res.status(400).json({ success: false, message: "Required fields missing" });
-
-    const exists = await Warehouse.findOne({ vendorId, name });
-    if (exists)
-      return res.status(409).json({ success: false, message: "Warehouse already exists" });
-
-    const pxRes = await parcelx.post("/create_warehouse", {
-      address_title: name,
-      sender_name: contactPerson || name,
-      full_address: address,
-      city, state, phone, pincode,
-    });
-
-    if (!pxRes?.data?.status)
-      return res.status(500).json({ success: false, message: "ParcelX warehouse creation failed", parcelx: pxRes.data });
-
-    const parcelxWarehouseId = pxRes.data?.data?.pick_address_id;
-    if (!parcelxWarehouseId)
-      return res.status(500).json({ success: false, message: "ParcelX warehouse ID not received" });
-
-    const warehouse = await Warehouse.create({
-      vendorId, parcelxWarehouseId, name, address, city, state, pincode, phone, contactPerson,
-    });
-
-    return res.status(201).json({ success: true, message: "Warehouse created successfully", warehouse });
-  } catch (error) {
-    console.error("WAREHOUSE ERROR:", error.response?.data || error.message);
-    return res.status(500).json({ success: false, message: "Warehouse creation failed", error: error.response?.data || error.message });
-  }
-};
-
-/* ===============================
-   GET VENDOR WAREHOUSES (logged in vendor)
-================================ */
-exports.getVendorWarehouses = async (req, res) => {
-  try {
-    const vendorId =
-      req.vendor?._id?.toString() || req.vendor?.id?.toString() ||
-      req.user?._id?.toString() || req.user?.id?.toString() ||
-      req.query.vendorId || req.body.vendorId;
-
-    if (!vendorId)
-      return res.status(401).json({ success: false, message: "Unauthorized - vendorId not found" });
-
-    const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
-    return res.json({ success: true, count: warehouses.length, warehouses });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ===============================
-   GET WAREHOUSES BY VENDOR ID
-================================ */
-exports.getWarehousesByVendorId = async (req, res) => {
-  try {
-    const { vendorId } = req.params;
-    if (!vendorId)
-      return res.status(400).json({ success: false, message: "Vendor ID required" });
-
-    const warehouses = await Warehouse.find({ vendorId }).sort({ createdAt: -1 });
-    return res.json({ success: true, count: warehouses.length, warehouses });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ===============================
-   CREATE PARCELX ORDER — FIXED ✅
-================================ */
-exports.createParcelxOrder = async (req, res) => {
-  let order = null;
-
-  try {
-    const {
-      customer, vendorId, warehouseId, isPublicOrder,
-      orderItems, shipment, shippingAddress, amount,
-      paymentMethod = "cod", couponCode, couponDiscount,
-      subtotal, deliveryFee, platformFee, gst,
-    } = req.body;
-
-    /* ===== 1. VALIDATION ===== */
-    if (!customer)
-      return res.status(400).json({ success: false, message: "Customer ID is required" });
-    if (!isPublicOrder && !vendorId)
-      return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
-    if (!isPublicOrder && !warehouseId)
-      return res.status(400).json({ success: false, message: "Warehouse ID is required for vendor orders" });
-    if (!Array.isArray(orderItems) || orderItems.length === 0)
-      return res.status(400).json({ success: false, message: "Order items are required" });
-    if (!shipment?.weight || !shipment?.length || !shipment?.width || !shipment?.height)
-      return res.status(400).json({ success: false, message: "Shipment dimensions are required" });
-    if (!shippingAddress?.name || !shippingAddress?.phone || !shippingAddress?.address || !shippingAddress?.pincode)
-      return res.status(400).json({ success: false, message: "Complete shipping address is required" });
-    // ✅ FIX: city & state required separately (ParcelX needs them)
-    if (!shippingAddress?.city || !shippingAddress?.state)
-      return res.status(400).json({ success: false, message: "City and State are required in shipping address" });
-    if (!amount)
-      return res.status(400).json({ success: false, message: "Order amount is required" });
-
-    /* ===== 2. RESOLVE WAREHOUSE ===== */
-    let warehouse = null;
-    let pickAddressId = null;
-
-    if (!isPublicOrder) {
-      warehouse = await Warehouse.findById(warehouseId);
-      if (!warehouse || !warehouse.parcelxWarehouseId)
-        return res.status(404).json({ success: false, message: "Warehouse not found or ParcelX pickup address not configured" });
-      pickAddressId = warehouse.parcelxWarehouseId;
-    } else {
-      const totalCount = await Warehouse.countDocuments();
-      console.log("🔍 Total warehouses in DB:", totalCount);
-
-      const platformWarehouse = await Warehouse.findOne({
-        parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" },
-      }).sort({ createdAt: 1 }).lean();
-
-      console.log("🔍 Platform warehouse:", JSON.stringify(platformWarehouse));
-
-      if (!platformWarehouse?.parcelxWarehouseId)
-        return res.status(500).json({
-          success: false,
-          message: `No warehouse found in DB (total: ${totalCount}). Please create one from Seller Panel.`,
-        });
-
-      pickAddressId = platformWarehouse.parcelxWarehouseId;
-      warehouse = platformWarehouse;
-    }
-
-    // ✅ FIX: pickAddressId must be a valid integer — ParcelX rejects strings/NaN
-    const pickAddressIdInt = parseInt(pickAddressId, 10);
-    if (!pickAddressIdInt || isNaN(pickAddressIdInt))
-      return res.status(500).json({
-        success: false,
-        message: `Invalid pick_address_id: "${pickAddressId}". Must be a numeric ParcelX warehouse ID. Check your warehouse setup.`,
-      });
-
-    /* ===== 3. FIXED ORDER ITEMS ===== */
-    const fixedOrderItems = orderItems.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      qty: parseInt(item.qty) || 1,
-      price: parseFloat(item.price) || 0,
-      vendorId: vendorId || null,
-    }));
-
-    /* ===== 4. CREATE ORDER IN DB ===== */
-    order = await CustomerOrder.create({
-      customer,
-      vendorId: vendorId || null,
-      isPublicOrder: !!isPublicOrder,
-      orderItems: fixedOrderItems,
-      warehouse: warehouse?._id || null,
-      pick_address_id: pickAddressIdInt,
-      shipment,
-      shippingAddress,
-      amount,
-      totalPayable: amount,
-      subtotal: subtotal || amount,
-      deliveryFee: deliveryFee || 0,
-      platformFee: platformFee || 0,
-      gst: gst || 0,
-      couponCode: couponCode || null,
-      couponDiscount: couponDiscount || 0,
-      paymentMethod,
-      paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
-      orderStatus: "Pending",
-    });
-
-    /* ===== 5. COURIER CODE ===== */
-    const courierCode = process.env.PARCELX_COURIER_CODE;
-    if (!courierCode) {
-      await CustomerOrder.findByIdAndDelete(order._id);
-      return res.status(500).json({
-        success: false,
-        message: "PARCELX_COURIER_CODE .env mein set nahi hai.",
-        parcelxError: "Courier Code missing in environment",
-      });
-    }
-    console.log("📦 Courier:", courierCode, "| pick_address_id:", pickAddressIdInt);
-
-    // ✅ FIX: Sanitize all numeric values
-    const orderAmount = parseFloat(amount) || 0;
-    const weightVal = parseFloat(shipment.weight) || 0.5;
-    const lengthVal = parseFloat(shipment.length) || 15;
-    const widthVal  = parseFloat(shipment.width)  || 10;
-    const heightVal = parseFloat(shipment.height) || 5;
-
-    /* ===== 6. PARCELX PAYLOAD — ALL FIXES APPLIED ===== */
-    const parcelxPayload = {
-      client_order_id: order._id.toString(),
-
-      // ✅ FIX: Added consignee_city & consignee_state (ParcelX requires these separately)
-      consignee_name:    shippingAddress.name.trim(),
-      consignee_mobile:  shippingAddress.phone.toString().replace(/\D/g, "").slice(-10),
-      consignee_phone:   shippingAddress.phone.toString().replace(/\D/g, "").slice(-10),
-      consignee_emailid: shippingAddress.email || "",
-      consignee_pincode: shippingAddress.pincode.toString().trim(),
-      consignee_address1: shippingAddress.address.trim(),
-      consignee_address2: "",
-      consignee_city:    shippingAddress.city.trim(),    // ✅ ADDED
-      consignee_state:   shippingAddress.state.trim(),   // ✅ ADDED
-      address_type: "Home",
-
-      // ✅ FIX: Integer not string
-      pick_address_id: pickAddressIdInt,
-
-      // ✅ FIX: "COD" not "Cod" — ParcelX is case-sensitive
-      payment_mode: paymentMethod === "cod" ? "COD" : "Prepaid",
-      cod_amount:   paymentMethod === "cod" ? orderAmount.toFixed(2) : "0",
-      order_amount: orderAmount.toFixed(2),
-      tax_amount:   "0",
-      extra_charges: "0",
-
-      courier_type:  1,
-      express_type:  "surface",
-      courier_code:  courierCode,
-
-      // ✅ FIX: product_value & product_quantity as numbers
-      products: fixedOrderItems.map((item) => ({
-        product_sku:         item.productId.toString(),
-        product_name:        item.productName,
-        product_value:       item.price,          // number
-        product_quantity:    item.qty,             // number
-        product_taxper:      0,
-        product_hsnsac:      "",
-        product_category:    "general",
-        product_description: item.productName,
-      })),
-
-      // ✅ FIX: Plain numbers, NOT arrays
-      shipment_weight: weightVal,
-      shipment_length: lengthVal,
-      shipment_width:  widthVal,
-      shipment_height: heightVal,
-    };
-
-    console.log("📤 ParcelX Payload:", JSON.stringify(parcelxPayload, null, 2));
-
-    /* ===== 7. CALL PARCELX ===== */
-    const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
-    console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data, null, 2));
-
-    if (!pxRes?.data?.status) {
-      await CustomerOrder.findByIdAndDelete(order._id);
-
-      // ✅ FIX: Extract error from all possible ParcelX response fields
-      const parcelxErrMsg =
-        pxRes.data?.message ||
-        pxRes.data?.error ||
-        pxRes.data?.msg ||
-        (typeof pxRes.data?.data === "string" ? pxRes.data.data : null) ||
-        JSON.stringify(pxRes.data);
-
-      console.error("❌ ParcelX rejected:", parcelxErrMsg);
-
-      return res.status(500).json({
-        success: false,
-        message: parcelxErrMsg,
-        parcelx: pxRes.data,
-        parcelxError: parcelxErrMsg,
-      });
-    }
-
-    /* ===== 8. SAVE & RETURN ===== */
-    order.parcelx = {
-      awb:          pxRes.data.data?.awb_number,
-      courier:      pxRes.data.data?.courier_name,
-      status:       pxRes.data.data?.current_status,
-      tracking_url: pxRes.data.data?.tracking_url,
-      last_updated: new Date(),
-    };
-    order.parcelxOrderCreated = true;
-    order.orderStatus = "Processing";
-    await order.save();
-
-    return res.status(201).json({
-      success: true,
-      message: "Order created & ParcelX shipment booked successfully",
-      order,
-    });
-
-  } catch (error) {
-    console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
-    if (order?._id) {
-      try { await CustomerOrder.findByIdAndDelete(order._id); } catch (e) {}
-    }
-    return res.status(500).json({
-      success: false,
-      message: "Order creation failed. Please try again.",
-      parcelxError: error.response?.data?.message || error.response?.data || error.message,
-      error: error.response?.data || error.message,
-    });
-  }
-};
-
-/* ===============================
-   TRACK PARCELX ORDER
-================================ */
-exports.trackParcelxOrder = async (req, res) => {
-  try {
-    const { awb } = req.params;
-    if (!awb) return res.status(400).json({ success: false, message: "AWB number is required" });
-
-    const pxRes = await parcelx.get(`/track_order?awb=${awb}`);
-    if (!pxRes?.data?.status)
-      return res.status(500).json({ success: false, message: "ParcelX tracking failed", parcelx: pxRes.data });
-
-    const currentStatus = pxRes.data.current_status;
-    const order = await CustomerOrder.findOne({ "parcelx.awb": awb });
-    if (order) {
-      order.parcelx.status = currentStatus.status_title;
-      order.parcelx.last_updated = new Date(currentStatus.event_date);
-      if (currentStatus.status_title === "delivered") {
-        order.orderStatus = "Delivered";
-        order.deliveredAt = new Date();
-        order.paymentStatus = order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
-      }
-      if (currentStatus.status_title === "cancelled") {
-        order.orderStatus = "Cancelled";
-        order.cancelledAt = new Date();
-      }
-      await order.save();
-    }
-    return res.json({ success: true, parcelx_tracking: pxRes.data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: "ParcelX tracking error", error: error.response?.data || error.message });
-  }
-};
-
-/* ===============================
-   GET PARCELX SHIPMENT DETAILS
-================================ */
-exports.getParcelxShipmentDetails = async (req, res) => {
-  try {
-    const { awb } = req.params;
-    if (!awb) return res.status(400).json({ success: false, message: "AWB number is required" });
-
-    const pxRes = await parcelx.get(`/shipments-details?awb=${awb}`);
-    if (!pxRes?.data?.status)
-      return res.status(500).json({ success: false, message: "ParcelX shipment details failed", parcelx: pxRes.data });
-
-    const order = await CustomerOrder.findOne({ "parcelx.awb": awb });
-    if (order && pxRes.data.data?.status) {
-      order.parcelx.status = pxRes.data.data.status;
-      order.parcelx.last_updated = new Date();
-      await order.save();
-    }
-    return res.json({ success: true, shipment_details: pxRes.data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: "ParcelX shipment details error", error: error.response?.data || error.message });
-  }
-};
