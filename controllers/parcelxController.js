@@ -662,9 +662,8 @@ exports.createParcelxOrder = async (req, res) => {
 //   shipment_height: [shipment.height.toString()],
 // };
 
-     const parcelxPayload = {
+  const parcelxPayload = {
   client_order_id: order._id.toString(),
-
   consignee_name: shippingAddress.name,
   consignee_mobile: shippingAddress.phone.toString(),
   consignee_phone: shippingAddress.phone.toString(),
@@ -682,8 +681,7 @@ exports.createParcelxOrder = async (req, res) => {
   tax_amount: "0",
   extra_charges: "0",
 
-  // ✅ Apna actual courier code yahan daalo
-  courier_code: "DTDC01", // ← ParcelX dashboard se check karo
+  // ❌ courier_code HATAO — ParcelX khud best courier select karega
 
   products: fixedOrderItems.map((item) => ({
     product_sku: item.productId.toString(),
