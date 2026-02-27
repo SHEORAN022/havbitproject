@@ -1690,90 +1690,69 @@ exports.createParcelxOrder = async (req, res) => {
       orderStatus: "Pending",
     });
 
-    /* ===== 5. AUTO-FETCH COURIER CODE ===== */
-/* ===== 5. AUTO-FETCH COURIER CODE ===== */
-let courierCode = null;
-try {
-  const courierRes = await parcelx.get(`/get_couriers?pincode=${shippingAddress.pincode}`);
-  console.log("🚚 FULL COURIER RESPONSE:", JSON.stringify(courierRes.data, null, 2));
-
-  const rawData = courierRes.data?.data;
-
-  if (rawData) {
-    // Case A: Array — [{ courier_code: "DTDC" }, ...]
-    if (Array.isArray(rawData) && rawData.length > 0) {
-      for (const c of rawData) {
-        courierCode = c?.courier_code || c?.code || c?.courierCode || c?.id || null;
-        if (courierCode) break;
-      }
+    /* ===== 5. COURIER CODE =====
+       /get_couriers API teri key ke saath kaam nahi karta — "Unknown method" error aata hai
+       Isliye .env mein PARCELX_COURIER_CODE set kar:
+         PARCELX_COURIER_CODE=Delhivery
+       
+       ParcelX dashboard > Settings > Courier Partners mein
+       apna active courier name exactly copy karke .env mein daalo
+    ============================= */
+    const courierCode = process.env.PARCELX_COURIER_CODE;
+    if (!courierCode) {
+      await CustomerOrder.findByIdAndDelete(order._id);
+      return res.status(500).json({
+        success: false,
+        message: "PARCELX_COURIER_CODE .env mein set nahi hai. ParcelX dashboard se courier name copy karke .env mein daalo.",
+        parcelxError: "Courier Code missing in environment",
+      });
     }
-    // Case B: Object map — { "DTDC": { courier_code: "DTDC" }, "Delhivery": {...} }
-    else if (typeof rawData === "object") {
-      for (const key of Object.keys(rawData)) {
-        const c = rawData[key];
-        if (typeof c === "object" && c !== null) {
-          courierCode = c?.courier_code || c?.code || c?.courierCode || key || null;
-        } else if (typeof c === "string") {
-          courierCode = c;
-        }
-        if (courierCode) break;
-      }
-    }
-  }
+    console.log("📦 Using courier code:", courierCode);
 
-  // Case C: Top-level array
-  if (!courierCode && Array.isArray(courierRes.data)) {
-    const first = courierRes.data[0];
-    courierCode = first?.courier_code || first?.code || first?.courierCode || null;
-  }
-
-  console.log("✅ Resolved courierCode:", courierCode);
-} catch (e) {
-  console.log("⚠️ Courier fetch error:", e.message);
-}
-
-// Agar phir bhi nahi mila — bina courier_code ke bhejo
-// ParcelX internally auto-assign kar deta hai most cases mein
-if (!courierCode) {
-  console.log("⚠️ courier_code nahi mila — payload se remove karke bhej rahe hain");
-}
+    /* ===== 6. PARCELX PAYLOAD ===== */
     const parcelxPayload = {
-  client_order_id: order._id.toString(),
-  consignee_name: shippingAddress.name,
-  consignee_mobile: shippingAddress.phone.toString(),
-  consignee_phone: shippingAddress.phone.toString(),
-  consignee_emailid: shippingAddress.email || "",
-  consignee_pincode: shippingAddress.pincode.toString(),
-  consignee_address1: shippingAddress.address,
-  consignee_address2: "",
-  address_type: "Home",
-  pick_address_id: parseInt(pickAddressId),
-  payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-  cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-  order_amount: amount.toString(),
-  tax_amount: "0",
-  extra_charges: "0",
-  courier_type: 1,
-  express_type: "surface",
+      client_order_id: order._id.toString(),
 
-  // ✅ Sirf tab include karo jab mila ho
-  ...(courierCode && { courier_code: courierCode }),
+      consignee_name: shippingAddress.name,
+      consignee_mobile: shippingAddress.phone.toString(),
+      consignee_phone: shippingAddress.phone.toString(),
+      consignee_emailid: shippingAddress.email || "",
+      consignee_pincode: shippingAddress.pincode.toString(),
+      consignee_address1: shippingAddress.address,
+      consignee_address2: "",
+      address_type: "Home",
 
-  products: fixedOrderItems.map((item) => ({
-    product_sku: item.productId.toString(),
-    product_name: item.productName,
-    product_value: item.price.toString(),
-    product_quantity: item.qty.toString(),
-    product_taxper: 0,
-    product_hsnsac: "",
-    product_category: "general",
-    product_description: item.productName,
-  })),
-  shipment_weight: [shipment.weight.toString()],
-  shipment_length: [shipment.length.toString()],
-  shipment_width: [shipment.width.toString()],
-  shipment_height: [shipment.height.toString()],
-};
+      pick_address_id: parseInt(pickAddressId),
+
+      payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+      cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+      order_amount: amount.toString(),
+      tax_amount: "0",
+      extra_charges: "0",
+
+      courier_type: 1,
+      express_type: "surface",
+      courier_code: courierCode,
+
+      products: fixedOrderItems.map((item) => ({
+        product_sku: item.productId.toString(),
+        product_name: item.productName,
+        product_value: item.price.toString(),
+        product_quantity: item.qty.toString(),
+        product_taxper: 0,
+        product_hsnsac: "",
+        product_category: "general",
+        product_description: item.productName,
+      })),
+
+      shipment_weight: [shipment.weight.toString()],
+      shipment_length: [shipment.length.toString()],
+      shipment_width: [shipment.width.toString()],
+      shipment_height: [shipment.height.toString()],
+    };
+
+    console.log("📤 Sending to ParcelX:", JSON.stringify(parcelxPayload));
+
     /* ===== 7. CALL PARCELX API ===== */
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
     console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
