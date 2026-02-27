@@ -641,9 +641,9 @@ const parcelxPayload = {
   tax_amount: "0",
   extra_charges: "0",
 
-  courier_type: 1,
-  courier_code: "PXDEL01",  // ✅ HATAO - invalid tha
-  express_type: "surface",
+  // courier_type: 1,
+  // courier_code: "PXDEL01",  // ✅ HATAO - invalid tha
+  // express_type: "surface",
 
   products: fixedOrderItems.map((item) => ({
     product_sku: item.productId.toString(),
