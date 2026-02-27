@@ -728,15 +728,24 @@ exports.createWarehouse = async (req, res) => {
       });
     }
 
-    const parcelxPayload = {
-      address_title: name,
-      sender_name: contactPerson || name,
-      full_address: address,
-      city,
-      state,
-      phone,
-      pincode,
-    };
+    // const parcelxPayload = {
+    //   address_title: name,
+    //   sender_name: contactPerson || name,
+    //   full_address: address,
+    //   city,
+    //   state,
+    //   phone,
+    //   pincode,
+    // };
+     const parcelxPayload = {
+  address_title: name.trim(),
+  sender_name: (contactPerson || name).trim(),
+  full_address: address.trim(),
+  city: city.trim(),
+  state: state.trim(),
+  phone: phone.toString(),
+  pincode: pincode.toString(),
+};
 
     const pxRes = await parcelx.post("/create_warehouse", parcelxPayload);
 
@@ -749,7 +758,13 @@ exports.createWarehouse = async (req, res) => {
     }
 
     const parcelxWarehouseId = pxRes.data.data.pick_address_id;
-
+if (!parcelxWarehouseId) {
+  return res.status(400).json({
+    success: false,
+    message: "ParcelX pickup address not generated",
+    parcelx: pxRes.data,
+  });
+}
     const warehouse = await Warehouse.create({
       vendorId,
       parcelxWarehouseId,
