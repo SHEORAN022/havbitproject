@@ -463,7 +463,6 @@ exports.getVendorWarehouses = async (req, res) => {
 //     });
 //   }
 // };
-
 exports.createParcelxOrder = async (req, res) => {
   let order = null;
 
@@ -490,42 +489,31 @@ exports.createParcelxOrder = async (req, res) => {
     if (!customer) {
       return res.status(400).json({ success: false, message: "Customer ID is required" });
     }
-
     if (!isPublicOrder && !vendorId) {
       return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
     }
-
     if (!isPublicOrder && !warehouseId) {
       return res.status(400).json({ success: false, message: "Warehouse ID is required for vendor orders" });
     }
-
     if (!Array.isArray(orderItems) || orderItems.length === 0) {
       return res.status(400).json({ success: false, message: "Order items are required" });
     }
-
     if (!shipment?.weight || !shipment?.length || !shipment?.width || !shipment?.height) {
       return res.status(400).json({ success: false, message: "Shipment dimensions are required" });
     }
-
-    if (
-      !shippingAddress?.name ||
-      !shippingAddress?.phone ||
-      !shippingAddress?.address ||
-      !shippingAddress?.pincode
-    ) {
+    if (!shippingAddress?.name || !shippingAddress?.phone || !shippingAddress?.address || !shippingAddress?.pincode) {
       return res.status(400).json({ success: false, message: "Complete shipping address is required" });
     }
-
     if (!amount) {
       return res.status(400).json({ success: false, message: "Order amount is required" });
     }
 
-    /* ===================== 2. RESOLVE WAREHOUSE / PICKUP ADDRESS ===================== */
+    /* ===================== 2. RESOLVE WAREHOUSE ===================== */
     let warehouse = null;
     let pickAddressId = null;
 
     if (!isPublicOrder) {
-      // ── Vendor order: vendor ki warehouse use karo ──
+      // ── Vendor order ──
       warehouse = await Warehouse.findById(warehouseId);
       if (!warehouse || !warehouse.parcelxWarehouseId) {
         return res.status(404).json({
@@ -536,19 +524,26 @@ exports.createParcelxOrder = async (req, res) => {
       pickAddressId = warehouse.parcelxWarehouseId;
 
     } else {
-      // ── Public/platform order: MongoDB se pehli warehouse auto-fetch karo ──
-      const platformWarehouse = await Warehouse.findOne().sort({ createdAt: 1 });
+      // ── Public/platform order: DB se koi bhi valid warehouse lo ──
+      const totalCount = await Warehouse.countDocuments();
+      console.log("🔍 Total warehouses in DB:", totalCount);
+
+      const platformWarehouse = await Warehouse.findOne({
+        parcelxWarehouseId: { $exists: true, $ne: null, $ne: "" }
+      }).sort({ createdAt: 1 }).lean();
+
+      console.log("🔍 Found platform warehouse:", JSON.stringify(platformWarehouse));
 
       if (!platformWarehouse || !platformWarehouse.parcelxWarehouseId) {
         return res.status(500).json({
           success: false,
-          message: "No warehouse found. Please create one from Seller Panel first.",
+          message: `No warehouse found in DB (total: ${totalCount}). Please create one from Seller Panel.`,
         });
       }
 
       pickAddressId = platformWarehouse.parcelxWarehouseId;
       warehouse = platformWarehouse;
-      console.log("✅ Platform warehouse auto-resolved:", pickAddressId);
+      console.log("✅ Platform warehouse resolved:", pickAddressId);
     }
 
     /* ===================== 3. FIX ORDER ITEMS ===================== */
@@ -583,7 +578,7 @@ exports.createParcelxOrder = async (req, res) => {
       orderStatus: "Pending",
     });
 
-    /* ===================== 5. BUILD PARCELX PAYLOAD ===================== */
+    /* ===================== 5. PARCELX PAYLOAD ===================== */
     const parcelxPayload = {
       client_order_id: order._id.toString(),
 
@@ -628,8 +623,9 @@ exports.createParcelxOrder = async (req, res) => {
     /* ===================== 6. CALL PARCELX API ===================== */
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
 
+    console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
+
     if (!pxRes?.data?.status) {
-      // ParcelX fail → DB order rollback karo
       await CustomerOrder.findByIdAndDelete(order._id);
       return res.status(500).json({
         success: false,
@@ -638,7 +634,7 @@ exports.createParcelxOrder = async (req, res) => {
       });
     }
 
-    /* ===================== 7. SAVE PARCELX RESPONSE TO ORDER ===================== */
+    /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
     order.parcelx = {
       awb: pxRes.data.data?.awb_number,
       courier: pxRes.data.data?.courier_name,
@@ -651,7 +647,7 @@ exports.createParcelxOrder = async (req, res) => {
     order.orderStatus = "Processing";
     await order.save();
 
-    /* ===================== 8. SUCCESS RESPONSE ===================== */
+    /* ===================== 8. SUCCESS ===================== */
     return res.status(201).json({
       success: true,
       message: "Order created & ParcelX shipment booked successfully",
@@ -661,7 +657,6 @@ exports.createParcelxOrder = async (req, res) => {
   } catch (error) {
     console.error("PARCELX ORDER ERROR:", error.response?.data || error.message);
 
-    // Safety rollback
     if (order?._id) {
       try {
         await CustomerOrder.findByIdAndDelete(order._id);
@@ -677,7 +672,6 @@ exports.createParcelxOrder = async (req, res) => {
     });
   }
 };
-
 /* ===============================
    TRACK PARCELX ORDER
 ================================ */
