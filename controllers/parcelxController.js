@@ -640,7 +640,7 @@ const parcelxPayload = {
   tax_amount: "0",
   extra_charges: "0",
 
-  courier_type: "",
+  courier_type: " ",
   // courier_code: "PXDEL01",  // ✅ HATAO - invalid tha
   express_type: "surface",
 
