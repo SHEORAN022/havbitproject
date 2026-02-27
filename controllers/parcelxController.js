@@ -1691,75 +1691,54 @@ exports.createParcelxOrder = async (req, res) => {
     });
 
     /* ===== 5. AUTO-FETCH COURIER CODE ===== */
-  /* ===== 5. AUTO-FETCH COURIER CODE ===== */
+/* ===== 5. AUTO-FETCH COURIER CODE ===== */
 let courierCode = null;
 try {
-  const courierRes = await parcelx.get(
-    `/get_couriers?pincode=${shippingAddress.pincode}`
-  );
-  console.log("🚚 ParcelX Couriers:", JSON.stringify(courierRes.data));
+  const courierRes = await parcelx.get(`/get_couriers?pincode=${shippingAddress.pincode}`);
+  console.log("🚚 FULL COURIER RESPONSE:", JSON.stringify(courierRes.data, null, 2));
 
-  // ✅ Try all possible response shapes
-  const couriers =
-    courierRes.data?.data?.couriers ||   // nested
-    courierRes.data?.data ||             // flat array
-    courierRes.data?.couriers ||
-    courierRes.data?.result ||
-    (Array.isArray(courierRes.data) ? courierRes.data : []);
+  const rawData = courierRes.data?.data;
 
-  if (Array.isArray(couriers) && couriers.length > 0) {
-    // Try every possible key name ParcelX might return
-    for (const c of couriers) {
-      courierCode =
-        c?.courier_code ||
-        c?.code ||
-        c?.courierCode ||
-        c?.courier_id ||
-        c?.id ||
-        null;
-      if (courierCode) break;
-    }
-    console.log("✅ Auto-selected courier:", courierCode);
-  } else {
-    // ✅ Fallback: hit without pincode filter
-    try {
-      const fallbackRes = await parcelx.get(`/get_couriers`);
-      const fallbackCouriers =
-        fallbackRes.data?.data?.couriers ||
-        fallbackRes.data?.data ||
-        fallbackRes.data?.couriers ||
-        (Array.isArray(fallbackRes.data) ? fallbackRes.data : []);
-      
-      if (Array.isArray(fallbackCouriers) && fallbackCouriers.length > 0) {
-        for (const c of fallbackCouriers) {
-          courierCode =
-            c?.courier_code || c?.code || c?.courierCode || c?.courier_id || c?.id || null;
-          if (courierCode) break;
-        }
-        console.log("✅ Fallback courier:", courierCode);
+  if (rawData) {
+    // Case A: Array — [{ courier_code: "DTDC" }, ...]
+    if (Array.isArray(rawData) && rawData.length > 0) {
+      for (const c of rawData) {
+        courierCode = c?.courier_code || c?.code || c?.courierCode || c?.id || null;
+        if (courierCode) break;
       }
-    } catch (fe) {
-      console.log("⚠️ Fallback courier fetch also failed:", fe.message);
+    }
+    // Case B: Object map — { "DTDC": { courier_code: "DTDC" }, "Delhivery": {...} }
+    else if (typeof rawData === "object") {
+      for (const key of Object.keys(rawData)) {
+        const c = rawData[key];
+        if (typeof c === "object" && c !== null) {
+          courierCode = c?.courier_code || c?.code || c?.courierCode || key || null;
+        } else if (typeof c === "string") {
+          courierCode = c;
+        }
+        if (courierCode) break;
+      }
     }
   }
+
+  // Case C: Top-level array
+  if (!courierCode && Array.isArray(courierRes.data)) {
+    const first = courierRes.data[0];
+    courierCode = first?.courier_code || first?.code || first?.courierCode || null;
+  }
+
+  console.log("✅ Resolved courierCode:", courierCode);
 } catch (e) {
-  console.log("⚠️ Courier fetch failed:", e.message);
+  console.log("⚠️ Courier fetch error:", e.message);
 }
 
-// ✅ Hard stop if still no courier_code — ParcelX requires it
+// Agar phir bhi nahi mila — bina courier_code ke bhejo
+// ParcelX internally auto-assign kar deta hai most cases mein
 if (!courierCode) {
-  await CustomerOrder.findByIdAndDelete(order._id);
-  return res.status(500).json({
-    success: false,
-    message: "No courier available for pincode: " + shippingAddress.pincode + ". Please try again or contact support.",
-    parcelxError: "Courier Code is required but none returned by ParcelX",
-  });
+  console.log("⚠️ courier_code nahi mila — payload se remove karke bhej rahe hain");
 }
-    /* ===== 6. PARCELX PAYLOAD ===== */
-   /* ===== 6. PARCELX PAYLOAD ===== */
-const parcelxPayload = {
+    const parcelxPayload = {
   client_order_id: order._id.toString(),
-
   consignee_name: shippingAddress.name,
   consignee_mobile: shippingAddress.phone.toString(),
   consignee_phone: shippingAddress.phone.toString(),
@@ -1768,18 +1747,17 @@ const parcelxPayload = {
   consignee_address1: shippingAddress.address,
   consignee_address2: "",
   address_type: "Home",
-
   pick_address_id: parseInt(pickAddressId),
-
   payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
   cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
   order_amount: amount.toString(),
   tax_amount: "0",
   extra_charges: "0",
-
   courier_type: 1,
   express_type: "surface",
-  courier_code: courierCode, // ✅ Always present now (hard stop above if missing)
+
+  // ✅ Sirf tab include karo jab mila ho
+  ...(courierCode && { courier_code: courierCode }),
 
   products: fixedOrderItems.map((item) => ({
     product_sku: item.productId.toString(),
@@ -1791,7 +1769,6 @@ const parcelxPayload = {
     product_category: "general",
     product_description: item.productName,
   })),
-
   shipment_weight: [shipment.weight.toString()],
   shipment_length: [shipment.length.toString()],
   shipment_width: [shipment.width.toString()],
