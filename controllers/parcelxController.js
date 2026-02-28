@@ -762,7 +762,49 @@ exports.getVendorWarehouses = async (req, res) => {
 //     });
 //   }
 // };
+const getBestCourierCode = async (pickAddressId, pincode, weight, paymentMethod) => {
+  try {
+    console.log("🚚 Fetching available couriers from ParcelX...");
 
+    const payload = {
+      pick_address_id: parseInt(pickAddressId),
+      pincode: pincode.toString(),
+      weight: parseFloat(weight).toString(),
+      payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+    };
+
+    console.log("🚚 Courier fetch payload:", JSON.stringify(payload));
+
+    const res = await parcelx.post("/get_couriers", payload);
+
+    console.log("🚚 Courier fetch response:", JSON.stringify(res.data));
+
+    if (res.data?.status && Array.isArray(res.data?.data) && res.data.data.length > 0) {
+      const courier = res.data.data[0];
+      const code = courier.courier_code || courier.code || courier.id;
+      if (code) {
+        console.log(`✅ Best courier selected: ${code} (${courier.courier_name || ""})`);
+        return code;
+      }
+    }
+
+    if (res.data?.status && Array.isArray(res.data?.couriers) && res.data.couriers.length > 0) {
+      const courier = res.data.couriers[0];
+      const code = courier.courier_code || courier.code || courier.id;
+      if (code) {
+        console.log(`✅ Best courier selected: ${code} (${courier.courier_name || ""})`);
+        return code;
+      }
+    }
+
+    console.warn("⚠️ Could not extract courier_code:", JSON.stringify(res.data));
+    return null;
+
+  } catch (err) {
+    console.error("❌ Courier fetch error:", err.response?.data || err.message);
+    return null;
+  }
+};
 exports.createParcelxOrder = async (req, res) => {
   let order = null;
 
