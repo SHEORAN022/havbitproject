@@ -680,7 +680,8 @@ const parcelxPayload = {
   order_amount: amount.toString(),
   tax_amount: "0",
   extra_charges: "0",
-  courier_type: 1,        // ✅ ADD THIS BACK — ParcelX requires it
+  courier_type: 1,  
+   courier_code: "PXDEL01",
   express_type: "surface",
 
   products: fixedOrderItems.map((item) => ({
