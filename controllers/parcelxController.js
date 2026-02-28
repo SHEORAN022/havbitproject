@@ -762,74 +762,6 @@ exports.getVendorWarehouses = async (req, res) => {
 //     });
 //   }
 // };
-let _cachedCourierCode = null;
-let _cacheTime = null;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-const getBestCourierCode = async () => {
-  try {
-    // Cache valid hai to wahi return karo
-    if (_cachedCourierCode && _cacheTime && (Date.now() - _cacheTime < CACHE_TTL_MS)) {
-      console.log(`✅ Courier from cache: ${_cachedCourierCode}`);
-      return _cachedCourierCode;
-    }
-
-    console.log("🚚 Fetching courier list from ParcelX /courier-list ...");
-
-    const res = await parcelx.get("/courier-list", {
-      params: { express_type: "surface" },
-    });
-
-    console.log("🚚 Courier list response:", JSON.stringify(res.data));
-
-    // Case 1: { status: true, data: [ { courier_code: "..." } ] }
-    if (res.data?.status && Array.isArray(res.data?.data) && res.data.data.length > 0) {
-      const courier = res.data.data[0];
-      const code = courier.courier_code || courier.code || courier.courier_id || courier.id || courier.slug;
-      if (code) {
-        console.log(`✅ Courier selected: ${code} (${courier.courier_name || courier.name || ""})`);
-        _cachedCourierCode = code;
-        _cacheTime = Date.now();
-        return code;
-      }
-    }
-
-    // Case 2: { status: true, couriers: [ { courier_code: "..." } ] }
-    if (res.data?.status && Array.isArray(res.data?.couriers) && res.data.couriers.length > 0) {
-      const courier = res.data.couriers[0];
-      const code = courier.courier_code || courier.code || courier.courier_id || courier.id || courier.slug;
-      if (code) {
-        console.log(`✅ Courier selected: ${code}`);
-        _cachedCourierCode = code;
-        _cacheTime = Date.now();
-        return code;
-      }
-    }
-
-    // Case 3: Direct array [ { courier_code: "..." } ]
-    if (Array.isArray(res.data) && res.data.length > 0) {
-      const courier = res.data[0];
-      const code = courier.courier_code || courier.code || courier.courier_id || courier.id || courier.slug;
-      if (code) {
-        console.log(`✅ Courier selected: ${code}`);
-        _cachedCourierCode = code;
-        _cacheTime = Date.now();
-        return code;
-      }
-    }
-
-    console.warn("⚠️ courier_code extract nahi hua. Full response:", JSON.stringify(res.data));
-    return null;
-
-  } catch (err) {
-    console.error("❌ /courier-list fetch error:", err.response?.data || err.message);
-    return null;
-  }
-};
-
-/* ===============================
-   CREATE PARCELX ORDER
-================================ */
 exports.createParcelxOrder = async (req, res) => {
   let order = null;
 
@@ -943,69 +875,63 @@ exports.createParcelxOrder = async (req, res) => {
       orderStatus: "Pending",
     });
 
-    /* ===================== 5. FETCH COURIER CODE FROM /courier-list ===================== */
-    const courierCode = await getBestCourierCode();
-
-    if (!courierCode) {
-      await CustomerOrder.findByIdAndDelete(order._id);
-      return res.status(500).json({
-        success: false,
-        message: "Could not fetch courier from ParcelX. Please check server logs and share /courier-list response with support.",
-      });
-    }
-
-    console.log(`🚚 Using courier_code: "${courierCode}" for order ${order._id}`);
-
-    /* ===================== 6. BUILD PARCELX PAYLOAD ===================== */
+    /* ===================== 5. BUILD PARCELX v3 PAYLOAD =====================
+       Exact format as per ParcelX v3 API documentation / curl example
+    ======================================================================= */
     const parcelxPayload = {
       client_order_id: order._id.toString(),
 
-      consignee_name: shippingAddress.name,
-      consignee_mobile: shippingAddress.phone.toString(),
-      consignee_phone: shippingAddress.phone.toString(),
+      consignee_name:    shippingAddress.name,
+      consignee_mobile:  shippingAddress.phone.toString(),
+      consignee_phone:   shippingAddress.phone.toString(),
       consignee_emailid: shippingAddress.email || "",
       consignee_pincode: shippingAddress.pincode.toString(),
       consignee_address1: shippingAddress.address,
       consignee_address2: "",
       address_type: "Home",
 
-      pick_address_id: parseInt(pickAddressId),
+      pick_address_id:   pickAddressId.toString(),   // string — as per curl
+      return_address_id: "",
 
       payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-      cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+      cod_amount:   paymentMethod === "cod" ? amount.toString() : "0",
       order_amount: amount.toString(),
-      tax_amount: "0",
+      tax_amount:   "0",
       extra_charges: "0",
+      invoice_number: order._id.toString().slice(-8).toUpperCase(),
+      mps: "0",
 
       courier_type: 1,
-      courier_code: courierCode,
+      courier_code: "PXDEL01",   // ✅ fixed — as per ParcelX v3 docs
       express_type: "surface",
 
       products: fixedOrderItems.map((item) => ({
-        product_sku: item.productId.toString(),
-        product_name: item.productName,
-        product_value: item.price.toString(),
-        product_quantity: item.qty.toString(),
-        product_taxper: 0,
-        product_hsnsac: "",
-        product_category: "general",
+        product_sku:         item.productId.toString(),
+        product_name:        item.productName,
+        product_value:       item.price.toString(),
+        product_quantity:    item.qty.toString(),
+        product_taxper:      0,
+        product_hsnsac:      "",
+        product_category:    "general",
         product_description: item.productName,
       })),
 
+      // Arrays — as per curl example
       shipment_weight: [shipment.weight.toString()],
       shipment_length: [shipment.length.toString()],
-      shipment_width: [shipment.width.toString()],
+      shipment_width:  [shipment.width.toString()],
       shipment_height: [shipment.height.toString()],
     };
 
-    console.log("📦 ParcelX Order Payload:", JSON.stringify(parcelxPayload));
+    console.log("📦 ParcelX v3 Payload:", JSON.stringify(parcelxPayload));
 
-    /* ===================== 7. CALL PARCELX CREATE ORDER ===================== */
+    /* ===================== 6. CALL PARCELX v3 CREATE ORDER ===================== */
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
 
-    console.log("📦 ParcelX Create Order Response:", JSON.stringify(pxRes.data));
+    console.log("📦 ParcelX v3 Response:", JSON.stringify(pxRes.data));
 
     if (!pxRes?.data?.status) {
+      // DB order rollback
       await CustomerOrder.findByIdAndDelete(order._id);
       return res.status(500).json({
         success: false,
@@ -1015,12 +941,12 @@ exports.createParcelxOrder = async (req, res) => {
       });
     }
 
-    /* ===================== 8. SAVE PARCELX RESPONSE ===================== */
+    /* ===================== 7. SAVE PARCELX RESPONSE ===================== */
     order.parcelx = {
-      awb: pxRes.data.data?.awb_number,
-      courier: pxRes.data.data?.courier_name,
-      courierCode: courierCode,
-      status: pxRes.data.data?.current_status,
+      awb:          pxRes.data.data?.awb_number,
+      courier:      pxRes.data.data?.courier_name,
+      courierCode:  "PXDEL01",
+      status:       pxRes.data.data?.current_status,
       tracking_url: pxRes.data.data?.tracking_url,
       last_updated: new Date(),
     };
@@ -1029,7 +955,7 @@ exports.createParcelxOrder = async (req, res) => {
     order.orderStatus = "Processing";
     await order.save();
 
-    /* ===================== 9. SUCCESS ===================== */
+    /* ===================== 8. SUCCESS ===================== */
     return res.status(201).json({
       success: true,
       message: "Order created & ParcelX shipment booked successfully",
