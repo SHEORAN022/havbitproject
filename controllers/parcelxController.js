@@ -700,47 +700,44 @@ exports.createParcelxOrder = async (req, res) => {
 //   shipment_width: [shipment.width.toString()],
 //   shipment_height: [shipment.height.toString()],
 // };
-     const parcelxPayload = {
-  client_order_id: order._id.toString(),
+  const parcelxPayload = {
+      client_order_id: order._id.toString(),
 
-  consignee_name: shippingAddress.name,
-  consignee_mobile: shippingAddress.phone.toString(),
-  consignee_phone: shippingAddress.phone.toString(),
-  consignee_emailid: shippingAddress.email || "",
-  consignee_pincode: shippingAddress.pincode.toString(),
-  consignee_address1: shippingAddress.address,
-  consignee_address2: "",
-  address_type: "Home",
+      consignee_name: shippingAddress.name,
+      consignee_mobile: shippingAddress.phone.toString(),
+      consignee_phone: shippingAddress.phone.toString(),
+      consignee_emailid: shippingAddress.email || "",
+      consignee_pincode: shippingAddress.pincode.toString(),
+      consignee_address1: shippingAddress.address,
+      consignee_address2: "",
+      address_type: "Home",
 
-  pick_address_id: parseInt(pickAddressId), // 92016 — orange toggle wala active warehouse
+      pick_address_id: parseInt(pickAddressId),
 
-  payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
-  cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
-  order_amount: amount.toString(),
-  tax_amount: "0",
-  extra_charges: "0",
+      payment_mode: paymentMethod === "cod" ? "Cod" : "Prepaid",
+      cod_amount: paymentMethod === "cod" ? amount.toString() : "0",
+      order_amount: amount.toString(),
+      tax_amount: "0",
+      extra_charges: "0",
+      express_type: "surface",
 
-  // ❌ YE TEENO HATAYE — ye Delhivery force kar rahe the
-  // courier_type: 1,
-  // courier_code: "PXDEL01",
-  // express_type: "surface",
+      products: fixedOrderItems.map((item) => ({
+        product_sku: item.productId.toString(),
+        product_name: item.productName,
+        product_value: item.price.toString(),
+        product_quantity: item.qty.toString(),
+        product_taxper: 0,
+        product_hsnsac: "",
+        product_category: "general",
+        product_description: item.productName,
+      })),
 
-  products: fixedOrderItems.map((item) => ({
-    product_sku: item.productId.toString(),
-    product_name: item.productName,
-    product_value: item.price.toString(),
-    product_quantity: item.qty.toString(),
-    product_taxper: 0,
-    product_hsnsac: "",
-    product_category: "general",
-    product_description: item.productName,
-  })),
-
-  shipment_weight: [shipment.weight.toString()],
-  shipment_length: [shipment.length.toString()],
-  shipment_width: [shipment.width.toString()],
-  shipment_height: [shipment.height.toString()],
-};
+      shipment_weight: [shipment.weight.toString()],
+      shipment_length: [shipment.length.toString()],
+      shipment_width: [shipment.width.toString()],
+      shipment_height: [shipment.height.toString()],
+    };
+;
 
 
 
