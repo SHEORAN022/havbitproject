@@ -662,7 +662,7 @@ exports.createParcelxOrder = async (req, res) => {
 //   shipment_height: [shipment.height.toString()],
 // };
 
-  const parcelxPayload = {
+const parcelxPayload = {
   client_order_id: order._id.toString(),
   consignee_name: shippingAddress.name,
   consignee_mobile: shippingAddress.phone.toString(),
@@ -680,8 +680,8 @@ exports.createParcelxOrder = async (req, res) => {
   order_amount: amount.toString(),
   tax_amount: "0",
   extra_charges: "0",
+  courier_type: 1,        // ✅ ADD THIS BACK — ParcelX requires it
   express_type: "surface",
-  // ❌ courier_code HATAO — ParcelX khud best courier select karega
 
   products: fixedOrderItems.map((item) => ({
     product_sku: item.productId.toString(),
