@@ -19,7 +19,7 @@ router.get("/warehouse", userAuth, ctrl.getWarehouseForCustomer);
    ORDER ROUTES
 ================================ */
 router.post("/order", userAuth, ctrl.createParcelxOrder);
-router.get("/orders", vendorAuth, ctrl.getAllOrders);
+router.get("/orders",  ctrl.getAllOrders);
 router.get("/track/:awb", ctrl.trackParcelxOrder);
 router.get("/shipment/:awb", ctrl.getParcelxShipmentDetails);
 
