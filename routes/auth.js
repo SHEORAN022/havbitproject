@@ -237,7 +237,46 @@ router.post("/register", async (req, res) => {
 // ==========================
 // USER LOGIN — ✅ role added in token
 // ==========================
-router.post("/login", async (req, res) => {
+// router.post("/login", async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({ message: "Invalid email or password" });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(400).json({ message: "Invalid email or password" });
+//     }
+
+//     // ✅ role: "admin" add kiya — adminAuth middleware isi ko check karta hai
+//     const token = jwt.sign(
+//       {
+//         id:    user._id,
+//         email: user.email,
+//         role:  user.role || "admin", // ✅ YEH LINE ADD HUI
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "7d" }
+//     );
+
+//     res.json({
+//       message: "Login successful",
+//       token,
+//       user: {
+//         id:    user._id,
+//         name:  user.name,
+//         email: user.email,
+//         role:  user.role || "admin",
+//       },
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+     router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -251,12 +290,11 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // ✅ role: "admin" add kiya — adminAuth middleware isi ko check karta hai
     const token = jwt.sign(
       {
-        id:    user._id,
+        id: user._id,
         email: user.email,
-        role:  user.role || "admin", // ✅ YEH LINE ADD HUI
+        role: user.role || "user",
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -266,17 +304,17 @@ router.post("/login", async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id:    user._id,
-        name:  user.name,
+        id: user._id,
+        name: user.name,
         email: user.email,
-        role:  user.role || "admin",
+        role: user.role || "user",
       },
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ==========================
 // GET LOGGED-IN USER DETAILS
 // ==========================
