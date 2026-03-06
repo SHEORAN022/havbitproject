@@ -282,6 +282,7 @@ app.use("/api/vendor", require("./routes/vendorBrandRoutes"));
 app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/public", require("./routes/publicBrandRoutes"));
 app.use("/api/parcelx", require("./routes/parcelxRoutes"));
+app.use("/api/tickets", ticketRoutes);
 
 /* ADMIN */
 app.use("/api/admin/vendors", require("./routes/adminVendor"));
