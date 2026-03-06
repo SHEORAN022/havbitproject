@@ -182,6 +182,7 @@ const couponRoutes = require("./routes/couponRoutes");
 const vendorOrderRoutes = require("./routes/vendorOrderRoutes");
 // const parcelxRoutes = require("./routes/parcelx.routes");
 const ticketRoutes = require("./routes/Ticketroutes");
+const transactionRoutes = require("./routes/transaction.routes");
 require("dotenv").config();
 
 
@@ -254,6 +255,7 @@ app.use((req, res, next) => {
 /* AUTH */
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/website-user", require("./routes/websiteUser.routes"));
+app.use("/api/transaction", transactionRoutes);
 
 /* PRODUCTS */
 app.use("/api/products", require("./routes/productRoutes"));
