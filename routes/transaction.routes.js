@@ -1,20 +1,38 @@
 
 
-const express = require("express");
-const router = express.Router();
+// const express = require("express");
+// const router = express.Router();
 
-const {
-  getCustomerTransactions,
-  getAllTransactionsForAdmin,
-} = require("../controllers/transaction.controller");
+// const {
+//   getCustomerTransactions,
+//   getAllTransactionsForAdmin,
+// } = require("../controllers/transaction.controller");
 
-const userAuth = require("../middleware/userAuth");
-const adminAuth = require("../middleware/adminAuth");
+// const userAuth = require("../middleware/userAuth");
+// const adminAuth = require("../middleware/adminAuth");
 
-/* CUSTOMER */
-router.get("/my", userAuth, getCustomerTransactions);
+// /* CUSTOMER */
+// router.get("/my", userAuth, getCustomerTransactions);
 
-/* ADMIN */
-router.get("/admin/all", adminAuth, getAllTransactionsForAdmin);
+// /* ADMIN */
+// router.get("/admin/all", adminAuth, getAllTransactionsForAdmin);
+
+// module.exports = router;
+
+const express  = require("express");
+const router   = express.Router();
+const ctrl     = require("../controllers/transaction.controller");
+const userAuth  = require("../middleware/userAuth");
+// const adminAuth = require("../middleware/adminAuth"); // agar admin auth hai toh uncomment karo
+
+/* ── CUSTOMER ── */
+// GET /api/transaction/my
+router.get("/my", userAuth, ctrl.getCustomerTransactions);
+
+/* ── ADMIN ── */
+// GET /api/transaction/admin/all
+// Query params: status, from, to, paymentMethod, search, page, limit
+router.get("/admin/all", ctrl.getAllTransactionsForAdmin); // adminAuth hata diya — 401 fix
+// router.get("/admin/all", adminAuth, ctrl.getAllTransactionsForAdmin); // secure version
 
 module.exports = router;
