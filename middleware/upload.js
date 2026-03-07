@@ -24,24 +24,19 @@
 // module.exports = upload;
 
 
-
-
 const multer = require("multer");
 const path = require("path");
 
-/* STORAGE */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/"); // uploads folder
   },
   filename: function (req, file, cb) {
-    const uniqueName =
-      Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueName + path.extname(file.originalname));
   },
 });
 
-/* FILE FILTER */
 const fileFilter = (req, file, cb) => {
   if (
     file.mimetype.startsWith("image/") ||
@@ -53,13 +48,12 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-/* MULTER */
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    fileSize: 10 * 1024 * 1024,
   },
 });
 
-module.exports = upload;
+module.exports = upload;load;
