@@ -248,7 +248,7 @@ router.get("/view-pdf", vendorAuth, async (req, res) => {
   } catch (err) {
     console.error("View PDF Error:", err.message);
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: "Failed to view PDF" });
+      res.status(500).json({ success: false, message: "Failed to view PDF" }); 
     }
   }
 });
