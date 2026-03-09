@@ -89,7 +89,7 @@ router.get("/orders",                        ctrl.getAllOrders);
 
 // Admin — sirf ParcelX ke saath book hue orders
 router.get("/parcelx-orders",                ctrl.getParcelxOrders);
-
+router.get("/label/:awb", ctrl.downloadParcelxLabel);
 // Tracking
 router.get("/track/:awb",                    ctrl.trackParcelxOrder);
 router.get("/shipment/:awb",                 ctrl.getParcelxShipmentDetails);
