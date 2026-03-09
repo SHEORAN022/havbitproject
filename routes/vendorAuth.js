@@ -642,15 +642,12 @@ const fileFields = upload.fields([
 /* ================= CLOUDINARY HELPER ================= */
 const uploadToCloudinary = (buffer, folder, originalname = "") =>
   new Promise((resolve, reject) => {
-    // Detect if file is PDF
-    const isPDF = originalname.toLowerCase().endsWith(".pdf");
-
     const stream = cloudinary.uploader.upload_stream(
       {
         folder,
-        type: "upload",           // ✅ Public delivery (no 401)
-        access_mode: "public",    // ✅ Publicly accessible
-        resource_type: isPDF ? "raw" : "auto", // ✅ PDF = raw, images = auto
+        resource_type: "auto",   // auto = image/video/raw sab handle karta hai
+        type: "upload",          // public delivery
+        access_mode: "public",   // publicly accessible URL
       },
       (err, result) => {
         if (err) reject(err);
@@ -834,47 +831,35 @@ router.get("/profile", vendorAuth, async (req, res) => {
    - Browser ko proper Content-Disposition header milta hai
      jisse file seedha download hoti hai (no 401, no CORS)
 ========================================================= */
-router.get("/download", vendorAuth, async (req, res) => {
+router.get("/download", async (req, res) => {
   try {
     const { url, name } = req.query;
 
-    // Validate: sirf Cloudinary URLs allow karo
     if (!url || !url.includes("res.cloudinary.com")) {
       return res.status(400).json({ success: false, message: "Invalid file URL" });
     }
 
-    // Filename: query se liya ya URL se extract kiya
     const rawName = name || url.split("/").pop().split("?")[0] || "document";
-    // Clean filename - special chars hata do
     const filename = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-    // Cloudinary se file fetch karo (server-to-server, koi CORS nahi)
     const response = await axios.get(url, {
       responseType: "stream",
-      timeout: 30000, // 30 second timeout
+      timeout: 30000,
     });
 
-    // Content type Cloudinary se hi lo
     const contentType = response.headers["content-type"] || "application/octet-stream";
-
-    // Frontend ko download force karo
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", contentType);
+    res.setHeader("Access-Control-Allow-Origin", "*");
 
-    // Content-Length bhi set karo agar available hai (progress bar ke liye)
     if (response.headers["content-length"]) {
       res.setHeader("Content-Length", response.headers["content-length"]);
     }
 
-    // Stream directly to client
     response.data.pipe(res);
-
-    // Error handling during stream
-    response.data.on("error", (err) => {
-      console.error("Stream error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, message: "Download failed" });
-      }
+    response.data.on("error", (streamErr) => {
+      console.error("Stream error:", streamErr);
+      if (!res.headersSent) res.status(500).end();
     });
 
   } catch (err) {
