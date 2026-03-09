@@ -561,7 +561,7 @@
 //   }
 // };
 
-
+const axios = require("axios");
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
@@ -1170,5 +1170,49 @@ exports.getParcelxOrders = async (req, res) => {
   } catch (error) {
     console.error("GET PARCELX ORDERS ERROR:", error.message);
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.downloadParcelxLabel = async (req, res) => {
+  try {
+    const { awb } = req.params;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "AWB number is required"
+      });
+    }
+
+    // ParcelX label API
+    const pxRes = await axios.get(
+      `https://app.parcelx.in/api/v1/label?awb=${awb}&label_type=label`,
+      {
+        headers: {
+          "access-token": process.env.PARCELX_ACCESS_TOKEN
+        }
+      }
+    );
+
+    if (!pxRes.data.status) {
+      return res.status(400).json({
+        success: false,
+        message: "Label not available",
+        parcelx: pxRes.data
+      });
+    }
+
+    const labelUrl = pxRes.data.label_url;
+
+    return res.redirect(labelUrl);
+
+  } catch (error) {
+    console.error("PARCELX LABEL ERROR:", error.response?.data || error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "ParcelX label download failed",
+      error: error.response?.data || error.message
+    });
   }
 };
