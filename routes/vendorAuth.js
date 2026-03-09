@@ -613,7 +613,6 @@
 // });
 
 // module.exports = router;
-
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -641,10 +640,18 @@ const fileFields = upload.fields([
 ]);
 
 /* ================= CLOUDINARY HELPER ================= */
-const uploadToCloudinary = (buffer, folder) =>
+const uploadToCloudinary = (buffer, folder, originalname = "") =>
   new Promise((resolve, reject) => {
+    // Detect if file is PDF
+    const isPDF = originalname.toLowerCase().endsWith(".pdf");
+
     const stream = cloudinary.uploader.upload_stream(
-      { folder },
+      {
+        folder,
+        type: "upload",           // ✅ Public delivery (no 401)
+        access_mode: "public",    // ✅ Publicly accessible
+        resource_type: isPDF ? "raw" : "auto", // ✅ PDF = raw, images = auto
+      },
       (err, result) => {
         if (err) reject(err);
         else resolve(result.secure_url);
@@ -681,7 +688,8 @@ router.post("/signup", fileFields, async (req, res) => {
           const file = req.files[key][0];
           uploaded[key] = await uploadToCloudinary(
             file.buffer,
-            `vendors/${brandName || "documents"}`
+            `vendors/${brandName || "documents"}`,
+            file.originalname  // ✅ pass filename to detect PDF
           );
         })
       );
@@ -923,7 +931,8 @@ router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
           const file = req.files[key][0];
           uploaded[key] = await uploadToCloudinary(
             file.buffer,
-            `vendors/${vendor.brandName || "documents"}`
+            `vendors/${vendor.brandName || "documents"}`,
+            file.originalname  // ✅ pass filename to detect PDF
           );
         })
       );
