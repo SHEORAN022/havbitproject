@@ -680,7 +680,6 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
-const axios = require("axios"); // ← ADD THIS (npm install axios)
 const cloudinary = require("../config/cloudinary");
 const Vendor = require("../models/VendorModel");
 const vendorAuth = require("../middleware/vendorAuth");
@@ -832,7 +831,7 @@ router.post("/login", async (req, res) => {
 });
 
 /* =========================================================
-   GET VENDOR PROFILE
+   ✅ GET VENDOR PROFILE
    Route: GET /api/vendor/profile
 ========================================================= */
 router.get("/profile", vendorAuth, async (req, res) => {
@@ -842,6 +841,7 @@ router.get("/profile", vendorAuth, async (req, res) => {
     res.json({
       success: true,
       vendor: {
+        // Personal
         id:             vendor._id,
         contactName:    vendor.contactName    || "",
         email:          vendor.email          || "",
@@ -850,6 +850,8 @@ router.get("/profile", vendorAuth, async (req, res) => {
         demographic:    vendor.demographic    || "",
         status:         vendor.status         || "PENDING",
         isKYCCompleted: vendor.isKYCCompleted || false,
+
+        // Business
         brandName:      vendor.brandName      || "",
         annualTurnover: vendor.annualTurnover || "",
         onlineTurnover: vendor.onlineTurnover || "",
@@ -857,6 +859,8 @@ router.get("/profile", vendorAuth, async (req, res) => {
         gstNumber:      vendor.gstNumber      || "",
         panNumber:      vendor.panNumber      || "",
         aadharNumber:   vendor.aadharNumber   || "",
+
+        // Documents (Cloudinary URLs)
         gstFile:        vendor.gstFile        || "",
         panFile:        vendor.panFile        || "",
         aadharFile:     vendor.aadharFile     || "",
@@ -864,9 +868,13 @@ router.get("/profile", vendorAuth, async (req, res) => {
         ownerPhoto:     vendor.ownerPhoto     || "",
         msmeFile:       vendor.msmeFile       || "",
         supportingDoc:  vendor.supportingDoc  || "",
+
+        // Bank
         accountNumber:  vendor.accountNumber  || "",
         ifsc:           vendor.ifsc           || "",
         beneficiary:    vendor.beneficiary    || "",
+
+        // Address
         address:        vendor.address        || "",
         city:           vendor.city           || "",
         state:          vendor.state          || "",
@@ -880,69 +888,11 @@ router.get("/profile", vendorAuth, async (req, res) => {
 });
 
 /* =========================================================
-   ✅ DOCUMENT DOWNLOAD PROXY
-   Route: GET /api/vendor/download?url=<cloudinary_url>&name=<filename>
-
-   - vendorAuth se sirf logged-in vendors hi download kar sakte hain
-   - Cloudinary URL ko backend se fetch karke stream karta hai
-   - Browser ko proper Content-Disposition header milta hai
-     jisse file seedha download hoti hai (no 401, no CORS)
-========================================================= */
-router.get("/download", vendorAuth, async (req, res) => {
-  try {
-    const { url, name } = req.query;
-
-    // Validate: sirf Cloudinary URLs allow karo
-    if (!url || !url.includes("res.cloudinary.com")) {
-      return res.status(400).json({ success: false, message: "Invalid file URL" });
-    }
-
-    // Filename: query se liya ya URL se extract kiya
-    const rawName = name || url.split("/").pop().split("?")[0] || "document";
-    // Clean filename - special chars hata do
-    const filename = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
-
-    // Cloudinary se file fetch karo (server-to-server, koi CORS nahi)
-    const response = await axios.get(url, {
-      responseType: "stream",
-      timeout: 30000, // 30 second timeout
-    });
-
-    // Content type Cloudinary se hi lo
-    const contentType = response.headers["content-type"] || "application/octet-stream";
-
-    // Frontend ko download force karo
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", contentType);
-
-    // Content-Length bhi set karo agar available hai (progress bar ke liye)
-    if (response.headers["content-length"]) {
-      res.setHeader("Content-Length", response.headers["content-length"]);
-    }
-
-    // Stream directly to client
-    response.data.pipe(res);
-
-    // Error handling during stream
-    response.data.on("error", (err) => {
-      console.error("Stream error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, message: "Download failed" });
-      }
-    });
-
-  } catch (err) {
-    console.error("Download Proxy Error:", err.message);
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, message: "Failed to download file" });
-    }
-  }
-});
-
-/* =========================================================
    UPDATE VENDOR PROFILE (JSON + FILE SUPPORT)
    Route: PUT /api/vendor/update-profile
 ========================================================= */
+
+// Middleware: JSON aur form-data dono support
 const optionalMulter = (req, res, next) => {
   if (req.headers["content-type"]?.includes("multipart/form-data")) {
     fileFields(req, res, next);
@@ -962,6 +912,7 @@ router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
       address, city, state, pincode,
     } = req.body;
 
+    // Text fields update
     if (contactName)  vendor.contactName  = contactName;
     if (phone)        vendor.phone        = phone;
 
@@ -978,6 +929,7 @@ router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
     if (state)    vendor.state    = state;
     if (pincode)  vendor.pincode  = pincode;
 
+    // File fields update
     if (req.files) {
       const uploaded = {};
       await Promise.all(
@@ -990,12 +942,12 @@ router.put("/update-profile", vendorAuth, optionalMulter, async (req, res) => {
         })
       );
 
-      if (uploaded.gstFile)       vendor.gstFile       = uploaded.gstFile;
-      if (uploaded.panFile)       vendor.panFile       = uploaded.panFile;
-      if (uploaded.aadharFile)    vendor.aadharFile    = uploaded.aadharFile;
-      if (uploaded.fssaiFile)     vendor.fssaiFile     = uploaded.fssaiFile;
-      if (uploaded.msmeFile)      vendor.msmeFile      = uploaded.msmeFile;
-      if (uploaded.ownerPhoto)    vendor.ownerPhoto    = uploaded.ownerPhoto;
+      if (uploaded.gstFile)      vendor.gstFile      = uploaded.gstFile;
+      if (uploaded.panFile)      vendor.panFile      = uploaded.panFile;
+      if (uploaded.aadharFile)   vendor.aadharFile   = uploaded.aadharFile;
+      if (uploaded.fssaiFile)    vendor.fssaiFile    = uploaded.fssaiFile;
+      if (uploaded.msmeFile)     vendor.msmeFile     = uploaded.msmeFile;
+      if (uploaded.ownerPhoto)   vendor.ownerPhoto   = uploaded.ownerPhoto;
       if (uploaded.supportingDoc) vendor.supportingDoc = uploaded.supportingDoc;
     }
 
