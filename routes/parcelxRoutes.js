@@ -15,7 +15,7 @@ router.get("/warehouse",         userAuth,   ctrl.getWarehouseForCustomer);
    ORDER ROUTES
 ================================ */
 router.post("/order",            userAuth,   ctrl.createParcelxOrder);
-
+router.get("/vendor-orders", vendorAuth, ctrl.getVendorOrders);
 // Admin — sabhi orders (filter/search/pagination support)
 router.get("/orders",                        ctrl.getAllOrders);
 
