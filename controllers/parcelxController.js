@@ -653,3 +653,40 @@ exports.downloadParcelxLabel = async (req, res) => {
     });
   }
 };
+
+/* ===============================
+   GET VENDOR ORDERS
+================================ */
+exports.getVendorOrders = async (req, res) => {
+  try {
+    const vendorId =
+      req.vendor?._id?.toString() ||
+      req.vendor?.id?.toString() ||
+      req.query.vendorId;
+
+    if (!vendorId) {
+      return res.status(401).json({
+        success: false,
+        message: "Vendor ID not found",
+      });
+    }
+
+    const orders = await CustomerOrder.find({ vendorId })
+      .populate("customer", "name email phone")
+      .populate("warehouse", "name city state")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      count: orders.length,
+      orders,
+    });
+  } catch (error) {
+    console.error("GET VENDOR ORDERS ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
