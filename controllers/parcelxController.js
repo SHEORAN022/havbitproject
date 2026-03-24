@@ -732,3 +732,80 @@ exports.getVendorOrders = async (req, res) => {
     });
   }
 };
+
+
+/* ===============================
+   CANCEL PARCELX ORDER
+================================ */
+exports.cancelParcelxOrder = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required",
+      });
+    }
+
+    // 🔍 Find order
+    const order = await CustomerOrder.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (!order.parcelx?.awb) {
+      return res.status(400).json({
+        success: false,
+        message: "No ParcelX shipment found for this order",
+      });
+    }
+
+    // 🚀 CALL PARCELX CANCEL API
+    const payload = {
+      awb: order.parcelx.awb.toString(),
+    };
+
+    console.log("🚫 Cancel Payload:", payload);
+
+    const pxRes = await parcelx.post("/order/cancel_order", payload);
+
+    console.log("🚫 ParcelX Cancel Response:", pxRes.data);
+
+    if (!pxRes?.data?.status) {
+      return res.status(500).json({
+        success: false,
+        message: pxRes.data?.message || "ParcelX cancel failed",
+        parcelx: pxRes.data,
+      });
+    }
+
+    // ✅ UPDATE DB
+    order.orderStatus = "Cancelled";
+    order.cancelledAt = new Date();
+
+    order.parcelx.status = "Cancelled";
+    order.parcelx.last_updated = new Date();
+
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: "Order cancelled successfully",
+      order,
+    });
+
+  } catch (error) {
+    console.error("CANCEL ORDER ERROR:", error.response?.data || error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Cancel order failed",
+      error: error.response?.data || error.message,
+    });
+  }
+};
