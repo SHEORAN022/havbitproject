@@ -741,6 +741,9 @@ exports.cancelParcelxOrder = async (req, res) => {
   try {
     const { orderId } = req.body;
 
+    /* ===============================
+       1. VALIDATION
+    ============================== */
     if (!orderId) {
       return res.status(400).json({
         success: false,
@@ -748,7 +751,9 @@ exports.cancelParcelxOrder = async (req, res) => {
       });
     }
 
-    // 🔍 Find order
+    /* ===============================
+       2. FIND ORDER
+    ============================== */
     const order = await CustomerOrder.findById(orderId);
 
     if (!order) {
@@ -758,6 +763,28 @@ exports.cancelParcelxOrder = async (req, res) => {
       });
     }
 
+    /* ===============================
+       3. SAFETY CHECKS
+    ============================== */
+
+    // Already cancelled
+    if (order.orderStatus === "Cancelled") {
+      return res.json({
+        success: true,
+        message: "Order already cancelled",
+        order,
+      });
+    }
+
+    // Delivered check
+    if (order.orderStatus === "Delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "Delivered order cannot be cancelled",
+      });
+    }
+
+    // ParcelX shipment check
     if (!order.parcelx?.awb) {
       return res.status(400).json({
         success: false,
@@ -765,14 +792,19 @@ exports.cancelParcelxOrder = async (req, res) => {
       });
     }
 
-    // 🚀 CALL PARCELX CANCEL API
+    /* ===============================
+       4. PREPARE PAYLOAD
+    ============================== */
     const payload = {
-      awb: order.parcelx.awb.toString(),
+      awb_numbers: [order.parcelx.awb.toString()],
     };
 
     console.log("🚫 Cancel Payload:", payload);
 
-    const pxRes = await parcelx.post("/order/cancel_order", payload);
+    /* ===============================
+       5. CALL PARCELX API
+    ============================== */
+    const pxRes = await parcelx.post("/cancel_order", payload);
 
     console.log("🚫 ParcelX Cancel Response:", pxRes.data);
 
@@ -784,15 +816,25 @@ exports.cancelParcelxOrder = async (req, res) => {
       });
     }
 
-    // ✅ UPDATE DB
+    /* ===============================
+       6. UPDATE DATABASE
+    ============================== */
     order.orderStatus = "Cancelled";
     order.cancelledAt = new Date();
 
     order.parcelx.status = "Cancelled";
     order.parcelx.last_updated = new Date();
 
+    // Optional: payment update
+    if (order.paymentMethod === "cod") {
+      order.paymentStatus = "Cancelled";
+    }
+
     await order.save();
 
+    /* ===============================
+       7. RESPONSE
+    ============================== */
     return res.json({
       success: true,
       message: "Order cancelled successfully",
@@ -800,7 +842,7 @@ exports.cancelParcelxOrder = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("CANCEL ORDER ERROR:", error.response?.data || error.message);
+    console.error("❌ CANCEL ORDER ERROR:", error.response?.data || error.message);
 
     return res.status(500).json({
       success: false,
