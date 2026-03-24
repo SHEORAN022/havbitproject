@@ -785,7 +785,7 @@ exports.cancelParcelxOrder = async (req, res) => {
     }
 
     // Shipment check
-    if (!order.parcelx?.awb) {
+    if (!order.parcelx || !order.parcelx.awb) {
       return res.status(400).json({
         success: false,
         message: "No ParcelX shipment found for this order",
@@ -793,26 +793,26 @@ exports.cancelParcelxOrder = async (req, res) => {
     }
 
     /* ===============================
-       4. PREPARE PAYLOAD
+       4. PREPARE PAYLOAD (FINAL FIX)
     ============================== */
     const payload = {
-      awb_numbers: [order.parcelx.awb.toString()],
+      awb: order.parcelx.awb.toString(),
     };
 
     console.log("🚫 Cancel Payload:", payload);
 
     /* ===============================
-       5. CALL PARCELX API (FIXED)
+       5. CALL PARCELX API
     ============================== */
     const pxRes = await parcelx.post("/order/cancel_order", payload);
 
     console.log("🚫 ParcelX Cancel Response:", pxRes.data);
 
-    if (!pxRes?.data?.status) {
+    if (!pxRes || !pxRes.data || pxRes.data.status !== true) {
       return res.status(500).json({
         success: false,
-        message: pxRes.data?.message || "ParcelX cancel failed",
-        parcelx: pxRes.data,
+        message: pxRes?.data?.responsemsg || "ParcelX cancel failed",
+        parcelx: pxRes?.data,
       });
     }
 
@@ -827,7 +827,7 @@ exports.cancelParcelxOrder = async (req, res) => {
       order.parcelx.last_updated = new Date();
     }
 
-    // Payment status update
+    // Payment update
     order.paymentStatus = "Cancelled";
 
     await order.save();
