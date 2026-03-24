@@ -784,7 +784,7 @@ exports.cancelParcelxOrder = async (req, res) => {
       });
     }
 
-    // ParcelX shipment check
+    // Shipment check
     if (!order.parcelx?.awb) {
       return res.status(400).json({
         success: false,
@@ -802,9 +802,9 @@ exports.cancelParcelxOrder = async (req, res) => {
     console.log("🚫 Cancel Payload:", payload);
 
     /* ===============================
-       5. CALL PARCELX API
+       5. CALL PARCELX API (FIXED)
     ============================== */
-    const pxRes = await parcelx.post("/cancel_order", payload);
+    const pxRes = await parcelx.post("/order/cancel_order", payload);
 
     console.log("🚫 ParcelX Cancel Response:", pxRes.data);
 
@@ -822,13 +822,13 @@ exports.cancelParcelxOrder = async (req, res) => {
     order.orderStatus = "Cancelled";
     order.cancelledAt = new Date();
 
-    order.parcelx.status = "Cancelled";
-    order.parcelx.last_updated = new Date();
-
-    // Optional: payment update
-    if (order.paymentMethod === "cod") {
-      order.paymentStatus = "Cancelled";
+    if (order.parcelx) {
+      order.parcelx.status = "Cancelled";
+      order.parcelx.last_updated = new Date();
     }
+
+    // Payment status update
+    order.paymentStatus = "Cancelled";
 
     await order.save();
 
