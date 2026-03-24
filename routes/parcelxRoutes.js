@@ -18,8 +18,8 @@ router.post("/order",            userAuth,   ctrl.createParcelxOrder);
 router.get("/vendor-orders", vendorAuth, ctrl.getVendorOrders);
 // Admin — sabhi orders (filter/search/pagination support)
 router.get("/orders",                        ctrl.getAllOrders);
+router.post("/cancel-order", userAuth, ctrl.cancelParcelxOrder);
 
-// Admin — sirf ParcelX ke saath book hue orders
 router.get("/parcelx-orders",                ctrl.getParcelxOrders);
 router.get("/label/:awb", ctrl.downloadParcelxLabel);
 // Tracking
