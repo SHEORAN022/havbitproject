@@ -1,9 +1,546 @@
+// const Product = require("../models/Product");
+// const VendorProduct = require("../models/VendorProduct");
+// const Category = require("../models/Category");
+// const SubCategory = require("../models/SubCategory");
+// const Vendor = require("../models/Vendor");
+
+// // ✅ Helper: generate URL-friendly slug from product name
+// const generateSlug = (name) => {
+//   if (!name) return '';
+//   return name
+//     .toLowerCase()
+//     .trim()
+//     .replace(/[^a-z0-9\s-]/g, '')
+//     .replace(/\s+/g, '-')
+//     .replace(/-+/g, '-')
+//     .replace(/(^-|-$)/g, '');
+// };
+
+// /* =====================================================
+//    GET PUBLIC PRODUCTS (ADMIN + VENDOR) - COMPLETE FIXED
+// ===================================================== */
+// const getPublicProducts = async (req, res) => {
+//   try {
+//     console.log("🟢 GET PUBLIC PRODUCTS API CALLED");
+    
+//     const { 
+//       page = 1, 
+//       limit = 50, 
+//       category, 
+//       subcategory, 
+//       search, 
+//       minPrice, 
+//       maxPrice,
+//       quality,
+//       dietPreference,
+//       state,
+//       sort = '-createdAt'
+//     } = req.query;
+    
+//     const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+//     const adminQuery = {};
+//     const vendorQuery = {};
+
+//     if (category) {
+//       adminQuery.category = category;
+//       vendorQuery.category = category;
+//     }
+    
+//     if (subcategory) {
+//       adminQuery.subcategory = subcategory;
+//       vendorQuery.subcategory = subcategory;
+//     }
+    
+//     if (search) {
+//       const searchRegex = new RegExp(search, 'i');
+//       adminQuery.$or = [
+//         { name: searchRegex },
+//         { description: searchRegex },
+//         { brandName: searchRegex },
+//         { restaurantName: searchRegex }
+//       ];
+//       vendorQuery.$or = [
+//         { name: searchRegex },
+//         { description: searchRegex },
+//         { brandName: searchRegex },
+//         { restaurantName: searchRegex }
+//       ];
+//     }
+    
+//     if (quality) {
+//       adminQuery.quality = quality;
+//       vendorQuery.quality = quality;
+//     }
+    
+//     if (dietPreference) {
+//       adminQuery.dietPreference = dietPreference;
+//       vendorQuery.dietPreference = dietPreference;
+//     }
+    
+//     if (state) {
+//       adminQuery.State = state;
+//       vendorQuery.State = state;
+//     }
+    
+//     if (minPrice || maxPrice) {
+//       const priceFilter = {};
+//       if (minPrice) priceFilter.$gte = parseFloat(minPrice);
+//       if (maxPrice) priceFilter.$lte = parseFloat(maxPrice);
+//       adminQuery.price = priceFilter;
+//       vendorQuery.price = priceFilter;
+//     }
+    
+//     const [adminProducts, vendorProducts, adminTotal, vendorTotal] = await Promise.all([
+//       Product.find(adminQuery)
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .sort(sort)
+//         .skip(skip)
+//         .limit(parseInt(limit))
+//         .lean(),
+      
+//       VendorProduct.find(vendorQuery)
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .populate('vendor', 'storeName name email phone')
+//         .sort(sort)
+//         .skip(skip)
+//         .limit(parseInt(limit))
+//         .lean(),
+      
+//       Product.countDocuments(adminQuery),
+//       VendorProduct.countDocuments(vendorQuery)
+//     ]);
+
+//     console.log(`📊 Admin Products: ${adminProducts.length}, Vendor Products: ${vendorProducts.length}`);
+
+//     const mapProductData = (product, isVendor = false) => {
+//       const safeString = (value) => (value !== undefined && value !== null ? String(value).trim() : '');
+//       const safeNumber = (value) => {
+//         const num = parseFloat(value);
+//         return isNaN(num) ? 0 : num;
+//       };
+//       const safeArray = (value) => {
+//         if (Array.isArray(value)) return value.filter(item => item && item.trim() !== '');
+//         if (typeof value === 'string' && value.trim() !== '') {
+//           return value.split(',').map(item => item.trim()).filter(item => item !== '');
+//         }
+//         return [];
+//       };
+      
+//       const categoryName = product.category ? 
+//         (typeof product.category === 'object' ? product.category.name : '') : '';
+//       const subcategoryName = product.subcategory ? 
+//         (typeof product.subcategory === 'object' ? product.subcategory.name : '') : '';
+
+//       // ✅ SLUG: Use DB slug if exists, otherwise generate from name
+//       const productSlug = product.slug 
+//         ? product.slug 
+//         : generateSlug(product.name);
+      
+//       const mappedProduct = {
+//         // ================= BASIC INFO =================
+//         id: product._id,
+//         name: safeString(product.name),
+//         description: safeString(product.description),
+//         brandName: safeString(product.brandName),
+//         price: isVendor ? safeNumber(product.price) : safeNumber(product.price || product.newPrice),
+//         oldPrice: safeNumber(product.oldPrice),
+//         stock: safeNumber(product.stock),
+//         quality: safeString(product.quality) || "Standard",
+//         dietPreference: safeString(product.dietPreference) || "Veg",
+//         restaurantName: safeString(product.restaurantName) || "Havbit",
+        
+//         // ================= SLUG (SEO URL) =================
+//         slug: productSlug, // ✅ always present now
+
+//         // ================= VARIATIONS =================
+//         hasVariations: isVendor ? false : (product.hasVariations || false),
+//         variations: isVendor ? [] : (Array.isArray(product.variations) ? product.variations : []),
+        
+//         // ================= PRODUCT DETAILS =================
+//         productTypes: safeString(product.productTypes),
+//         flavors: safeArray(product.flavors),
+//         size: safeArray(product.size),
+//         materialTypes: safeString(product.materialTypes),
+//         ingredients: safeString(product.ingredients),
+//         customWeight: safeString(product.customWeight),
+//         customSizeInput: safeString(product.customSizeInput),
+//         ageRange: safeString(product.ageRange),
+//         containerType: safeString(product.containerType),
+//         itemForm: safeString(product.itemForm),
+//         specialty: safeString(product.specialty),
+//         itemTypeName: safeString(product.itemTypeName),
+//         countryOfOrigin: safeString(product.countryOfOrigin),
+        
+//         // ================= COMPLIANCE =================
+//         fssaiLicense: safeString(product.fssaiLicense),
+//         legalDisclaimer: safeString(product.legalDisclaimer),
+//         shelfLife: safeString(product.shelfLife),
+        
+//         // ================= MANUFACTURING =================
+//         manufacturerName: safeString(product.manufacturerName || product.manufacturer),
+//         manufacturerAddress: safeString(product.manufacturerAddress || product.manufacturerContact),
+//         manufacturer: safeString(product.manufacturer || product.manufacturerName),
+//         manufacturerContact: safeString(product.manufacturerContact || product.manufacturerAddress),
+        
+//         // ================= PACKAGER =================
+//         packagerName: safeString(product.packagerName),
+//         packagerAddress: safeString(product.packagerAddress),
+//         packagerFssaiLicense: safeString(product.packagerFssaiLicense),
+//         packerContact: safeString(product.packerContact),
+        
+//         // ================= MARKETER =================
+//         marketerName: safeString(product.marketerName),
+//         marketerAddress: safeString(product.marketerAddress),
+//         marketerNameAddress: safeString(product.marketerNameAddress),
+        
+//         // ================= PACKAGE DETAILS =================
+//         packageColour: safeString(product.packageColour),
+//         measurementUnit: safeString(product.measurementUnit),
+//         unitCount: safeString(product.unitCount),
+//         numberOfItems: safeString(product.numberOfItems),
+//         itemWeight: safeString(product.itemWeight),
+//         totalEaches: safeString(product.totalEaches),
+//         itemPackageWeight: safeString(product.itemPackageWeight),
+        
+//         // ================= DIETARY & NUTRITION =================
+//         dietaryPreferences: safeString(product.dietaryPreferences),
+//         allergenInformation: safeString(product.allergenInformation || product.allergenInfo),
+//         nutrition: safeString(product.nutrition),
+//         cuisine: safeString(product.cuisine),
+//         directions: safeString(product.directions),
+        
+//         // ================= LOCATION =================
+//         State: safeString(product.State),
+        
+//         // ================= CATEGORY =================
+//         category: product.category ? 
+//           (typeof product.category === 'object' ? product.category._id : product.category) : null,
+//         subcategory: product.subcategory ? 
+//           (typeof product.subcategory === 'object' ? product.subcategory._id : product.subcategory) : null,
+//         categoryName: categoryName,
+//         subcategoryName: subcategoryName,
+        
+//         // ================= MEDIA =================
+//         image: product.image && typeof product.image === "string" ? 
+//           (product.image.startsWith('http') ? product.image : 
+//            `${process.env.BASE_URL || 'http://localhost:5000'}${product.image}`) : null,
+//         gallery: Array.isArray(product.gallery) ? 
+//           product.gallery.map(img => 
+//             img.startsWith('http') ? img : 
+//             `${process.env.BASE_URL || 'http://localhost:5000'}${img}`
+//           ).filter(img => img) : [],
+        
+//         // ================= VENDOR INFO =================
+//         vendor: isVendor ? product.vendor : null,
+//         isVendorProduct: isVendor,
+//         vendorName: isVendor && product.vendor ? 
+//           (typeof product.vendor === 'object' ? 
+//             (product.vendor.storeName || product.vendor.name || "") : "") : "",
+//         vendorId: isVendor && product.vendor ? 
+//           (typeof product.vendor === 'object' ? product.vendor._id : product.vendor) : null,
+        
+//         // ================= TIMESTAMPS =================
+//         createdAt: product.createdAt,
+//         updatedAt: product.updatedAt,
+//       };
+      
+//       // Clean up - remove empty strings and null values
+//       // ✅ IMPORTANT: slug ko delete mat karo even if empty
+//       Object.keys(mappedProduct).forEach(key => {
+//         if (key !== 'slug' && (mappedProduct[key] === "" || mappedProduct[key] === null)) {
+//           delete mappedProduct[key];
+//         }
+//       });
+      
+//       return mappedProduct;
+//     };
+    
+//     const mappedAdminProducts = adminProducts.map(p => mapProductData(p, false));
+//     const mappedVendorProducts = vendorProducts.map(p => mapProductData(p, true));
+    
+//     const allProducts = [...mappedAdminProducts, ...mappedVendorProducts];
+    
+//     const sortProducts = (products, sortBy) => {
+//       return products.sort((a, b) => {
+//         if (sortBy.startsWith('-')) {
+//           const field = sortBy.substring(1);
+//           return new Date(b[field] || b.createdAt) - new Date(a[field] || a.createdAt);
+//         } else {
+//           const field = sortBy;
+//           return new Date(a[field] || a.createdAt) - new Date(b[field] || b.createdAt);
+//         }
+//       });
+//     };
+    
+//     const sortedProducts = sortProducts(allProducts, sort);
+    
+//     const totalProducts = adminTotal + vendorTotal;
+//     const totalPages = Math.ceil(totalProducts / parseInt(limit));
+    
+//     console.log(`✅ Total Public Products: ${sortedProducts.length}`);
+    
+//     return res.status(200).json({
+//       success: true,
+//       count: sortedProducts.length,
+//       total: totalProducts,
+//       page: parseInt(page),
+//       pages: totalPages,
+//       limit: parseInt(limit),
+//       data: sortedProducts,
+//       filters: {
+//         category: category || null,
+//         subcategory: subcategory || null,
+//         search: search || null,
+//         minPrice: minPrice || null,
+//         maxPrice: maxPrice || null,
+//         quality: quality || null,
+//         dietPreference: dietPreference || null,
+//         state: state || null,
+//         sort: sort
+//       }
+//     });
+    
+//   } catch (error) {
+//     console.error("❌ GET PUBLIC PRODUCTS ERROR:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch public products",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// /* =====================================================
+//    GET SINGLE PUBLIC PRODUCT BY SLUG ✅ (was: by ID)
+// ===================================================== */
+// const getPublicProductBySlug = async (req, res) => {
+//   try {
+//     const { slug } = req.params;
+    
+//     if (!slug) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Product slug is required"
+//       });
+//     }
+
+//     // ✅ Try to find by slug field first
+//     let product = await Product.findOne({ slug })
+//       .populate('category', 'name image')
+//       .populate('subcategory', 'name image')
+//       .lean();
+    
+//     let isVendorProduct = false;
+    
+//     // ✅ If not found by slug, try generating slug from name and matching
+//     if (!product) {
+//       const allAdminProducts = await Product.find({})
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .lean();
+      
+//       product = allAdminProducts.find(p => generateSlug(p.name) === slug);
+//     }
+
+//     // ✅ Try vendor products by slug
+//     if (!product) {
+//       product = await VendorProduct.findOne({ slug })
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .populate('vendor', 'storeName name email phone address')
+//         .lean();
+      
+//       if (product) isVendorProduct = true;
+//     }
+
+//     // ✅ Try vendor products by name-generated slug
+//     if (!product) {
+//       const allVendorProducts = await VendorProduct.find({})
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .populate('vendor', 'storeName name email phone address')
+//         .lean();
+      
+//       product = allVendorProducts.find(p => generateSlug(p.name) === slug);
+//       if (product) isVendorProduct = true;
+//     }
+
+//     if (!product) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Product not found"
+//       });
+//     }
+
+//     const safeString = (value) => (value !== undefined && value !== null ? String(value).trim() : '');
+//     const safeNumber = (value) => {
+//       const num = parseFloat(value);
+//       return isNaN(num) ? 0 : num;
+//     };
+//     const safeArray = (value) => {
+//       if (Array.isArray(value)) return value.filter(item => item && item.trim() !== '');
+//       if (typeof value === 'string' && value.trim() !== '') {
+//         return value.split(',').map(item => item.trim()).filter(item => item !== '');
+//       }
+//       return [];
+//     };
+
+//     const categoryName = product.category ? 
+//       (typeof product.category === 'object' ? product.category.name : '') : '';
+//     const subcategoryName = product.subcategory ? 
+//       (typeof product.subcategory === 'object' ? product.subcategory.name : '') : '';
+
+//     const mappedProduct = {
+//       id: product._id,
+//       slug: product.slug || generateSlug(product.name), // ✅
+//       name: safeString(product.name),
+//       description: safeString(product.description),
+//       brandName: safeString(product.brandName),
+//       price: isVendorProduct ? safeNumber(product.price) : safeNumber(product.price || product.newPrice),
+//       oldPrice: safeNumber(product.oldPrice),
+//       stock: safeNumber(product.stock),
+//       quality: safeString(product.quality) || "Standard",
+//       dietPreference: safeString(product.dietPreference) || "Veg",
+//       restaurantName: safeString(product.restaurantName) || "Havbit",
+//       hasVariations: isVendorProduct ? false : (product.hasVariations || false),
+//       variations: isVendorProduct ? [] : (Array.isArray(product.variations) ? product.variations : []),
+//       productTypes: safeString(product.productTypes),
+//       flavors: safeArray(product.flavors),
+//       size: safeArray(product.size),
+//       materialTypes: safeString(product.materialTypes),
+//       ingredients: safeString(product.ingredients),
+//       ageRange: safeString(product.ageRange),
+//       containerType: safeString(product.containerType),
+//       itemForm: safeString(product.itemForm),
+//       specialty: safeString(product.specialty),
+//       itemTypeName: safeString(product.itemTypeName),
+//       countryOfOrigin: safeString(product.countryOfOrigin),
+//       fssaiLicense: safeString(product.fssaiLicense),
+//       legalDisclaimer: safeString(product.legalDisclaimer),
+//       shelfLife: safeString(product.shelfLife),
+//       manufacturer: safeString(product.manufacturer || product.manufacturerName),
+//       manufacturerContact: safeString(product.manufacturerContact || product.manufacturerAddress),
+//       packagerName: safeString(product.packagerName),
+//       packagerFssaiLicense: safeString(product.packagerFssaiLicense),
+//       packerContact: safeString(product.packerContact),
+//       marketerNameAddress: safeString(product.marketerNameAddress),
+//       packageColour: safeString(product.packageColour),
+//       measurementUnit: safeString(product.measurementUnit),
+//       unitCount: safeString(product.unitCount),
+//       numberOfItems: safeString(product.numberOfItems),
+//       itemWeight: safeString(product.itemWeight),
+//       totalEaches: safeString(product.totalEaches),
+//       itemPackageWeight: safeString(product.itemPackageWeight),
+//       dietaryPreferences: safeString(product.dietaryPreferences),
+//       allergenInformation: safeString(product.allergenInformation || product.allergenInfo),
+//       nutrition: safeString(product.nutrition),
+//       cuisine: safeString(product.cuisine),
+//       directions: safeString(product.directions),
+//       State: safeString(product.State),
+//       category: product.category ? 
+//         (typeof product.category === 'object' ? product.category._id : product.category) : null,
+//       subcategory: product.subcategory ? 
+//         (typeof product.subcategory === 'object' ? product.subcategory._id : product.subcategory) : null,
+//       categoryName,
+//       subcategoryName,
+//       image: product.image && typeof product.image === "string" ? 
+//         (product.image.startsWith('http') ? product.image : 
+//          `${process.env.BASE_URL || 'http://localhost:5000'}${product.image}`) : null,
+//       gallery: Array.isArray(product.gallery) ? 
+//         product.gallery.map(img => 
+//           img.startsWith('http') ? img : 
+//           `${process.env.BASE_URL || 'http://localhost:5000'}${img}`
+//         ).filter(Boolean) : [],
+//       vendor: isVendorProduct ? product.vendor : null,
+//       isVendorProduct,
+//       vendorName: isVendorProduct && product.vendor ? 
+//         (typeof product.vendor === 'object' ? 
+//           (product.vendor.storeName || product.vendor.name || "") : "") : "",
+//       vendorId: isVendorProduct && product.vendor ? 
+//         (typeof product.vendor === 'object' ? product.vendor._id : product.vendor) : null,
+//       createdAt: product.createdAt,
+//       updatedAt: product.updatedAt,
+//     };
+
+//     Object.keys(mappedProduct).forEach(key => {
+//       if (key !== 'slug' && (mappedProduct[key] === "" || mappedProduct[key] === null)) {
+//         delete mappedProduct[key];
+//       }
+//     });
+    
+//     return res.status(200).json({
+//       success: true,
+//       data: mappedProduct
+//     });
+    
+//   } catch (error) {
+//     console.error("❌ GET PUBLIC PRODUCT BY SLUG ERROR:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch product",
+//       error: error.message
+//     });
+//   }
+// };
+
+// // ✅ Keep old ID-based function for backward compatibility
+// const getPublicProductById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     if (!id) {
+//       return res.status(400).json({ success: false, message: "Product ID is required" });
+//     }
+    
+//     let product = await Product.findById(id)
+//       .populate('category', 'name image')
+//       .populate('subcategory', 'name image')
+//       .lean();
+    
+//     let isVendorProduct = false;
+    
+//     if (!product) {
+//       product = await VendorProduct.findById(id)
+//         .populate('category', 'name image')
+//         .populate('subcategory', 'name image')
+//         .populate('vendor', 'storeName name email phone address')
+//         .lean();
+      
+//       if (!product) {
+//         return res.status(404).json({ success: false, message: "Product not found" });
+//       }
+//       isVendorProduct = true;
+//     }
+
+//     // ✅ Redirect to slug-based URL (optional - or just return data)
+//     const slug = product.slug || generateSlug(product.name);
+    
+//     return res.status(200).json({
+//       success: true,
+//       slug, // ✅ frontend can use this to redirect
+//       data: { ...product, slug }
+//     });
+    
+//   } catch (error) {
+//     return res.status(500).json({ success: false, message: "Failed to fetch product", error: error.message });
+//   }
+// };
+
+// module.exports = {
+//   getPublicProducts,
+//   getPublicProductById,
+//   getPublicProductBySlug, // ✅ new export
+// };
+
+
 const Product = require("../models/Product");
 const VendorProduct = require("../models/VendorProduct");
 const Category = require("../models/Category");
 const SubCategory = require("../models/SubCategory");
 const Vendor = require("../models/Vendor");
-
+const FAQ = require("../models/ProductFAQ.model");
 // ✅ Helper: generate URL-friendly slug from product name
 const generateSlug = (name) => {
   if (!name) return '';
@@ -246,6 +783,7 @@ const getPublicProducts = async (req, res) => {
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
       };
+    
       
       // Clean up - remove empty strings and null values
       // ✅ IMPORTANT: slug ko delete mat karo even if empty
@@ -471,11 +1009,18 @@ const getPublicProductBySlug = async (req, res) => {
       }
     });
     
+    // return res.status(200).json({
+    //   success: true,
+    //   data: mappedProduct
+    // });
+  const faqData = await FAQ.findOne({ productId: product._id });
     return res.status(200).json({
-      success: true,
-      data: mappedProduct
-    });
-    
+  success: true,
+  data: {
+    ...mappedProduct,
+    faqs: faqData?.faqs || [],
+  }
+});
   } catch (error) {
     console.error("❌ GET PUBLIC PRODUCT BY SLUG ERROR:", error);
     return res.status(500).json({
