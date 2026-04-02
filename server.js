@@ -300,6 +300,7 @@ app.use("/api/vendor/inventory", require("./routes/inventoryRoutes"));
 app.use("/api/coupons", couponRoutes);
 app.use("/api/lead-entries", require("./routes/leadEntryRoutes"));
 app.use("/api/admin", require("./routes/adminVendorBrandRoutes"));
+app.use("/api/blogs", require("./routes/blogRoutes"));
 // app.use("/api/vendor/warehouse", require("./routes/warehouse.routes"));
 /* ======================================================
    HEALTH & ROOT
