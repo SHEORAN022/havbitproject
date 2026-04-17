@@ -664,4 +664,3 @@ router.get("/earnings", vendorAuth, async (req, res) => {
 module.exports = router;
 
 
-
