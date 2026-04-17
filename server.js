@@ -192,7 +192,7 @@ require("dotenv").config();
 
 
 dotenv.config();
-
+require("./corn/payoutCron");
 const app = express();
 
 
