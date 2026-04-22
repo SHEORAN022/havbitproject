@@ -1943,7 +1943,7 @@ exports.createParcelxOrder = async (req, res) => {
       qty: item.qty,
       price: item.price,
       // vendorId: vendorId || null,
-      vendorId: isPublicOrder ? null : vendorId,
+      vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
     }));
 
     
@@ -1978,7 +1978,7 @@ order = await CustomerOrder.create({
   customer,
   // vendorId: vendorId || null,
   // isPublicOrder: !!isPublicOrder,
-  vendorId: isPublicOrder ? null : vendorId,
+  vendorId: vendorId || null,
 isPublicOrder: Boolean(isPublicOrder),
   orderItems: fixedOrderItems,
   warehouse: warehouse?._id || null,
