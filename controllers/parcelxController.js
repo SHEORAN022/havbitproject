@@ -1,4 +1,3 @@
-
 // // // const axios = require("axios");
 // // // const parcelx = require("../config/parcelx");
 // // // const Warehouse = require("../models/Warehouse");
@@ -227,19 +226,44 @@
 // // //       productName: item.productName,
 // // //       qty: item.qty,
 // // //       price: item.price,
-// // //       vendorId: vendorId || null,
+// // //       // vendorId: vendorId || null,
+// // //       vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
 // // //     }));
 
     
 
 
-// // //     const vendorAmount = amount * 0.8;
-// // // const platformFeeCalc = amount * 0.2;
+// // // //     const vendorAmount = amount * 0.8;
+// // // // const platformFeeCalc = amount * 0.2;
 
+// // // // 🔥 SHIPPING
+// // // const weight = shipment?.weight || 0.5;
+
+// // // const calculateShipping = (w) => {
+// // //   if (w <= 0.5) return 75;
+// // //   if (w <= 1) return 99;
+// // //   if (w <= 2) return 135;
+// // //   if (w <= 5) return 135 + (Math.ceil(w - 2) * 35);
+// // //   return 135 + (3 * 35) + (Math.ceil(w - 5) * 20);
+// // // };
+
+// // // const shippingFee = calculateShipping(weight);
+
+// // // // 🔥 PG FEE (2% + GST)
+// // // const pgBase = amount * 0.02;
+// // // const pgFee = pgBase * 1.18;
+
+// // // // 🔥 FINAL SELLER AMOUNT
+// // // const vendorAmount = amount - shippingFee - pgFee;
+
+// // // // 🔥 PLATFORM
+// // // const platformFeeCalc = shippingFee + pgFee;
 // // // order = await CustomerOrder.create({
 // // //   customer,
+// // //   // vendorId: vendorId || null,
+// // //   // isPublicOrder: !!isPublicOrder,
 // // //   vendorId: vendorId || null,
-// // //   isPublicOrder: !!isPublicOrder,
+// // // isPublicOrder: Boolean(isPublicOrder),
 // // //   orderItems: fixedOrderItems,
 // // //   warehouse: warehouse?._id || null,
 // // //   pick_address_id: pickAddressId,
@@ -260,7 +284,8 @@
 // // //   couponDiscount: couponDiscount || 0,
 
 // // //   paymentMethod,
-// // //   paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+// // //   // paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+// // //   paymentStatus: paymentMethod === "cod" ? "Pending" : "Pending",
 // // //   orderStatus: "Pending",
 
 // // //   // 🔥 NEW (MOST IMPORTANT)
@@ -1010,26 +1035,55 @@
 // //   let order = null;
 
 // //   try {
+// //     // const {
+// //     //   customer,
+// //     //   vendorId,
+// //     //   warehouseId,
+// //     //   isPublicOrder,
+// //     //   orderItems,
+// //     //   shipment,
+// //     //   shippingAddress,
+// //     //   amount,
+// //     //   paymentMethod = "cod",
+// //     //   couponCode,
+// //     //   couponDiscount,
+// //     //   subtotal,
+// //     //   deliveryFee,
+// //     //   platformFee,
+// //     //   gst,
+// //     // } = req.body;
+
 // //     const {
-// //       customer,
-// //       vendorId,
-// //       warehouseId,
-// //       isPublicOrder,
-// //       orderItems,
-// //       shipment,
-// //       shippingAddress,
-// //       amount,
-// //       paymentMethod = "cod",
-// //       couponCode,
-// //       couponDiscount,
-// //       subtotal,
-// //       deliveryFee,
-// //       platformFee,
-// //       gst,
-// //     } = req.body;
+// //   vendorId,
+// //   warehouseId,
+// //   isPublicOrder,
+// //   orderItems,
+// //   shipment,
+// //   shippingAddress,
+// //   amount,
+// //   paymentMethod = "cod",
+// //   couponCode,
+// //   couponDiscount,
+// //   subtotal,
+// //   deliveryFee,
+// //   platformFee,
+// //   gst,
+// // } = req.body;
+
+// // // 🔥 ADD THIS LINE
+// // const customerId = req.user?.id;
+
+// // if (!customerId) {
+// //   return res.status(401).json({
+// //     success: false,
+// //     message: "User not authenticated",
+// //   });
+// // }
 
 // //     /* ── 1. VALIDATION ── */
-// //     if (!customer)
+// //     // if (!customer)
+
+// //     if (!customerId)
 // //       return res.status(400).json({ success: false, message: "Customer ID is required" });
 // //     if (!isPublicOrder && !vendorId)
 // //       return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
@@ -1120,7 +1174,8 @@
 // // // 🔥 PLATFORM
 // // const platformFeeCalc = shippingFee + pgFee;
 // // order = await CustomerOrder.create({
-// //   customer,
+// //   // customer,
+// //    customer: customerId,
 // //   // vendorId: vendorId || null,
 // //   // isPublicOrder: !!isPublicOrder,
 // //   vendorId: vendorId || null,
@@ -1896,23 +1951,7 @@
 //   let order = null;
 
 //   try {
-//     // const {
-//     //   customer,
-//     //   vendorId,
-//     //   warehouseId,
-//     //   isPublicOrder,
-//     //   orderItems,
-//     //   shipment,
-//     //   shippingAddress,
-//     //   amount,
-//     //   paymentMethod = "cod",
-//     //   couponCode,
-//     //   couponDiscount,
-//     //   subtotal,
-//     //   deliveryFee,
-//     //   platformFee,
-//     //   gst,
-//     // } = req.body;
+   
 
 //     const {
 //   vendorId,
@@ -1932,7 +1971,9 @@
 // } = req.body;
 
 // // 🔥 ADD THIS LINE
-// const customerId = req.user?.id;
+// const customerId = req.user && req.user._id
+//   ? req.user._id.toString()
+//   : null;
 
 // if (!customerId) {
 //   return res.status(401).json({
@@ -3089,27 +3130,52 @@ exports.trackParcelxOrder = async (req, res) => {
       order.parcelx.last_updated = new Date(currentStatus.event_date);
 
       /* ================= DELIVERED ================= */
- if (
+//  if (
+//   currentStatus.status_title === "delivered" &&
+//   order.orderStatus !== "Delivered"
+// ) {
+//   order.orderStatus = "Delivered";
+//   order.deliveredAt = new Date();
+
+//   // COD payment success
+//   if (order.paymentMethod === "cod") {
+//     order.paymentStatus = "Success";
+//   }
+
+//   // 🔥 payout date (7 days बाद)
+//   if (!order.payoutEligibleAt) {
+//     const payoutDate = new Date();
+//     payoutDate.setDate(payoutDate.getDate() + 7);
+//     order.payoutEligibleAt = payoutDate;
+//   }
+
+//   // 🔥 IMPORTANT CHANGE
+//   order.payoutStatus = "OnHold";
+// }
+if (
   currentStatus.status_title === "delivered" &&
   order.orderStatus !== "Delivered"
 ) {
   order.orderStatus = "Delivered";
   order.deliveredAt = new Date();
 
-  // COD payment success
   if (order.paymentMethod === "cod") {
     order.paymentStatus = "Success";
   }
 
-  // 🔥 payout date (7 days बाद)
-  if (!order.payoutEligibleAt) {
-    const payoutDate = new Date();
-    payoutDate.setDate(payoutDate.getDate() + 7);
-    order.payoutEligibleAt = payoutDate;
-  }
-
-  // 🔥 IMPORTANT CHANGE
   order.payoutStatus = "OnHold";
+
+  await order.save();
+
+  // ✅ PDF Step 3: Delivery confirm होने पर 7-day hold set करो
+  if (order.vendorId && order.transferId) {
+    const { setDeliveryHold } = require("./razorpay.controller");
+    try {
+      await setDeliveryHold(order);
+    } catch (e) {
+      console.error("⚠️ setDeliveryHold failed:", e.message);
+    }
+  }
 }
       /* ================= CANCELLED ================= */
       if (currentStatus.status_title === "cancelled") {
