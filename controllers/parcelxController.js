@@ -1,3 +1,4 @@
+
 // // // const axios = require("axios");
 // // // const parcelx = require("../config/parcelx");
 // // // const Warehouse = require("../models/Warehouse");
@@ -229,29 +230,43 @@
 // // //       vendorId: vendorId || null,
 // // //     }));
 
-// // //     /* ── 4. CREATE ORDER IN DB ── */
-// // //     order = await CustomerOrder.create({
-// // //       customer,
-// // //       vendorId: vendorId || null,
-// // //       isPublicOrder: !!isPublicOrder,
-// // //       orderItems: fixedOrderItems,
-// // //       warehouse: warehouse?._id || null,
-// // //       pick_address_id: pickAddressId,
-// // //       shipment,
-// // //       shippingAddress,
-// // //       amount,
-// // //       totalPayable: amount,
-// // //       subtotal: subtotal || amount,
-// // //       deliveryFee: deliveryFee || 0,
-// // //       platformFee: platformFee || 0,
-// // //       gst: gst || 0,
-// // //       couponCode: couponCode || null,
-// // //       couponDiscount: couponDiscount || 0,
-// // //       paymentMethod,
-// // //       paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
-// // //       orderStatus: "Pending",
-// // //     });
+    
 
+
+// // //     const vendorAmount = amount * 0.8;
+// // // const platformFeeCalc = amount * 0.2;
+
+// // // order = await CustomerOrder.create({
+// // //   customer,
+// // //   vendorId: vendorId || null,
+// // //   isPublicOrder: !!isPublicOrder,
+// // //   orderItems: fixedOrderItems,
+// // //   warehouse: warehouse?._id || null,
+// // //   pick_address_id: pickAddressId,
+// // //   shipment,
+// // //   shippingAddress,
+
+// // //   amount,
+// // //   totalPayable: amount,
+
+// // //   subtotal: subtotal || amount,
+// // //   deliveryFee: deliveryFee || 0,
+
+// // //   // 🔥 FIXED
+// // //   platformFee: platformFee || platformFeeCalc,
+
+// // //   gst: gst || 0,
+// // //   couponCode: couponCode || null,
+// // //   couponDiscount: couponDiscount || 0,
+
+// // //   paymentMethod,
+// // //   paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+// // //   orderStatus: "Pending",
+
+// // //   // 🔥 NEW (MOST IMPORTANT)
+// // //   vendorAmount,
+// // //   payoutStatus: "Pending",
+// // // });
 // // //     /* ── 5. BUILD PARCELX PAYLOAD ── */
 // // //     const parcelxPayload = {
 // // //       client_order_id: order._id.toString(),
@@ -339,15 +354,16 @@
 // // //   }
 // // // };
 
-// // // /* ===============================
-// // //    TRACK PARCELX ORDER
-// // // ================================ */
+
 // // // exports.trackParcelxOrder = async (req, res) => {
 // // //   try {
 // // //     const { awb } = req.params;
 
 // // //     if (!awb) {
-// // //       return res.status(400).json({ success: false, message: "AWB number is required" });
+// // //       return res.status(400).json({
+// // //         success: false,
+// // //         message: "AWB number is required",
+// // //       });
 // // //     }
 
 // // //     const pxRes = await parcelx.get(`/track_order?awb=${awb}`);
@@ -368,23 +384,49 @@
 // // //       order.parcelx.status = currentStatus.status_title;
 // // //       order.parcelx.last_updated = new Date(currentStatus.event_date);
 
-// // //       if (currentStatus.status_title === "delivered") {
-// // //         order.orderStatus = "Delivered";
-// // //         order.deliveredAt = new Date();
-// // //         order.paymentStatus = order.paymentMethod === "cod" ? "Success" : order.paymentStatus;
-// // //       }
+// // //       /* ================= DELIVERED ================= */
+// // //  if (
+// // //   currentStatus.status_title === "delivered" &&
+// // //   order.orderStatus !== "Delivered"
+// // // ) {
+// // //   order.orderStatus = "Delivered";
+// // //   order.deliveredAt = new Date();
 
+// // //   // COD payment success
+// // //   if (order.paymentMethod === "cod") {
+// // //     order.paymentStatus = "Success";
+// // //   }
+
+// // //   // 🔥 payout date (7 days बाद)
+// // //   if (!order.payoutEligibleAt) {
+// // //     const payoutDate = new Date();
+// // //     payoutDate.setDate(payoutDate.getDate() + 7);
+// // //     order.payoutEligibleAt = payoutDate;
+// // //   }
+
+// // //   // 🔥 IMPORTANT CHANGE
+// // //   order.payoutStatus = "OnHold";
+// // // }
+// // //       /* ================= CANCELLED ================= */
 // // //       if (currentStatus.status_title === "cancelled") {
 // // //         order.orderStatus = "Cancelled";
 // // //         order.cancelledAt = new Date();
+
+        
+// // //         order.payoutStatus = "Pending";
 // // //       }
 
 // // //       await order.save();
 // // //     }
 
-// // //     return res.json({ success: true, parcelx_tracking: pxRes.data });
+// // //     return res.json({
+// // //       success: true,
+// // //       parcelx_tracking: pxRes.data,
+// // //     });
+
 // // //   } catch (error) {
 // // //     console.error("PARCELX TRACK ERROR:", error.response?.data || error.message);
+
 // // //     return res.status(500).json({
 // // //       success: false,
 // // //       message: "ParcelX tracking error",
@@ -392,7 +434,6 @@
 // // //     });
 // // //   }
 // // // };
-
 // // // /* ===============================
 // // //    GET PARCELX SHIPMENT DETAILS
 // // // ================================ */
@@ -654,42 +695,6 @@
 // // //   }
 // // // };
 
-// // // /* ===============================
-// // //    GET VENDOR ORDERS
-// // // ================================ */
-// // // // exports.getVendorOrders = async (req, res) => {
-// // // //   try {
-// // // //     const vendorId =
-// // // //       req.vendor?._id?.toString() ||
-// // // //       req.vendor?.id?.toString() ||
-// // // //       req.query.vendorId;
-
-// // // //     if (!vendorId) {
-// // // //       return res.status(401).json({
-// // // //         success: false,
-// // // //         message: "Vendor ID not found",
-// // // //       });
-// // // //     }
-
-// // // //     const orders = await CustomerOrder.find({ vendorId })
-// // // //       .populate("customer", "name email phone")
-// // // //       .populate("warehouse", "name city state")
-// // // //       .sort({ createdAt: -1 })
-// // // //       .lean();
-
-// // // //     return res.json({
-// // // //       success: true,
-// // // //       count: orders.length,
-// // // //       orders,
-// // // //     });
-// // // //   } catch (error) {
-// // // //     console.error("GET VENDOR ORDERS ERROR:", error);
-// // // //     return res.status(500).json({
-// // // //       success: false,
-// // // //       message: error.message,
-// // // //     });
-// // // //   }
-// // // // };
 
 
 // // // exports.getVendorOrders = async (req, res) => {
@@ -1082,19 +1087,44 @@
 // //       productName: item.productName,
 // //       qty: item.qty,
 // //       price: item.price,
-// //       vendorId: vendorId || null,
+// //       // vendorId: vendorId || null,
+// //       vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
 // //     }));
 
     
 
 
-// //     const vendorAmount = amount * 0.8;
-// // const platformFeeCalc = amount * 0.2;
+// // //     const vendorAmount = amount * 0.8;
+// // // const platformFeeCalc = amount * 0.2;
 
+// // // 🔥 SHIPPING
+// // const weight = shipment?.weight || 0.5;
+
+// // const calculateShipping = (w) => {
+// //   if (w <= 0.5) return 75;
+// //   if (w <= 1) return 99;
+// //   if (w <= 2) return 135;
+// //   if (w <= 5) return 135 + (Math.ceil(w - 2) * 35);
+// //   return 135 + (3 * 35) + (Math.ceil(w - 5) * 20);
+// // };
+
+// // const shippingFee = calculateShipping(weight);
+
+// // // 🔥 PG FEE (2% + GST)
+// // const pgBase = amount * 0.02;
+// // const pgFee = pgBase * 1.18;
+
+// // // 🔥 FINAL SELLER AMOUNT
+// // const vendorAmount = amount - shippingFee - pgFee;
+
+// // // 🔥 PLATFORM
+// // const platformFeeCalc = shippingFee + pgFee;
 // // order = await CustomerOrder.create({
 // //   customer,
+// //   // vendorId: vendorId || null,
+// //   // isPublicOrder: !!isPublicOrder,
 // //   vendorId: vendorId || null,
-// //   isPublicOrder: !!isPublicOrder,
+// // isPublicOrder: Boolean(isPublicOrder),
 // //   orderItems: fixedOrderItems,
 // //   warehouse: warehouse?._id || null,
 // //   pick_address_id: pickAddressId,
@@ -1115,7 +1145,8 @@
 // //   couponDiscount: couponDiscount || 0,
 
 // //   paymentMethod,
-// //   paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+// //   // paymentStatus: paymentMethod === "cod" ? "Pending" : "Initiated",
+// //   paymentStatus: paymentMethod === "cod" ? "Pending" : "Pending",
 // //   orderStatus: "Pending",
 
 // //   // 🔥 NEW (MOST IMPORTANT)
@@ -1865,26 +1896,55 @@
 //   let order = null;
 
 //   try {
+//     // const {
+//     //   customer,
+//     //   vendorId,
+//     //   warehouseId,
+//     //   isPublicOrder,
+//     //   orderItems,
+//     //   shipment,
+//     //   shippingAddress,
+//     //   amount,
+//     //   paymentMethod = "cod",
+//     //   couponCode,
+//     //   couponDiscount,
+//     //   subtotal,
+//     //   deliveryFee,
+//     //   platformFee,
+//     //   gst,
+//     // } = req.body;
+
 //     const {
-//       customer,
-//       vendorId,
-//       warehouseId,
-//       isPublicOrder,
-//       orderItems,
-//       shipment,
-//       shippingAddress,
-//       amount,
-//       paymentMethod = "cod",
-//       couponCode,
-//       couponDiscount,
-//       subtotal,
-//       deliveryFee,
-//       platformFee,
-//       gst,
-//     } = req.body;
+//   vendorId,
+//   warehouseId,
+//   isPublicOrder,
+//   orderItems,
+//   shipment,
+//   shippingAddress,
+//   amount,
+//   paymentMethod = "cod",
+//   couponCode,
+//   couponDiscount,
+//   subtotal,
+//   deliveryFee,
+//   platformFee,
+//   gst,
+// } = req.body;
+
+// // 🔥 ADD THIS LINE
+// const customerId = req.user?.id;
+
+// if (!customerId) {
+//   return res.status(401).json({
+//     success: false,
+//     message: "User not authenticated",
+//   });
+// }
 
 //     /* ── 1. VALIDATION ── */
-//     if (!customer)
+//     // if (!customer)
+
+//     if (!customerId)
 //       return res.status(400).json({ success: false, message: "Customer ID is required" });
 //     if (!isPublicOrder && !vendorId)
 //       return res.status(400).json({ success: false, message: "Vendor ID is required for vendor orders" });
@@ -1975,7 +2035,8 @@
 // // 🔥 PLATFORM
 // const platformFeeCalc = shippingFee + pgFee;
 // order = await CustomerOrder.create({
-//   customer,
+//   // customer,
+//    customer: customerId,
 //   // vendorId: vendorId || null,
 //   // isPublicOrder: !!isPublicOrder,
 //   vendorId: vendorId || null,
@@ -2751,23 +2812,7 @@ exports.createParcelxOrder = async (req, res) => {
   let order = null;
 
   try {
-    // const {
-    //   customer,
-    //   vendorId,
-    //   warehouseId,
-    //   isPublicOrder,
-    //   orderItems,
-    //   shipment,
-    //   shippingAddress,
-    //   amount,
-    //   paymentMethod = "cod",
-    //   couponCode,
-    //   couponDiscount,
-    //   subtotal,
-    //   deliveryFee,
-    //   platformFee,
-    //   gst,
-    // } = req.body;
+   
 
     const {
   vendorId,
@@ -2787,7 +2832,8 @@ exports.createParcelxOrder = async (req, res) => {
 } = req.body;
 
 // 🔥 ADD THIS LINE
-const customerId = req.user?.id;
+const customerId =
+  req.user?._id?.toString() || req.user?.id?.toString();
 
 if (!customerId) {
   return res.status(401).json({
@@ -3513,4 +3559,3 @@ exports.cancelParcelxOrder = async (req, res) => {
     });
   }
 };
-
