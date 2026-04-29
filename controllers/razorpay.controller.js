@@ -430,6 +430,8 @@ const calculateShipping = (weightKg) => {
 
 /* ===============================
    CREATE RAZORPAY ORDER
+   सभी payments पहले Admin के pass
+   Vendor को delivery के 7 दिन बाद
 ================================ */
 exports.createRazorpayOrder = async (req, res) => {
   try {
@@ -460,94 +462,27 @@ exports.createRazorpayOrder = async (req, res) => {
 
     /* ── 2. AMOUNT CALCULATION ── */
     const productPrice = order.amount;
-    const weight = order.shipment?.weight || 0.5;
-    const shippingFee = calculateShipping(weight);
-    const pgBase = productPrice * 0.02;
-    const pgFee = Math.round(pgBase * 1.18);
     const codFee = order.paymentMethod === "cod" ? 30 : 0;
     const totalAmount = productPrice + codFee;
 
     console.log("💰 productPrice:", productPrice, "| totalAmount:", totalAmount);
 
-    /* ── CASE 1: ADMIN ORDER (NO SPLIT) ── */
-    if (!order.vendorId) {
-      const razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(totalAmount * 100),
-        currency: "INR",
-        receipt: `order_${order._id}`,
-        payment_capture: 1,
-      });
-
-      order.razorpayOrderId = razorpayOrder.id;
-      await order.save();
-
-      console.log("✅ Admin order created:", razorpayOrder.id);
-
-      return res.json({
-        success: true,
-        razorpayOrderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: "INR",
-        key: process.env.RAZORPAY_KEY_ID,
-      });
-    }
-
-    /* ── CASE 2: VENDOR ORDER (SPLIT PAYMENT) ── */
-    const vendor = await Vendor.findById(order.vendorId);
-
-    if (!vendor?.razorpayAccountId) {
-      return res.status(400).json({
-        success: false,
-        message: "Vendor Razorpay account not created",
-      });
-    }
-
-    // ✅ FIX: sellerAmount कभी negative नहीं होगा
-    const sellerAmount = Math.max(0, productPrice - shippingFee - pgFee);
-
-    console.log("💰 shippingFee:", shippingFee, "| pgFee:", pgFee, "| sellerAmount:", sellerAmount);
-
-    // ✅ FIX: sellerAmount 0 हो तो transfer मत करो
-    const transferPayload = sellerAmount > 0
-      ? [
-          {
-            account: vendor.razorpayAccountId,
-            amount: Math.round(sellerAmount * 100),
-            currency: "INR",
-            notes: {
-              order_id: order._id.toString(),
-              breakdown: "product - shipping - pg_fee",
-            },
-            on_hold: true,
-            on_hold_until: Math.floor(
-              (Date.now() + 7 * 24 * 60 * 60 * 1000) / 1000
-            ),
-          },
-        ]
-      : [];
-
+    /* ── 3. CREATE RAZORPAY ORDER ── */
+    // ✅ सभी payments Admin के pass जाएंगी
+    // Vendor को delivery के 7 दिन बाद automatically मिलेगा
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(totalAmount * 100),
       currency: "INR",
       receipt: `order_${order._id}`,
       payment_capture: 1,
-      transfers: transferPayload,
     });
 
-    /* ── SAVE DATA ── */
-    order.razorpayOrderId  = razorpayOrder.id;
-    order.vendorAmount     = sellerAmount;
-    order.platformAmount   = totalAmount - sellerAmount;
-    order.payoutStatus     = sellerAmount > 0 ? "OnHold" : "Pending";
-
-    if (razorpayOrder.transfers?.length > 0) {
-      order.transferId      = razorpayOrder.transfers[0].id;
-      order.transferCreated = true;
-    }
-
+    /* ── 4. SAVE ── */
+    order.razorpayOrderId = razorpayOrder.id;
+    order.payoutStatus = "Pending";
     await order.save();
 
-    console.log("✅ Vendor order created:", razorpayOrder.id, "| sellerAmount:", sellerAmount);
+    console.log("✅ Razorpay order created:", razorpayOrder.id);
 
     return res.json({
       success: true,
@@ -584,7 +519,6 @@ exports.verifyRazorpayPayment = async (req, res) => {
     console.log("   orderId            :", orderId);
     console.log("   razorpay_order_id  :", razorpay_order_id);
     console.log("   razorpay_payment_id:", razorpay_payment_id);
-    console.log("   razorpay_signature :", razorpay_signature);
     console.log("   KEY_SECRET exists  :", !!process.env.RAZORPAY_KEY_SECRET);
 
     /* ── 2. VALIDATION ── */
@@ -604,7 +538,6 @@ exports.verifyRazorpayPayment = async (req, res) => {
       });
     }
 
-    // Already paid check
     if (order.paymentStatus === "Success") {
       return res.json({
         success: true,
@@ -613,7 +546,6 @@ exports.verifyRazorpayPayment = async (req, res) => {
     }
 
     /* ── 4. SIGNATURE VERIFY ── */
-    // ✅ FIX: frontend से न आए तो DB से लो
     const orderIdForSig = razorpay_order_id || order.razorpayOrderId;
 
     if (!orderIdForSig) {
@@ -650,6 +582,17 @@ exports.verifyRazorpayPayment = async (req, res) => {
 
     await order.save();
 
+    /* ── 6. VENDOR ORDER है तो transfer create करो ── */
+    // ✅ PDF Step 2: Payment capture के बाद transfer create करो on_hold: true के साथ
+    if (order.vendorId) {
+      try {
+        await createTransferForVendor(order, razorpay_payment_id);
+      } catch (transferErr) {
+        // Transfer fail होने पर order cancel मत करो — log करो
+        console.error("⚠️ Transfer creation failed:", transferErr.message);
+      }
+    }
+
     console.log("✅ Payment verified for order:", orderId);
 
     return res.json({
@@ -668,7 +611,105 @@ exports.verifyRazorpayPayment = async (req, res) => {
 };
 
 /* ===============================
+   TRANSFER CREATE FOR VENDOR
+   PDF Step 2: on_hold: true
+   Payment capture के बाद
+================================ */
+const createTransferForVendor = async (order, paymentId) => {
+  try {
+    const vendor = await Vendor.findById(order.vendorId);
+
+    if (!vendor?.razorpayAccountId) {
+      console.log("⚠️ Vendor has no razorpayAccountId:", order.vendorId);
+      return;
+    }
+
+    const productPrice  = order.amount;
+    const weight        = order.shipment?.weight || 0.5;
+    const shippingFee   = calculateShipping(weight);
+    const pgBase        = productPrice * 0.02;
+    const pgFee         = Math.round(pgBase * 1.18);
+    const sellerAmount  = Math.max(0, productPrice - shippingFee - pgFee);
+
+    if (sellerAmount <= 0) {
+      console.log("⚠️ sellerAmount is 0, skipping transfer");
+      return;
+    }
+
+    console.log("💸 Creating transfer — sellerAmount:", sellerAmount);
+
+    // ✅ PDF: Post-payment transfer via /v1/payments/{payment_id}/transfers
+    const transfer = await razorpay.payments.transfer(paymentId, {
+      transfers: [
+        {
+          account: vendor.razorpayAccountId,
+          amount: Math.round(sellerAmount * 100),
+          currency: "INR",
+          notes: {
+            order_id: order._id.toString(),
+            vendor_id: order.vendorId.toString(),
+            breakdown: "product - shipping - pg_fee",
+          },
+          on_hold: true, // ✅ PDF: Hold lagao — delivery ke 7 din baad release
+        },
+      ],
+    });
+
+    const transferId = transfer?.items?.[0]?.id;
+
+    /* ── DB UPDATE ── */
+    order.transferId      = transferId;
+    order.transferCreated = true;
+    order.vendorAmount    = sellerAmount;
+    order.platformAmount  = productPrice - sellerAmount;
+    order.payoutStatus    = "OnHold";
+
+    await order.save();
+
+    console.log("✅ Transfer created:", transferId, "| sellerAmount:", sellerAmount);
+
+  } catch (err) {
+    console.error("❌ createTransferForVendor ERROR:", err.message);
+    throw err;
+  }
+};
+
+/* ===============================
+   DELIVERY CONFIRM → 7 DAY HOLD
+   PDF Step 3: on_hold_until set करो
+================================ */
+exports.setDeliveryHold = async (order) => {
+  try {
+    if (!order.transferId) {
+      console.log("⚠️ No transferId for order:", order._id);
+      return;
+    }
+
+    // ✅ PDF: deliveredAt + 7 days का Unix timestamp
+    const releaseTime = Math.floor(
+      (new Date(order.deliveredAt).getTime() + 7 * 24 * 60 * 60 * 1000) / 1000
+    );
+
+    await razorpay.transfers.edit(order.transferId, {
+      on_hold: true,
+      on_hold_until: releaseTime, // ✅ PDF: exactly 7 din baad
+    });
+
+    order.payoutEligibleAt = new Date(releaseTime * 1000);
+    order.payoutStatus     = "OnHold";
+    await order.save();
+
+    console.log("✅ 7-day hold set for order:", order._id, "| release at:", new Date(releaseTime * 1000));
+
+  } catch (err) {
+    console.error("❌ setDeliveryHold ERROR:", err.message);
+  }
+};
+
+/* ===============================
    RELEASE PAYMENT AFTER 7 DAYS
+   PDF Step 3: Manual release
+   (Razorpay auto-release करेगा)
 ================================ */
 exports.releasePaymentAfterDelivery = async (order) => {
   try {
@@ -683,7 +724,6 @@ exports.releasePaymentAfterDelivery = async (order) => {
 
     order.payoutStatus     = "Released";
     order.payoutReleasedAt = new Date();
-
     await order.save();
 
     console.log("✅ Payout released for order:", order._id);
