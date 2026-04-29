@@ -2832,8 +2832,9 @@ exports.createParcelxOrder = async (req, res) => {
 } = req.body;
 
 // 🔥 ADD THIS LINE
-const customerId =
-  req.user?._id?.toString() || req.user?.id?.toString();
+const customerId = req.user && req.user._id
+  ? req.user._id.toString()
+  : null;
 
 if (!customerId) {
   return res.status(401).json({
