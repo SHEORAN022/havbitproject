@@ -363,7 +363,6 @@ router.post(
 // UPDATE ORDER STATUS (ADMIN)
 router.put(
   "/order/:id",
-  adminAuth,
   ctrl.updateOrderStatus
 );
 
