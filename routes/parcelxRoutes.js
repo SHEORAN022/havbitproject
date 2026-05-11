@@ -524,14 +524,14 @@ router.post(
 // ADMIN APPROVE RETURN
 router.put(
   "/approve-return/:orderId",
-  adminAuth,
+
   ctrl.approveReturn
 );
 
 // ADMIN PROCESS REFUND
 router.put(
   "/process-refund/:orderId",
-  adminAuth,
+
   ctrl.processRefund
 );
 /* ===============================
