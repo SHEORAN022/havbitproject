@@ -1,3 +1,4 @@
+
 // // const axios = require("axios");
 // // const parcelx = require("../config/parcelx");
 // // const Warehouse = require("../models/Warehouse");
@@ -426,27 +427,52 @@
 // //       order.parcelx.last_updated = new Date(currentStatus.event_date);
 
 // //       /* ================= DELIVERED ================= */
-// //  if (
+// // //  if (
+// // //   currentStatus.status_title === "delivered" &&
+// // //   order.orderStatus !== "Delivered"
+// // // ) {
+// // //   order.orderStatus = "Delivered";
+// // //   order.deliveredAt = new Date();
+
+// // //   // COD payment success
+// // //   if (order.paymentMethod === "cod") {
+// // //     order.paymentStatus = "Success";
+// // //   }
+
+// // //   // 🔥 payout date (7 days बाद)
+// // //   if (!order.payoutEligibleAt) {
+// // //     const payoutDate = new Date();
+// // //     payoutDate.setDate(payoutDate.getDate() + 7);
+// // //     order.payoutEligibleAt = payoutDate;
+// // //   }
+
+// // //   // 🔥 IMPORTANT CHANGE
+// // //   order.payoutStatus = "OnHold";
+// // // }
+// // if (
 // //   currentStatus.status_title === "delivered" &&
 // //   order.orderStatus !== "Delivered"
 // // ) {
 // //   order.orderStatus = "Delivered";
 // //   order.deliveredAt = new Date();
 
-// //   // COD payment success
 // //   if (order.paymentMethod === "cod") {
 // //     order.paymentStatus = "Success";
 // //   }
 
-// //   // 🔥 payout date (7 days बाद)
-// //   if (!order.payoutEligibleAt) {
-// //     const payoutDate = new Date();
-// //     payoutDate.setDate(payoutDate.getDate() + 7);
-// //     order.payoutEligibleAt = payoutDate;
-// //   }
-
-// //   // 🔥 IMPORTANT CHANGE
 // //   order.payoutStatus = "OnHold";
+
+// //   await order.save();
+
+// //   // ✅ PDF Step 3: Delivery confirm होने पर 7-day hold set करो
+// //   if (order.vendorId && order.transferId) {
+// //     const { setDeliveryHold } = require("./razorpay.controller");
+// //     try {
+// //       await setDeliveryHold(order);
+// //     } catch (e) {
+// //       console.error("⚠️ setDeliveryHold failed:", e.message);
+// //     }
+// //   }
 // // }
 // //       /* ================= CANCELLED ================= */
 // //       if (currentStatus.status_title === "cancelled") {
@@ -900,6 +926,80 @@
 
 
 
+
+// // exports.updateOrderStatus = async (req, res) => {
+// //   try {
+
+// //     const { id } = req.params;
+
+// //     const {
+// //       orderStatus,
+// //       deliveredAt,
+// //     } = req.body;
+
+// //     const order =
+// //       await CustomerOrder.findById(id);
+
+// //     if (!order) {
+// //       return res.status(404).json({
+// //         success: false,
+// //         message: "Order not found",
+// //       });
+// //     }
+
+// //     // UPDATE STATUS
+// //     order.orderStatus = orderStatus;
+
+// //     // DELIVERED
+// //     if (orderStatus === "Delivered") {
+
+// //       order.deliveredAt =
+// //         deliveredAt || new Date();
+
+// //       order.payoutStatus =
+// //         "OnHold";
+
+// //       // COD SUCCESS
+// //       if (
+// //         order.paymentMethod === "cod"
+// //       ) {
+// //         order.paymentStatus =
+// //           "Success";
+// //       }
+// //     }
+
+// //     // CANCELLED
+// //     if (orderStatus === "Cancelled") {
+
+// //       order.cancelledAt =
+// //         new Date();
+
+// //       order.payoutStatus =
+// //         "Pending";
+// //     }
+
+// //     await order.save();
+
+// //     return res.json({
+// //       success: true,
+// //       message:
+// //         "Order updated successfully",
+// //       order,
+// //     });
+
+// //   } catch (error) {
+
+// //     console.log(error);
+
+// //     return res.status(500).json({
+// //       success: false,
+// //       message: error.message,
+// //     });
+// //   }
+// // };
+
+
+
 // const axios = require("axios");
 // const parcelx = require("../config/parcelx");
 // const Warehouse = require("../models/Warehouse");
@@ -1144,7 +1244,9 @@
 //       qty: item.qty,
 //       price: item.price,
 //       // vendorId: vendorId || null,
-//       vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
+//       // vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
+
+//       vendorId: item.vendorId || item.vendor?._id || null,
 //     }));
 
     
@@ -1180,7 +1282,14 @@
 //    customer: customerId,
 //   // vendorId: vendorId || null,
 //   // isPublicOrder: !!isPublicOrder,
-//   vendorId: vendorId || null,
+//   // vendorId: vendorId || null,
+//   vendorId: isPublicOrder
+//   ? null
+//   : (
+//       fixedOrderItems.find((i) => i.vendorId)?.vendorId ||
+//       vendorId ||
+//       null
+//     ),
 // isPublicOrder: Boolean(isPublicOrder),
 //   orderItems: fixedOrderItems,
 //   warehouse: warehouse?._id || null,
@@ -1824,10 +1933,6 @@
 //     });
 //   }
 // };
-
-
-
-
 // exports.updateOrderStatus = async (req, res) => {
 //   try {
 
@@ -1901,14 +2006,11 @@
 
 
 
+
 const axios = require("axios");
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
 const CustomerOrder = require("../models/CustomerOrder");
-
-/* ===============================
-   CREATE WAREHOUSE
-================================ */
 exports.createWarehouse = async (req, res) => {
   try {
     const {
@@ -2173,8 +2275,13 @@ const shippingFee = calculateShipping(weight);
 const pgBase = amount * 0.02;
 const pgFee = pgBase * 1.18;
 
-// 🔥 FINAL SELLER AMOUNT
-const vendorAmount = amount - shippingFee - pgFee;
+
+// const vendorAmount = amount - shippingFee - pgFee;
+const vendorAmount =
+  Math.max(
+    0,
+    amount - shippingFee - pgFee
+  );
 
 // 🔥 PLATFORM
 const platformFeeCalc = shippingFee + pgFee;
@@ -2360,8 +2467,12 @@ exports.trackParcelxOrder = async (req, res) => {
 //   // 🔥 IMPORTANT CHANGE
 //   order.payoutStatus = "OnHold";
 // }
+
+
+
 if (
-  currentStatus.status_title === "delivered" &&
+  // currentStatus.status_title === "delivered"
+  currentStatus.status_title?.toLowerCase() === "delivered" &&
   order.orderStatus !== "Delivered"
 ) {
   order.orderStatus = "Delivered";
@@ -2371,7 +2482,7 @@ if (
     order.paymentStatus = "Success";
   }
 
-  order.payoutStatus = "OnHold";
+  // order.payoutStatus = "OnHold";
 
   await order.save();
 
@@ -2386,7 +2497,8 @@ if (
   }
 }
       /* ================= CANCELLED ================= */
-      if (currentStatus.status_title === "cancelled") {
+      // if (currentStatus.status_title === "cancelled")
+         if (currentStatus.status_title?.toLowerCase() === "cancelled") {
         order.orderStatus = "Cancelled";
         order.cancelledAt = new Date();
 
@@ -2863,8 +2975,26 @@ exports.updateOrderStatus = async (req, res) => {
       order.deliveredAt =
         deliveredAt || new Date();
 
-      order.payoutStatus =
-        "OnHold";
+      // order.payoutStatus =
+      //   "OnHold";
+
+      if (order.vendorId && order.transferId) {
+
+  const { setDeliveryHold } =
+    require("./razorpay.controller");
+
+  try {
+
+    await setDeliveryHold(order);
+
+  } catch (e) {
+
+    console.error(
+      "⚠️ setDeliveryHold failed:",
+      e.message
+    );
+  }
+}
 
       // COD SUCCESS
       if (
@@ -2905,3 +3035,450 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+exports.requestReturn = async (req, res) => {
+  try {
+
+    const {
+      orderId,
+      reason,
+    } = req.body;
+
+    const order =
+      await CustomerOrder.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (
+      order.orderStatus !== "Delivered"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Only delivered orders can be returned",
+      });
+    }
+
+
+    /* ===============================
+   CANCELLED RETURN BLOCK
+================================ */
+
+// if (
+//   order.orderStatus ===
+//   "Cancelled"
+// ) {
+//   return res.status(400).json({
+//     success: false,
+//     message:
+//       "Cancelled order cannot be returned",
+//   });
+// }
+    /* ===============================
+   DUPLICATE RETURN REQUEST BLOCK
+================================ */
+
+if (
+  order.returnRequested
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Return already requested",
+  });
+}
+
+
+if (
+  order.paymentStatus ===
+  "Refunded"
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Order already refunded",
+  });
+}
+
+    order.returnRequested = true;
+
+    order.returnReason =
+      reason || "";
+
+    order.returnStatus =
+      "Requested";
+
+    order.returnRequestedAt =
+      new Date();
+
+    await order.save();
+
+    return res.json({
+      success: true,
+      message:
+        "Return request submitted",
+      order,
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/* ===============================
+   APPROVE RETURN
+================================ */
+
+exports.approveReturn = async (req, res) => {
+  try {
+
+    const { orderId } =
+      req.params;
+
+    const order =
+      await CustomerOrder.findById(orderId);
+
+    /* ===============================
+       ORDER NOT FOUND
+    ============================== */
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    /* ===============================
+       DUPLICATE RETURN BLOCK
+    ============================== */
+
+    if (
+      order.returnStatus ===
+      "ReverseBooked"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Reverse pickup already created",
+      });
+    }
+    
+    
+if (
+  order.orderStatus !==
+  "Delivered"
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Only delivered orders can be returned",
+  });
+}
+    
+    /* ===============================
+       FORWARD AWB CHECK
+    ============================== */
+
+    if (!order.parcelx?.awb) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Forward AWB not found",
+      });
+    }
+
+    /* ===============================
+       PARCELX REVERSE ORDER
+    ============================== */
+
+    const payload = {
+      awb:
+        order.parcelx.awb.toString(),
+    };
+
+    console.log(
+      "🔁 Reverse Payload:",
+      payload
+    );
+
+    const pxRes =
+      await parcelx.post(
+        "/order/reverse_order",
+        payload
+      );
+
+    console.log(
+      "🔁 Reverse Response:",
+      pxRes.data
+    );
+
+    /* ===============================
+       REVERSE FAILED
+    ============================== */
+
+    if (
+      !pxRes?.data?.status
+    ) {
+      return res.status(500).json({
+        success: false,
+        message:
+          pxRes?.data?.message ||
+          "Reverse pickup failed",
+
+        parcelx: pxRes.data,
+      });
+    }
+
+    /* ===============================
+       SAVE REVERSE DETAILS
+    ============================== */
+
+    order.returnStatus =
+      "ReverseBooked";
+
+    order.returnApprovedAt =
+      new Date();
+
+    order.reverseAwb =
+      pxRes.data?.data?.awb_number ||
+      "";
+
+    order.reverseCourier =
+      pxRes.data?.data?.courier_name ||
+      "";
+
+    order.reverseTrackingUrl =
+      pxRes.data?.data?.tracking_url ||
+      "";
+
+    await order.save();
+
+    /* ===============================
+       SUCCESS
+    ============================== */
+
+    return res.json({
+      success: true,
+      message:
+        "Return approved successfully",
+
+      reverse_order:
+        pxRes.data,
+
+      order,
+    });
+
+  } catch (error) {
+
+    console.error(
+      "REVERSE ORDER ERROR:",
+      error.response?.data ||
+      error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Reverse order failed",
+
+      error:
+        error.response?.data ||
+        error.message,
+    });
+  }
+};
+
+/* ===============================
+   PROCESS REFUND
+================================ */
+
+exports.processRefund = async (req, res) => {
+  try {
+
+    const { orderId } =
+      req.params;
+
+    const order =
+      await CustomerOrder.findById(orderId);
+
+    /* ===============================
+       ORDER NOT FOUND
+    ============================== */
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Order not found",
+      });
+    }
+
+    /* ===============================
+       RETURN STATUS CHECK
+    ============================== */
+
+    if (
+      order.returnStatus !==
+      "ReverseBooked"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Return not approved",
+      });
+    }
+
+    /* ===============================
+       BLOCK IF PAYOUT RELEASED
+    ============================== */
+
+    if (
+      order.payoutStatus ===
+      "Released"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Vendor payout already released",
+      });
+    }
+
+    if (
+  order.paymentStatus ===
+  "Refunded"
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Refund already processed",
+  });
+}
+
+    /* ===============================
+       COD REFUND
+    ============================== */
+
+    if (
+      order.paymentMethod ===
+      "cod"
+    ) {
+
+      order.paymentStatus =
+        "Refunded";
+
+      order.returnStatus =
+        "Refunded";
+
+      order.refundStatus =
+        "Processed";
+
+      order.refundProcessedAt =
+        new Date();
+
+      order.refundAmount =
+        order.amount;
+
+      await order.save();
+
+      return res.json({
+        success: true,
+        message:
+          "COD refund marked successfully",
+
+        order,
+      });
+    }
+
+    /* ===============================
+       RAZORPAY REFUND
+    ============================== */
+
+    const Razorpay =
+      require("razorpay");
+
+    const razorpay =
+      new Razorpay({
+        key_id:
+          process.env
+            .RAZORPAY_KEY_ID,
+
+        key_secret:
+          process.env
+            .RAZORPAY_KEY_SECRET,
+      });
+
+    const refund =
+      await razorpay.payments.refund(
+        order.razorpayPaymentId,
+        {
+          amount:
+            Math.round(
+              order.amount * 100
+            ),
+        }
+      );
+
+    order.paymentStatus =
+      "Refunded";
+
+    order.returnStatus =
+      "Refunded";
+
+    order.refundStatus =
+      "Processed";
+
+    order.refundProcessedAt =
+      new Date();
+
+    order.refundAmount =
+      order.amount;
+
+    order.refundId =
+      refund.id;
+
+    await order.save();
+
+    /* ===============================
+       SUCCESS
+    ============================== */
+
+    return res.json({
+      success: true,
+      message:
+        "Refund processed successfully",
+
+      refund,
+
+      order,
+    });
+
+  } catch (error) {
+
+    console.error(
+      "REFUND ERROR:",
+      error.response?.data ||
+      error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Refund failed",
+
+      error:
+        error.response?.data ||
+        error.message,
+    });
+  }
+};
