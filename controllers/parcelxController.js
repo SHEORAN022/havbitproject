@@ -2006,7 +2006,6 @@
 
 
 
-
 const axios = require("axios");
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
