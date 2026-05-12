@@ -3900,12 +3900,9 @@ isPublicOrder: Boolean(isPublicOrder),
 
 
     order.parcelx = {
-  order_id:
-    pxRes.data.data?.order_id ||
-
-    pxRes.data.data?.shipment_id ||
-
-    "",
+order_id:
+  pxRes.data.data?.order_number ||
+  "",
 
   awb:
     pxRes.data.data?.awb_number ||
@@ -4748,42 +4745,30 @@ if (
     }
 
      
-    /* ===============================
-       PARCELX REVERSE ORDER
-    ============================== */
-
-    // const payload = {
-    //   awb:
-    //     order.parcelx.awb.toString(),
-    // };
-order.parcelx = {
+ const payload = {
 
   order_id:
-    pxRes.data.data?.order_number ||
-    "",
+    order.parcelx.order_id,
 
   awb:
-    pxRes.data.data?.awb_number ||
-    "",
-
-  courier:
-    pxRes.data.data?.courier_name ||
-    "",
-
-  status:
-    pxRes.data.data?.current_status ||
-    "",
-
-  tracking_url:
-    pxRes.data.data?.tracking_url ||
-    "",
-
-  response:
-    pxRes.data,
-
-  last_updated:
-    new Date(),
+    order.parcelx.awb.toString(),
 };
+
+console.log(
+  "🔁 Reverse Payload:",
+  payload
+);
+
+const pxRes =
+  await parcelx.post(
+    "/order/reverse_order",
+    payload
+  );
+
+console.log(
+  "🔁 Reverse Response:",
+  pxRes.data
+);
 
     /* ===============================
        REVERSE FAILED
