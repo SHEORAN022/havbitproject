@@ -4755,36 +4755,34 @@ if (
     //   awb:
     //     order.parcelx.awb.toString(),
     // };
+order.parcelx = {
 
- const payload = {
   order_id:
-    order.parcelx.order_id,
+    pxRes.data.data?.order_number ||
+    "",
 
   awb:
-    order.parcelx.awb,
+    pxRes.data.data?.awb_number ||
+    "",
+
+  courier:
+    pxRes.data.data?.courier_name ||
+    "",
+
+  status:
+    pxRes.data.data?.current_status ||
+    "",
+
+  tracking_url:
+    pxRes.data.data?.tracking_url ||
+    "",
+
+  response:
+    pxRes.data,
+
+  last_updated:
+    new Date(),
 };
-
-console.log(
-  "📦 Saved ParcelX Data:",
-  order.parcelx
-);
-
-console.log(
-  "🔁 Reverse Payload:",
-  payload
-);
-   
-
-    const pxRes =
-      await parcelx.post(
-        "/order/reverse_order",
-        payload
-      );
-
-    console.log(
-      "🔁 Reverse Response:",
-      pxRes.data
-    );
 
     /* ===============================
        REVERSE FAILED
