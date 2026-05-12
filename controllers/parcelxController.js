@@ -3505,6 +3505,7 @@
 // };
 
 
+
 const axios = require("axios");
 const parcelx = require("../config/parcelx");
 const Warehouse = require("../models/Warehouse");
@@ -3863,7 +3864,11 @@ isPublicOrder: Boolean(isPublicOrder),
 
     /* ── 6. CALL PARCELX API ── */
     const pxRes = await parcelx.post("/order/create_order", parcelxPayload);
-    console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
+    // console.log("📦 ParcelX Response:", JSON.stringify(pxRes.data));
+    console.log(
+  "📦 FULL ParcelX Response:",
+  JSON.stringify(pxRes.data, null, 2)
+);
 
     if (!pxRes?.data?.status) {
       await CustomerOrder.findByIdAndDelete(order._id);
