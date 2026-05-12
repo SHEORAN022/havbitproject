@@ -3201,11 +3201,33 @@ if (
        PARCELX REVERSE ORDER
     ============================== */
 
-    const payload = {
-      awb:
-        order.parcelx.awb.toString(),
-    };
+    // const payload = {
+    //   awb:
+    //     order.parcelx.awb.toString(),
+    // };
 
+    // console.log(
+    //   "🔁 Reverse Payload:",
+    //   payload
+    // );
+
+    // const pxRes =
+    //   await parcelx.post(
+    //     "/order/reverse_order",
+    //     payload
+    //   );
+
+    // console.log(
+    //   "🔁 Reverse Response:",
+    //   pxRes.data
+    // );
+const payload = {
+  order_id:
+    order._id.toString(),
+
+  awb:
+    order.parcelx.awb.toString(),
+};
     console.log(
       "🔁 Reverse Payload:",
       payload
