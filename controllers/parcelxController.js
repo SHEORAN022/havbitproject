@@ -3748,7 +3748,13 @@ if (!customerId) {
       // vendorId: vendorId || null,
       // vendorId: item.vendorId || (isPublicOrder ? null : vendorId),
 
-      vendorId: item.vendorId || item.vendor?._id || null,
+      // vendorId: item.vendorId || item.vendor?._id || null,
+
+      vendorId:
+  item.vendorId ||
+  item.vendor?._id ||
+  vendorId ||
+  null,
     }));
 
     
