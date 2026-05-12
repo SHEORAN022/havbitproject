@@ -302,14 +302,48 @@ const CustomerOrderSchema = new mongoose.Schema(
     },
 
     /* ================= PARCELX ================= */
+    // parcelx: {
+    //   awb: String,
+    //   courier: String,
+    //   status: String,
+    //   tracking_url: String,
+    //   response: mongoose.Schema.Types.Mixed,
+    //   last_updated: Date,
+    // },
+
+
     parcelx: {
-      awb: String,
-      courier: String,
-      status: String,
-      tracking_url: String,
-      response: mongoose.Schema.Types.Mixed,
-      last_updated: Date,
-    },
+
+  order_id: {
+    type: String,
+    default: "",
+  },
+
+  awb: {
+    type: String,
+    default: "",
+  },
+
+  courier: {
+    type: String,
+    default: "",
+  },
+
+  status: {
+    type: String,
+    default: "",
+  },
+
+  tracking_url: {
+    type: String,
+    default: "",
+  },
+
+  response:
+    mongoose.Schema.Types.Mixed,
+
+  last_updated: Date,
+},
 
     parcelxOrderCreated: {
       type: Boolean,
