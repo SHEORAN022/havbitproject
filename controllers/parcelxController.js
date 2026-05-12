@@ -4747,8 +4747,8 @@ if (
      
  const payload = {
 
-  order_id:
-    order.parcelx.order_id,
+ order_number:
+  order.parcelx.order_id,
 
   awb:
     order.parcelx.awb.toString(),
