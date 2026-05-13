@@ -6369,7 +6369,7 @@ const qs =
 const pxRes =
   await parcelx.post(
 
-    "/order/reverse_order",
+    "/reverse_order",
 
     qs.stringify(payload),
 
