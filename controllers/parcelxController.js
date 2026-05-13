@@ -6349,7 +6349,7 @@ if (
 
 const payload = {
 
-  order_id:
+  order_number:
     order.parcelx.order_id
       .toString(),
 
@@ -6358,7 +6358,7 @@ const payload = {
       .toString(),
 };
 
-     console.log(
+console.log(
   "🔁 Reverse Payload:",
   payload
 );
@@ -6369,7 +6369,7 @@ const qs =
 const pxRes =
   await parcelx.post(
 
-    "/reverse_order",
+    "/order/reverse_order",
 
     qs.stringify(payload),
 
