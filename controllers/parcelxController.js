@@ -5276,10 +5276,15 @@ if (!customerId) {
 
       // vendorId: item.vendorId || item.vendor?._id || null,
 
-      vendorId:
+  //     vendorId:
+  // item.vendorId ||
+  // item.vendor?._id ||
+  // vendorId ||
+  // null,
+
+  vendorId:
   item.vendorId ||
   item.vendor?._id ||
-  vendorId ||
   null,
     }));
 
@@ -5322,13 +5327,18 @@ order = await CustomerOrder.create({
   // vendorId: vendorId || null,
   // isPublicOrder: !!isPublicOrder,
   // vendorId: vendorId || null,
-  vendorId: isPublicOrder
-  ? null
-  : (
-      fixedOrderItems.find((i) => i.vendorId)?.vendorId ||
-      vendorId ||
-      null
-    ),
+  // vendorId: isPublicOrder
+  // ? null
+  // : (
+  //     fixedOrderItems.find((i) => i.vendorId)?.vendorId ||
+  //     vendorId ||
+  //     null
+  //   ),
+
+  vendorId:
+  fixedOrderItems.find(
+    (i) => i.vendorId
+  )?.vendorId || null,
 isPublicOrder: Boolean(isPublicOrder),
   orderItems: fixedOrderItems,
   warehouse: warehouse?._id || null,
