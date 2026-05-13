@@ -6363,10 +6363,22 @@ const payload = {
   payload
 );
 
+const qs =
+  require("querystring");
+
 const pxRes =
   await parcelx.post(
+
     "/order/reverse_order",
-    payload
+
+    qs.stringify(payload),
+
+    {
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+    }
   );
 
 console.log(
