@@ -6350,17 +6350,15 @@ if (
 const payload = {
 
   order_id:
-    order.parcelx.shipment_id ||
-
-    order.parcelx.order_id ||
-
-    order.parcelx.order_number,
+    order.parcelx.order_id
+      .toString(),
 
   awb:
-    order.parcelx.awb.toString(),
+    order.parcelx.awb
+      .toString(),
 };
 
-console.log(
+     console.log(
   "🔁 Reverse Payload:",
   payload
 );
