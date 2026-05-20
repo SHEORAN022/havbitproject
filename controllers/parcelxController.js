@@ -8433,8 +8433,12 @@ exports.processRefund = async (req, res) => {
   "Pending";
 
     await order.save();
-   
- return res.json({
+
+    /* ===============================
+       SUCCESS
+    ============================== */
+
+    return res.json({
       success: true,
       message:
         "Refund processed successfully",
