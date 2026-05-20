@@ -6922,20 +6922,56 @@ for (const item of orderItems) {
     break;
   }
 }
-    const fixedOrderItems = orderItems.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      qty: item.qty,
-      price: item.price,
+  //   const fixedOrderItems = orderItems.map((item) => ({
+  //     productId: item.productId,
+  //     productName: item.productName,
+  //     qty: item.qty,
+  //     price: item.price,
     
-  vendorId:
-  item.vendorId ||
-  item.vendor?._id ||
-  vendorId ||
-  null,
-    }));
+  // vendorId:
+  // item.vendorId ||
+  // item.vendor?._id ||
+  // vendorId ||
+  // null,
+  //   }));
 
-    
+    const fixedOrderItems =
+  orderItems.map((item) => {
+
+    const itemVendorId =
+
+      item.vendorId ||
+
+      item.vendor?._id ||
+
+      item.vendor ||
+
+      item.sellerId ||
+
+      item.seller?._id ||
+
+      vendorId ||
+
+      null;
+
+    return {
+
+      productId:
+        item.productId,
+
+      productName:
+        item.productName,
+
+      qty:
+        item.qty,
+
+      price:
+        item.price,
+
+      vendorId:
+        itemVendorId,
+    };
+});
 
 
 
@@ -8397,12 +8433,8 @@ exports.processRefund = async (req, res) => {
   "Pending";
 
     await order.save();
-
-    /* ===============================
-       SUCCESS
-    ============================== */
-
-    return res.json({
+   
+ return res.json({
       success: true,
       message:
         "Refund processed successfully",
