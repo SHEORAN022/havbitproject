@@ -616,16 +616,16 @@ const CustomerOrderSchema = new mongoose.Schema(
       //   "Picked",
       //   "Refunded",
       // ],
+ enum: [
+    "None",
+    "Requested",
+    "Approved",
+    "Rejected",
+    "ReverseBooked",
+    "Picked",
+    "Refunded",
+  ],
 
-        enum: [
-  "Pending",
-  "Initiated",
-  "Success",
-  "Failed",
-  "Refund Pending",
-  "Refunded",
-  "Cancelled",
-],
 
  
 
@@ -728,14 +728,24 @@ const CustomerOrderSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
 
-      enum: [
-        "Pending",
-        "Initiated",
-        "Success",
-        "Failed",
-        "Refunded",
-        "Cancelled",
-      ],
+      // enum: [
+      //   "Pending",
+      //   "Initiated",
+      //   "Success",
+      //   "Failed",
+      //   "Refunded",
+      //   "Cancelled",
+      // ],
+
+        enum: [
+  "Pending",
+  "Initiated",
+  "Success",
+  "Failed",
+  "Refund Pending",
+  "Refunded",
+  "Cancelled",
+],
 
       default: "Pending",
     },
