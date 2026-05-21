@@ -617,6 +617,8 @@ const CustomerOrderSchema = new mongoose.Schema(
         "Refunded",
       ],
 
+ 
+
       default: "None",
     },
 
@@ -673,16 +675,28 @@ const CustomerOrderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
 
-      enum: [
-        "Pending",
-        "Confirmed",
-        "Processing",
-        "Shipped",
-        "Delivered",
-        "Cancelled",
-        "Refunded",
-        "Return Approved",
-      ],
+      // enum: [
+      //   "Pending",
+      //   "Confirmed",
+      //   "Processing",
+      //   "Shipped",
+      //   "Delivered",
+      //   "Cancelled",
+      //   "Refunded",
+      //   "Return Approved",
+      // ],
+
+        enum: [
+  "Pending",
+  "Confirmed",
+  "Processing",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
+  "Refunded",
+  "Return Requested",
+  "Return Approved",
+],
 
       default: "Pending",
     },
