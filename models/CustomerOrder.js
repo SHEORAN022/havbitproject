@@ -607,15 +607,25 @@ const CustomerOrderSchema = new mongoose.Schema(
     returnStatus: {
       type: String,
 
-      enum: [
-        "None",
-        "Requested",
-        "Approved",
-        "Rejected",
-        "ReverseBooked",
-        "Picked",
-        "Refunded",
-      ],
+      // enum: [
+      //   "None",
+      //   "Requested",
+      //   "Approved",
+      //   "Rejected",
+      //   "ReverseBooked",
+      //   "Picked",
+      //   "Refunded",
+      // ],
+
+        enum: [
+  "Pending",
+  "Initiated",
+  "Success",
+  "Failed",
+  "Refund Pending",
+  "Refunded",
+  "Cancelled",
+],
 
  
 
